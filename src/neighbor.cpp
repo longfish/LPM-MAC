@@ -6,7 +6,7 @@
 #include "lpm.h"
 
 /* search the neighbor for the particle system, without a crack */
-void searchNormalNeighbor(struct UnitCell cell)
+void searchNormalNeighbor(UnitCell cell)
 {
 #pragma omp parallel for
     for (int i = 0; i < nparticle; i++)
@@ -46,7 +46,7 @@ void searchNormalNeighbor(struct UnitCell cell)
 }
 
 /* search the AFEM neighbors, only once before the simulation starts */
-int searchAFEMNeighbor(struct UnitCell cell)
+int searchAFEMNeighbor(UnitCell cell)
 {
     int* temp = allocInt1D(cell.nneighbors_AFEM + 1, -1);
     int** collection = allocInt2D(nparticle + 1, cell.nneighbors * cell.nneighbors, -1);

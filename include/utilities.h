@@ -4,18 +4,17 @@
 
 #include <stdio.h>
 #include "lpm.h"
-
-struct UnitCell;
+#include "unit_cell.h"
 
 // basic lpm computations
 void setTypeRect(double r0, double r1, double r2, double r3, double r4, double r5, int t);
 void setTypeCircle(double x, double y, double r, int t);
-void setTypeFullNeighbor(int k, struct UnitCell cell);
+void setTypeFullNeighbor(int k, UnitCell cell);
 void computedL();
-void computeStress(struct UnitCell cell);
-void computeStrain(struct UnitCell cell);
-void computeBondForce(struct UnitCell cell);
-void computeBondStretch(struct UnitCell cell);
+void computeStress(UnitCell cell);
+void computeStrain(UnitCell cell);
+void computeBondForce(UnitCell cell);
+void computeBondStretch(UnitCell cell);
 
 // basic operations
 int findMaxInt(int *arr, int len);

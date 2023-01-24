@@ -6,7 +6,6 @@
 
 #include "lpm.h"
 
-struct UnitCell;
 struct BondStrain
 {
     int i_index;
@@ -16,7 +15,7 @@ struct BondStrain
 
 
 /* switch the state variables from the converged one to the current one (flag=0) or vice versa (flag=1) or gather together (flag=2) */
-void switchStateV(int conv_flag, struct UnitCell cell)
+void switchStateV(int conv_flag, UnitCell cell)
 {
 
     if (conv_flag == 0)
@@ -94,7 +93,7 @@ void switchStateV(int conv_flag, struct UnitCell cell)
 }
 
 /* Incremental updating (elastic) in general and for Wei's algorithm, trial */
-void computeBondForceIncrementalUpdating(int ii, struct UnitCell cell)
+void computeBondForceIncrementalUpdating(int ii, UnitCell cell)
 {
     // create a temporary list to store particle ii and all of its neighbors ID
     int *temporary_nb = allocInt1D(nb[ii] + 1, ii);
@@ -155,7 +154,7 @@ void computeBondForceIncrementalUpdating(int ii, struct UnitCell cell)
 }
 
 /* Elastic material law */
-void computeBondForceElastic(int ii, struct UnitCell cell)
+void computeBondForceElastic(int ii, UnitCell cell)
 {
     // create a temporary list to store particle ii and all of its neighbors ID
     int *temporary_nb = allocInt1D(nb[ii] + 1, ii);
@@ -213,7 +212,7 @@ void computeBondForceElastic(int ii, struct UnitCell cell)
 }
 
 /* Energy-based return-mapping algorithm for J2 plasticity */
-void computeBondForceJ2energyReturnMap(int ii, int load_indicator, struct UnitCell cell)
+void computeBondForceJ2energyReturnMap(int ii, int load_indicator, UnitCell cell)
 {
     // create a temporary list to store particle ii and all of its neighbors ID
     int *temporary_nb = allocInt1D(nb[ii] + 1, ii);
@@ -393,7 +392,7 @@ void computeBondForceJ2energyReturnMap(int ii, int load_indicator, struct UnitCe
 }
 
 /* Elastoplastic material with a mixed linear hardening law */
-void computeBondForceJ2mixedLinear3D(int ii, struct UnitCell cell)
+void computeBondForceJ2mixedLinear3D(int ii, UnitCell cell)
 {
     // create a temporary list to store particle ii and all of its neighbors ID
     int *temporary_nb = allocInt1D(nb[ii] + 1, ii);
@@ -616,7 +615,7 @@ void computeBondForceJ2mixedLinear3D(int ii, struct UnitCell cell)
 }
 
 /* J2 plasticity using nonlinear isotropic hardening, then update damage (uncoupled) */
-void computeBondForceJ2nonlinearIso(int ii, struct UnitCell cell)
+void computeBondForceJ2nonlinearIso(int ii, UnitCell cell)
 {
     // create a temporary list to store particle ii and all of its neighbors ID
     int *temporary_nb = allocInt1D(nb[ii] + 1, ii);
@@ -793,7 +792,7 @@ void computeBondForceJ2nonlinearIso(int ii, struct UnitCell cell)
 }
 
 /* Crystalline material with plasticity, using Miehe's algorithm */
-void computeBondForceCPMiehe(int ii, struct UnitCell cell)
+void computeBondForceCPMiehe(int ii, UnitCell cell)
 {
     // create a temporary list to store particle ii and all of its neighbors ID
     int *temporary_nb = allocInt1D(nb[ii] + 1, ii);
@@ -1326,7 +1325,7 @@ void computeBondForceCPMiehe(int ii, struct UnitCell cell)
 }
 
 /* update the damage state after bonds broken */
-void updateCrack(struct UnitCell cell)
+void updateCrack(UnitCell cell)
 {
     // #pragma omp parallel for
     for (int i = 0; i < nparticle; i++)
@@ -1456,7 +1455,7 @@ int updateBrittleDamage(const char *dataName, int tstep, int nbreak)
 }
 
 /* update the damage variables for elasto-plastic materials, using CDM, average bond damage, nonlocal */
-int updateDuctileDamageBwiseNonlocal(const char *dataName, int tstep, struct UnitCell cell)
+int updateDuctileDamageBwiseNonlocal(const char *dataName, int tstep, UnitCell cell)
 {
     // unlike brittle materials, we donnot limit the broken particle number
     FILE *fpt;
@@ -1534,7 +1533,7 @@ int updateDuctileDamageBwiseNonlocal(const char *dataName, int tstep, struct Uni
 }
 
 /* update the damage variables for elasto-plastic materials, using CDM, average bond damage */
-int updateDuctileDamageBwiseLocal(const char *dataName, int tstep, struct UnitCell cell)
+int updateDuctileDamageBwiseLocal(const char *dataName, int tstep, UnitCell cell)
 {
     // unlike brittle materials, we donnot limit the broken particle number
     FILE *fpt;
@@ -1625,7 +1624,7 @@ int updateDuctileDamageBwiseLocal(const char *dataName, int tstep, struct UnitCe
 }
 
 /* update the damage variables for elasto-plastic materials, using damage accumulation laws, fix the broken particle */
-int updateDuctileDamagePwiseLocal(const char *dataName, int tstep, struct UnitCell cell)
+int updateDuctileDamagePwiseLocal(const char *dataName, int tstep, UnitCell cell)
 {
     // unlike brittle materials, we donnot limit the broken particle number
     FILE *fpt;
@@ -1684,7 +1683,7 @@ int updateDuctileDamagePwiseLocal(const char *dataName, int tstep, struct UnitCe
 
 /* update the damage variables for elasto-plastic materials, using damage accumulation laws, fix the broken particle */
 /* nonlocal */
-int updateDuctileDamagePwiseNonlocal(const char *dataName, int tstep, struct UnitCell cell)
+int updateDuctileDamagePwiseNonlocal(const char *dataName, int tstep, UnitCell cell)
 {
     // unlike brittle materials, we donnot limit the broken particle number
     FILE *fpt;
@@ -1791,7 +1790,7 @@ int updateDuctileDamagePwiseNonlocal(const char *dataName, int tstep, struct Uni
     return k;
 }
 
-void computeCab(struct UnitCell cell)
+void computeCab(UnitCell cell)
 {
     /* compute the -dRSF/dgama */
 #pragma omp parallel for

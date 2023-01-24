@@ -257,7 +257,7 @@ void writeBondstretch(const char *dataName, int step)
 }
 
 /* store the bond force information into file */
-void writeBondforce(const char *dataName, int step, struct UnitCell cell)
+void writeBondforce(const char *dataName, int step, UnitCell cell)
 {
     FILE *fpt;
     fpt = fopen(dataName, "a+");

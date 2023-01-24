@@ -1,6 +1,6 @@
 #include "lpm.h"
 
-void solverPARDISO(struct UnitCell cell)
+void solverPARDISO(UnitCell cell)
 {
     MKL_INT n, idum, maxfct, mnum, mtype, phase, error, error1, msglvl, nrhs, iter;
     MKL_INT iparm[64];
@@ -92,7 +92,7 @@ void solverPARDISO(struct UnitCell cell)
 }
 
 #if 0
-void solverCG(struct UnitCell cell)
+void solverCG(UnitCell cell)
 {
 
     MKL_INT i, n, rci_request, itercount, mkl_disable_fast_mm;
@@ -185,7 +185,7 @@ success:
 #endif
 
 #if 1
-void solverCG(struct UnitCell cell)
+void solverCG(UnitCell cell)
 {
     MKL_INT n, rci_request, itercount, mkl_disable_fast_mm;
     MKL_INT ipar[128];

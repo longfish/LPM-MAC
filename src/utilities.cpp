@@ -5,7 +5,7 @@
 #include "lpm.h"
 
 /* organize the bond force in order */
-void computeBondForce(struct UnitCell cell)
+void computeBondForce(UnitCell cell)
 {
     for (int i = 0; i < nparticle; i++)
     {
@@ -27,7 +27,7 @@ void computeBondForce(struct UnitCell cell)
     }
 }
 
-void computeBondStretch(struct UnitCell cell)
+void computeBondStretch(UnitCell cell)
 {
     for (int i = 0; i < nparticle; i++)
     {
@@ -50,7 +50,7 @@ void computeBondStretch(struct UnitCell cell)
 }
 
 /* compute the stress tensor (modified-2) */
-void computeStress(struct UnitCell cell)
+void computeStress(UnitCell cell)
 {
 #pragma omp parallel for
     for (unsigned i = 0; i < (unsigned)nparticle; i++)
@@ -124,7 +124,7 @@ void computeStress(struct UnitCell cell)
     }
 }
 
-void computeStrain(struct UnitCell cell)
+void computeStrain(UnitCell cell)
 {
     /* compute the strain tensor using weighted least squre */
     double *matrix_A = allocDouble1D(3 * (cell.dim - 1) * 3 * (cell.dim - 1), 0);
@@ -348,7 +348,7 @@ void setTypeCircle(double x, double y, double r, int t)
 }
 
 /* assign particle type as k if the neighbor list is full */
-void setTypeFullNeighbor(int k, struct UnitCell cell)
+void setTypeFullNeighbor(int k, UnitCell cell)
 {
     for (int i = 0; i < nparticle; i++)
     {

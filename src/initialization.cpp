@@ -3,89 +3,6 @@
 
 #include "lpm.h"
 
-struct UnitCell createUnitCell(int lattice, double radius)
-{
-    struct UnitCell cell;
-    cell.lattice = lattice;
-
-    if (lattice == 0) /* 2D square lattice (double layer neighbor) */
-    {
-        cell.dim = 2;
-        cell.nneighbors = 8;
-        cell.nneighbors1 = 4;
-        cell.nneighbors2 = 4;
-        cell.radius = radius;
-        cell.neighbor1_cutoff = 2.0 * radius;
-        cell.neighbor2_cutoff = 2.0 * sqrt(2.0) * radius;
-        cell.nneighbors_AFEM = 16;
-        cell.nneighbors_AFEM1 = 12;
-        cell.nneighbors_AFEM2 = 12;
-        cell.particle_volume = 4 * pow(radius, 2); /* volume (area) of unit cell */
-    }
-
-    if (lattice == 1) /* 2D hexagon lattice (double layer neighbor) */
-    {
-        cell.dim = 2;
-        cell.nneighbors = 12;
-        cell.nneighbors1 = 6;
-        cell.nneighbors2 = 6;
-        cell.nneighbors_AFEM = 30;
-        cell.nneighbors_AFEM1 = 18;
-        cell.nneighbors_AFEM2 = 18;
-        cell.radius = radius;
-        cell.neighbor1_cutoff = 2.0 * radius;
-        cell.neighbor2_cutoff = 2.0 * sqrt(3.0) * radius;
-        cell.particle_volume = 2 * sqrt(3) * pow(radius, 2); /* volume (area) of unit cell */
-    }
-
-    if (lattice == 2) /* simple cubic */
-    {
-        cell.dim = 3;
-        cell.nneighbors = 18;
-        cell.nneighbors1 = 6;
-        cell.nneighbors2 = 12;
-        cell.radius = radius;
-        cell.neighbor1_cutoff = 2.0 * radius;
-        cell.neighbor2_cutoff = 2.0 * sqrt(2.0) * radius;
-        cell.nneighbors_AFEM = 60;
-        cell.nneighbors_AFEM1 = 24;
-        cell.nneighbors_AFEM2 = 54;
-        cell.particle_volume = pow(2 * radius, 3); /* volume of unit cell */
-    }
-
-    if (lattice == 3) /* face centered cubic  */
-    {
-        cell.dim = 3;
-        cell.nneighbors = 18;
-        cell.nneighbors1 = 12;
-        cell.nneighbors2 = 6;
-        cell.radius = radius;
-        cell.neighbor1_cutoff = 2.0 * radius;
-        cell.neighbor2_cutoff = 2.0 * sqrt(2.0) * radius;
-        cell.nneighbors_AFEM = 60;
-        cell.nneighbors_AFEM1 = 54;
-        cell.nneighbors_AFEM2 = 24;
-        cell.particle_volume = 4.0 * sqrt(2.0) * pow(radius, 3); /* volume of unit cell 1, rhombic dodecahedron */
-    }
-
-    if (lattice == 4) /* body centered cubic  */
-    {
-        cell.dim = 3;
-        cell.nneighbors = 14;
-        cell.nneighbors1 = 8;
-        cell.nneighbors2 = 6;
-        cell.radius = radius;
-        cell.neighbor1_cutoff = 2.0 * radius;
-        cell.neighbor2_cutoff = 4.0 / sqrt(3.0) * radius;
-        cell.nneighbors_AFEM = 40;
-        cell.nneighbors_AFEM1 = 34;
-        cell.nneighbors_AFEM2 = 24;
-        cell.particle_volume = 32.0 * sqrt(3.0) / 9.0 * pow(radius, 3); /* volume of unit cell 1, truncated octahedron */
-    }
-
-    return cell;
-}
-
 double *createRMatrix(int eulerflag, double angles[])
 {
     /* Below notations are referred to wiki: https://en.wikipedia.org/wiki/Euler_angles */
@@ -164,7 +81,7 @@ double *createRMatrix(int eulerflag, double angles[])
     return R_matrix;
 }
 
-void createCuboid(double box[], struct UnitCell cell, double R_matrix[])
+void createCuboid(double box[], UnitCell cell, double R_matrix[])
 {
     int i, j, k, n, nparticle_t, particles_first_row, rows, layers;
     double x, y, z, a;
@@ -598,7 +515,7 @@ void createCuboid(double box[], struct UnitCell cell, double R_matrix[])
 }
 
 /* define the slip systems for crystal plasticity calculations */
-void slipSysDefine3D(struct UnitCell cell, double R_matrix[])
+void slipSysDefine3D(UnitCell cell, double R_matrix[])
 {
     if (cell.lattice == 3) /* face centered cubic  */
     {

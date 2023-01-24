@@ -8,7 +8,7 @@
 
 #include "lpm.h"
 
-void calcKnTv(int ntype, struct UnitCell cell)
+void calcKnTv(int ntype, UnitCell cell)
 {
     double **KnTve = allocDouble2D(ntype, 3, 0);
 
@@ -262,7 +262,7 @@ void calcKnTv(int ntype, struct UnitCell cell)
 }
 
 /* compute the stiffness matrix in 2D using finite difference */
-void calcStiffness2DFiniteDifference(int plmode, struct UnitCell cell)
+void calcStiffness2DFiniteDifference(int plmode, UnitCell cell)
 {
     memset(K_global, 0.0, K_pointer[nparticle][1] * sizeof(double)); /* initialization od stiffness matrix */
 
@@ -375,7 +375,7 @@ void calcStiffness2DFiniteDifference(int plmode, struct UnitCell cell)
 }
 
 /* compute the stiffness matrix in 3D using finite difference */
-void calcStiffness3DFiniteDifference(int plmode, struct UnitCell cell)
+void calcStiffness3DFiniteDifference(int plmode, UnitCell cell)
 {
     memset(K_global, 0.0, K_pointer[nparticle][1] * sizeof(double)); /* initialization od stiffness matrix */
 
@@ -510,7 +510,7 @@ void calcStiffness3DFiniteDifference(int plmode, struct UnitCell cell)
 }
 
 /* compute the residual force vector using external/internal forces, residual = F_ex - F_in */
-void updateRR(struct UnitCell cell)
+void updateRR(UnitCell cell)
 {
     int ii = 0; /* index of reaction force */
     for (int i = 0; i < nparticle; i++)

@@ -3,10 +3,9 @@
 #define SOLVER_H
 
 #include "lpm.h"
+#include "unit_cell.h"
 
-struct UnitCell;
-
-void solverPARDISO(struct UnitCell cell);
-void solverCG(struct UnitCell cell);
+void solverPARDISO(UnitCell cell);
+void solverCG(UnitCell cell);
 
 #endif

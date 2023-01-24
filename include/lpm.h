@@ -30,8 +30,10 @@
 #include "stiffness.h"
 #include "utilities.h"
 #include "constitutive.h"
+#include "unit_cell.h"
 
 #define PI 3.14159265358979323846
+#define NLAYER 2      /* number of neighbor layers */
 #define NDIM 3        /* max number of dimensions, no matter what dimension of the problem */
 #define TOL 1e-3      /* tolerance to determine whether two quantities are equal */
 #define MAXLINE 500   /* maximum line number */
@@ -68,13 +70,6 @@ struct ForceBCs
     double step3;
 };
 
-struct UnitCell{
-    int lattice, dim;
-    int nneighbors, nneighbors1, nneighbors2;
-    int nneighbors_AFEM, nneighbors_AFEM1, nneighbors_AFEM2;
-    double radius, neighbor1_cutoff, neighbor2_cutoff, particle_volume; /* volume of unit cell */
-};
-
 /* Declaration of global variables */
 /* int */
 extern int nparticle;
@@ -105,8 +100,8 @@ extern double **Kn, **Tv, **J2_alpha, **damage_local, **damage_nonlocal, **cp_A,
 extern double ***slip_vector, ***dLp, ***J2_beta, ***damage_D, ***cp_gy, ***cp_A_single;
 
 /* function prototype */
-void computeBondForceGeneral(int plmode, int temp, struct UnitCell cell);
-void initMatrices(struct UnitCell cell);
-int updateDamageGeneral(const char *dataName, int tstep, int plmode, struct UnitCell cell);
+void computeBondForceGeneral(int plmode, int temp, UnitCell cell);
+void initMatrices(UnitCell cell);
+int updateDamageGeneral(const char *dataName, int tstep, int plmode, UnitCell cell);
 
 #endif

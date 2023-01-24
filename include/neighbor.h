@@ -3,9 +3,9 @@
 #define NEIGHBOR_H
 
 #include "lpm.h"
-struct UnitCell;
+#include "unit_cell.h"
 
-void searchNormalNeighbor(struct UnitCell cell);
-int searchAFEMNeighbor(struct UnitCell cell);
+void searchNormalNeighbor(UnitCell cell);
+int searchAFEMNeighbor(UnitCell cell);
 
 #endif

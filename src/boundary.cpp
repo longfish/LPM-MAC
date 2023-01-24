@@ -9,7 +9,7 @@
    solution would not converge */
 
 /* enforcing the displacement boundary conditions */
-void setDispBC(int nboundDisp, struct DispBCs *dBP, struct UnitCell cell)
+void setDispBC(int nboundDisp, struct DispBCs *dBP, UnitCell cell)
 {
 
     int sum_dispDoF = 0;
@@ -45,7 +45,7 @@ void setDispBC(int nboundDisp, struct DispBCs *dBP, struct UnitCell cell)
 }
 
 /* enforcing the applied force boundary conditions */
-void setForceBC(int nboundForce, struct ForceBCs *fBP, struct UnitCell cell)
+void setForceBC(int nboundForce, struct ForceBCs *fBP, UnitCell cell)
 {
 
     for (int n = 0; n < nboundForce; n++)
@@ -69,7 +69,7 @@ void setForceBC(int nboundForce, struct ForceBCs *fBP, struct UnitCell cell)
     }
 }
 
-void setDispBC_stiffnessUpdate2D(struct UnitCell cell)
+void setDispBC_stiffnessUpdate2D(UnitCell cell)
 {
     /* Goal: update the stiffness matrix due to the apply of displacement boundary condition */
     /* change the DoF of disp BC into zero, insert the norm of the diagonal of the original
@@ -156,7 +156,7 @@ void setDispBC_stiffnessUpdate2D(struct UnitCell cell)
     }
 }
 
-void setDispBC_stiffnessUpdate3D(struct UnitCell cell)
+void setDispBC_stiffnessUpdate3D(UnitCell cell)
 {
     /* Goal: update the stiffness matrix due to the apply of displacement boundary condition */
     /* change the DoF of disp BC into zero, insert the norm of the diagonal of the original

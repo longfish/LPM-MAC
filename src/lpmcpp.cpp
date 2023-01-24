@@ -67,8 +67,8 @@ int main(int argc, char *argv[])
     // body-centered cubic with 2 types of slip systems -> 5
     // body-centered cubic with 3 types of slip systems -> 6
     int lattice = 2;
-    double radius = 0.2499999944120646;
-    struct UnitCell cell = createUnitCell(lattice, radius); /*lattice type is 2, simple cubic*/
+    double radius = 0.25;
+    UnitCell cell(lattice, radius); /*lattice type is 2, simple cubic*/
 
     // Euler angles setting for system rotation
     // flag is 0 ~ 2 for different conventions, (0: direct rotation; 1: Kocks convention; 2: Bunge convention)
@@ -80,6 +80,7 @@ int main(int argc, char *argv[])
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
     double box[] = {-0.2, 10.2, -0.2, 10.2, -0.2, 10.2};
+    
     createCuboid(box, cell, R_matrix);
 
     // move the particles coordinates
@@ -199,7 +200,7 @@ int main(int argc, char *argv[])
     char bforceFile[] = "result_bforce.txt";
 
     // boundary conditions and whole simulation settings
-    int n_steps = 5;           // number of loading steps
+    int n_steps = 2;           // number of loading steps
     cp_dtime = 0.01;               // time step, s
     double step_size = -2000.0; // step size for force or displacement loading
     // int n_steps = 10;        // number of loading steps
@@ -443,7 +444,7 @@ int main(int argc, char *argv[])
 /************************************************************************/
 
 /* compute the bond force and the state variables using constitutive relationship determined by plmode */
-void computeBondForceGeneral(int plmode, int t, struct UnitCell cell)
+void computeBondForceGeneral(int plmode, int t, UnitCell cell)
 {
     // double el_radius = 7.0;
     // double pc1[3] = {10.0, 13.0, 0.0}, pc2[3] = {10.0, 35.0, 0.0};
@@ -504,7 +505,7 @@ void computeBondForceGeneral(int plmode, int t, struct UnitCell cell)
 }
 
 /* update the damage variables */
-int updateDamageGeneral(const char *dataName, int tstep, int plmode, struct UnitCell cell)
+int updateDamageGeneral(const char *dataName, int tstep, int plmode, UnitCell cell)
 {
     int broken = 0;
 
@@ -522,7 +523,7 @@ int updateDamageGeneral(const char *dataName, int tstep, int plmode, struct Unit
 }
 
 /* allocate memories for some global matrices */
-void initMatrices(struct UnitCell cell)
+void initMatrices(UnitCell cell)
 {
     disp = allocDouble1D(cell.dim * nparticle, 0);        /* global displacement vector */
     xyz_initial = allocDouble2D(nparticle, NDIM, 0); /* store coordinate information as 3D */
