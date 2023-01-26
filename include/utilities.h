@@ -13,8 +13,6 @@ void setTypeFullNeighbor(int k, UnitCell cell);
 void computedL();
 void computeStress(UnitCell cell);
 void computeStrain(UnitCell cell);
-void computeBondForce(UnitCell cell);
-void computeBondStretch(UnitCell cell);
 
 // basic operations
 int findMaxInt(int *arr, int len);

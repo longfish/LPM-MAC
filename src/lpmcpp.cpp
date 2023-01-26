@@ -17,31 +17,27 @@
 /* definition of global variables */
 /* int */
 int nparticle;
-int nslip_face;
-int max_nslip_vector, nslipSys, nbreak;
+int nbreak;
 
-int *IK, *JK, *type, *dispBC_index, *fix_index, *nslip_vector, *lacknblist, *pl_flag;
-int *nb, *nb_initial, *nb_conn, *state_v;
+int *IK, *JK, *type, *dispBC_index, *fix_index, *lacknblist, *pl_flag;
+int *nb, *nb_initial, *nb_conn;
 int **neighbors, **neighbors1, **neighbors2, **neighbors_AFEM;
-int **K_pointer, **conn, **nsign, **cp_Jact;
+int **K_pointer, **conn, **nsign;
 
 /* double precision float */
-double cp_tau0[3], cp_taus[3], cp_eta, cp_p, cp_h0, cp_maxloop;
-double cp_q, cp_dtime, cp_theta, J2_H, J2_xi, J2_C, damage_L;
-double damage_threshold, damageb_A, damagec_A, critical_bstrain;
+double critical_bstrain;
 
-double *K_global, *plastic_K_global, *residual, *Pin, *Pex, *Pex_temp, *disp, *sigmay, *cp_dA;
+double *K_global, *residual, *Pin, *Pex, *Pex_temp, *disp;
 double *reaction_force, *damage_visual;
-double *J2_dlambda, *J2_stresseq, *J2_stressm, *J2_triaxiality;
 
 double **xyz, **xyz_initial, **xyz_temp, **distance, **distance_initial, **KnTve, **F, **csx, **csy, **csz;
 double **dL_total, **TdL_total, **csx_initial, **csy_initial, **csz_initial, **Ce;
-double **slip_normal, **schmid_tensor, **schmid_tensor_local, **cp_RSS, **stress_tensor;
-double **cp_Cab, **strain_tensor, **dL_ave, **ddL_total, **TddL_total, **F_temp, **ddLp;
-double **dL, **ddL, **bond_stress, **damage_broken, **damage_w, **bond_stretch, **bond_vector, **bond_force;
+double **stress_tensor;
+double **strain_tensor, **ddL_total, **TddL_total, **F_temp;
+double **dL, **ddL, **bond_stress, **damage_broken, **damage_w, **bond_vector;
 
-double **Kn, **Tv, **J2_alpha, **damage_local, **damage_nonlocal, **cp_A, **cp_dgy, **cp_dA_single, **J2_beta_eq;
-double ***slip_vector, ***dLp, ***J2_beta, ***damage_D, ***cp_gy, ***cp_A_single;
+double **Kn, **Tv;
+double ***slip_vector, ***damage_D;
 
 
 /************************************************************************/
@@ -97,7 +93,6 @@ int main(int argc, char *argv[])
     searchNormalNeighbor(cell);
     int len_K_global = searchAFEMNeighbor(cell);
 
-    //printf("Neighbor-searching finished, stiffness matrix size is %d\n", len_K_global);
 
     // assign types for particles located in different rectangular regions
     // xlo, xhi, ylo, yhi, zlo, zhi, type
@@ -133,31 +128,6 @@ int main(int argc, char *argv[])
     }
 
     // elasticity or plasticity model settings
-    // (0) stress-based J2 plasticity, mixed-linear hardening
-    // plmode = 0;
-    // sigmay = allocDouble1D(nparticle, 200); // initial yield stress, Pa
-    // J2_xi = 0.0;                            // 0 for isotropic and 1 for kinematic hardening
-    // J2_H = 38.714e3;                        // isotropic hardening modulus, Pa
-
-    // (1) rate-dependent crystal plasticity based on Miehe 2001
-    // plmode = 1;
-    // cp_maxloop = 10;                                       // maximum loop number for updating active slip systems
-    // cp_tau0[0] = 10.0, cp_tau0[1] = 0.0, cp_tau0[2] = 0.0; // tau0 for all slip systems
-    // cp_taus[0] = 25.0, cp_taus[1] = 0.0, cp_taus[2] = 0.0; // taus for all slip systems
-    // cp_h0 = 30;                                            // initial hardening modulus
-    // cp_p = 0.5;                                            // strain-rate-sensitivity exponent
-    // cp_q = 1.0;
-    // cp_eta = 1000.0; // viscosity parameter
-
-    // (3) energy-based J2 plasticity using return-mapping
-    // plmode = 3;
-    // sigmay = allocDouble1D(nparticle, 200); // initial yield stress, Pa
-    // J2_H = 38.714e3;                        // isotropic hardening modulus, Pa
-
-    // (5) stress-based ductile fracture simulation, nonlinear hardening
-    // plmode = 5;
-    // J2_C = 0.0; // kinematic hardening modulus, MPa
-
     // (6) elastic (brittle) material
     int plmode = 6;
 
@@ -166,10 +136,6 @@ int main(int argc, char *argv[])
     // damage settings
     nbreak = 20;               // limit the broken number of bonds in a single iteration, should be an even number
     critical_bstrain = 1.0e-2; // critical bond strain value at which bond will break
-    damageb_A = 10.0;          // (ductile) damage parameter for bond-based damage evolution rule (ductile fracture)
-    damagec_A = 0.0;           // (ductile) continuum damage evolution parameter, A;
-    damage_threshold = 0.9;    // damage threshold, [0, 1), particle will be frozen after reach this value
-    damage_L = 0.5;            // characteristic length for nonlocal damage
 
     // define the crack
     // defineCrack(ca1, 5. + w, ch);
@@ -201,7 +167,6 @@ int main(int argc, char *argv[])
 
     // boundary conditions and whole simulation settings
     int n_steps = 2;           // number of loading steps
-    cp_dtime = 0.01;               // time step, s
     double step_size = -2000.0; // step size for force or displacement loading
     // int n_steps = 10;        // number of loading steps
     // double step_size = -2e-3; // step size for force or displacement loading
@@ -240,11 +205,6 @@ int main(int argc, char *argv[])
     // compute necessary into before loading starts
     calcKnTv(ntype, cell);
     computedL();
-
-    // crystal lattice settings
-    slipSysDefine3D(cell, R_matrix); // define slip systems for cubic systems
-    if (lattice == 3 || lattice == 4)
-        computeCab(cell);
 
     // output files
     if (outdisp_flag)
@@ -327,8 +287,6 @@ int main(int argc, char *argv[])
         {
             printf("Step-%d, iteration-%d: ", i + 1, ++ni);
 
-            switchStateV(0, cell); // copy the last converged state variable [1] into current one [0]
-
             // time_t1 = omp_get_wtime();
             // compute the stiffness matrix, then modify it for displacement boundary condition
             if (cell.dim == 2)
@@ -370,7 +328,6 @@ int main(int argc, char *argv[])
         /* accumulate damage, and break bonds when damage reaches critical values */
         int broken_bond = updateDamageGeneral(bondFile, i + 1, plmode, cell);
         updateCrack(cell);
-        switchStateV(1, cell); // copy current state variable [0] into last converged one [1]
 
         printf("Loading step %d has finished in %d iterations\n\nData output ...\n", i + 1, ni);
 
@@ -392,12 +349,6 @@ int main(int argc, char *argv[])
                 // writeForce(forceFile, aflag, 0.3, i + 1);
             }
             writeDump(dumpFile, i + 1, dumpflag, box, plmode); /* print particle position info */
-
-            if (plmode == 1)
-            {
-                writeJact(actFile, i + 1); /* print active slip systems into file */
-                writeRSS(slipFile, i + 1);
-            }
         }
 
         // check if breakage happens, recompute stiffness matrix (this is same as a new loading step)
@@ -424,10 +375,6 @@ int main(int argc, char *argv[])
         printf("Time costed for step %d: %f seconds\n\n", i + 1, finishrun - startrun);
     }
 
-    computeBondStretch(cell);
-    computeBondForce(cell);
-    writeBondforce(bforceFile, 0, cell);
-    writeBondstretch(stretchFile, 0);
     writeNeighbor(neighborFile);
 
     double finish = omp_get_wtime();
@@ -454,44 +401,14 @@ void computeBondForceGeneral(int plmode, int t, UnitCell cell)
 #pragma omp parallel for
         for (int iID = 0; iID < nparticle; iID++)
         {
-            computeBondForceJ2mixedLinear3D(iID, cell);
-            // double disq1 = pow(xyz[iID][0] - pc1[0], 2.0) + pow(xyz[iID][1] - pc1[1], 2.0);
-            // double disq2 = pow(xyz[iID][0] - pc2[0], 2.0) + pow(xyz[iID][1] - pc2[1], 2.0);
-            // if (type[iID] >= 1 && type[iID] <= 6)
-            //     computeBondForceElastic(iID);
-            // else
-            //     computeBondForceJ2mixedLinear3D(iID);
-
-            // if ((xyz[iID][1] > 18 && xyz[iID][1] < 30) || xyz[iID][0] > 18)
-            //     computeBondForceJ2mixedLinear3D(iID);
-            // else
-            //     computeBondForceElastic(iID);
+            computeBondForceElastic(iID, cell);
         }
-    }
-    else if (plmode == 1)
-    {
-        memset(state_v, 0, nparticle * sizeof(int)); // initialize the state variables flag
-        // #pragma omp parallel for
-        for (int iID = 0; iID < nparticle; iID++)
-            computeBondForceCPMiehe(iID, cell);
-    }
-    else if (plmode == 3)
-    {
-#pragma omp parallel for
-        for (int iID = 0; iID < nparticle; iID++)
-            computeBondForceJ2energyReturnMap(iID, t, cell);
     }
     else if (plmode == 4)
     {
 #pragma omp parallel for
         for (int iID = 0; iID < nparticle; iID++)
             computeBondForceIncrementalUpdating(iID, cell);
-    }
-    else if (plmode == 5)
-    {
-#pragma omp parallel for
-        for (int iID = 0; iID < nparticle; iID++)
-            computeBondForceJ2nonlinearIso(iID, cell);
     }
     else if (plmode == 6)
     {
@@ -501,7 +418,6 @@ void computeBondForceGeneral(int plmode, int t, UnitCell cell)
     }
 
     computeStress(cell);
-    switchStateV(2, cell); // gather together the pointwise state variables
 }
 
 /* update the damage variables */
@@ -509,14 +425,7 @@ int updateDamageGeneral(const char *dataName, int tstep, int plmode, UnitCell ce
 {
     int broken = 0;
 
-    if (plmode == 0)
-        broken = updateDuctileDamagePwiseNonlocal(dataName, tstep, cell);
-    // broken = updateDuctileDamagePwiseLocal(dataName, tstep);
-    // broken = updateDuctileDamageBwiseNonlocal(dataName, tstep);
-    // broken = updateDuctileDamageBwiseLocal(dataName, tstep);
-    else if (plmode == 5)
-        broken = updateDuctileDamageBwiseLocal(dataName, tstep, cell);
-    else if (plmode == 6)
+    if (plmode == 6)
         broken = updateBrittleDamage(dataName, tstep, nbreak);
 
     return broken;
@@ -542,16 +451,11 @@ void initMatrices(UnitCell cell)
     dL = allocDouble2D(nparticle, cell.nneighbors, 0.0); /* total bond stretch */
     dL_total = allocDouble2D(nparticle, 2, 0);
     TdL_total = allocDouble2D(nparticle, 2, 0);
-    dL_ave = allocDouble2D(nparticle, cell.nneighbors, 0.); /* average bond stretch */
-    dLp = allocDouble3D(nparticle, cell.nneighbors, 3, 0.); /* total plastic bond stretch */
     ddL = allocDouble2D(nparticle, cell.nneighbors, 0.0);
     ddL_total = allocDouble2D(nparticle, 2, 0);
     TddL_total = allocDouble2D(nparticle, 2, 0);
-    ddLp = allocDouble2D(nparticle, cell.nneighbors, 0.);       /* incremental plastic bond stretch */
     bond_stress = allocDouble2D(nparticle, cell.nneighbors, 0); /* bond stress, projection of stress tensor */
-    bond_stretch = allocDouble2D(nparticle, cell.nneighbors, 0);
 
-    state_v = allocInt1D(nparticle, 0);
     pl_flag = allocInt1D(nparticle, 0); /* denote whether the plastic deformtion has been calculated, to avoid repetition */
 
     nb = allocInt1D(nparticle, -1);         /* number of normal bonds */
@@ -583,18 +487,7 @@ void initMatrices(UnitCell cell)
     damage_D = allocDouble3D(nparticle, cell.nneighbors, 2, 0.);   /* bond-associated damage parameter, initially be 0, state variable */
     damage_w = allocDouble2D(nparticle, cell.nneighbors, 1.);      /* intact parameter, apply on bond force */
     damage_visual = allocDouble1D(nparticle, 0.0);            /* damage indicator for visualization */
-    damage_local = allocDouble2D(nparticle, 2, 0.0);          /* damage variable used in continuum damage mechanics */
-    damage_nonlocal = allocDouble2D(nparticle, 2, 0.0);       /* nonlocal damage variable used in continuum damage mechanics */
 
     F = allocDouble2D(nparticle, cell.nneighbors, 0.);          /* FIJ is total bond force between I and J */
     F_temp = allocDouble2D(nparticle, cell.nneighbors, 0.);     /* F_tempIJ stores the bond force at last time step */
-    bond_force = allocDouble2D(nparticle, cell.nneighbors, 0.); /* Organized bond force in order*/
-
-    J2_beta = allocDouble3D(nparticle, 2 * NDIM, 3, 0.); /* back stress tensor */
-    J2_alpha = allocDouble2D(nparticle, 3, 0.);          /* accumulated equivalent plastic strain */
-    J2_beta_eq = allocDouble2D(nparticle, 3, 0.);        /* equivalent back stress */
-    J2_stresseq = allocDouble1D(nparticle, 0.);          /* von-Mises equivalent stress */
-    J2_stressm = allocDouble1D(nparticle, 0.);           /* hydrostatic stress */
-    J2_triaxiality = allocDouble1D(nparticle, 0.);       /* ratio of the hydrostatic stress to von-Mises equivalent stress */
-    J2_dlambda = allocDouble1D(nparticle, 0.);           /* incremental equivalent plastic strain */
 }

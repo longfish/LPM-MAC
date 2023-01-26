@@ -56,53 +56,15 @@ void writeDump(const char *dataName, int step, char flag, double box[], double p
     fprintf(fpt, "%8.8f %8.8f\n", box[2], box[3]);
     fprintf(fpt, "%8.8f %8.8f\n", box[4], box[5]);
 
-    if (plmode == 1)
-    {
-        fprintf(fpt, "ITEM: ATOMS id type x y z dx dy dz s11 s22 s33 s23 s13 s12 gam11 gam12 gam13 gam14 gam21 gam22 gam23 gam24 pl gam_total\n");
-        for (int i = 0; i < nparticle; i++)
-        {
-            fprintf(fpt, "%d %d %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %d %.4e\n", i, type[i],
-                    xyz[i][0], xyz[i][1], xyz[i][2], xyz[i][0] - xyz_initial[i][0], xyz[i][1] - xyz_initial[i][1], xyz[i][2] - xyz_initial[i][2],
-                    stress_tensor[i][0], stress_tensor[i][1], stress_tensor[i][2], stress_tensor[i][3], stress_tensor[i][4], stress_tensor[i][5],
-                    cp_A_single[i][1][0], cp_A_single[i][4][0], cp_A_single[i][10][0], cp_A_single[i][19][0],
-                    cp_A_single[i][9][0], cp_A_single[i][14][0], cp_A_single[i][17][0], cp_A_single[i][22][0], pl_flag[i], cp_A[i][0]);
-        }
-    }
-    else
-    {
-        fprintf(fpt, "ITEM: ATOMS id type x y z dx dy dz s11 s22 s33 s23 s13 s12 stress_eq strain_eq stress_m stress_tri damage_local damage_nonlocal pl damage\n");
-        for (int i = 0; i < nparticle; i++)
-        {
-            fprintf(fpt, "%d %d %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %d %.4e\n", i, type[i],
-                    xyz[i][0], xyz[i][1], xyz[i][2], xyz[i][0] - xyz_initial[i][0], xyz[i][1] - xyz_initial[i][1], xyz[i][2] - xyz_initial[i][2],
-                    stress_tensor[i][0], stress_tensor[i][1], stress_tensor[i][2], stress_tensor[i][3], stress_tensor[i][4], stress_tensor[i][5],
-                    J2_stresseq[i], J2_alpha[i][0], J2_stressm[i], J2_triaxiality[i], damage_local[i][0], damage_nonlocal[i][0], pl_flag[i], damage_visual[i]);
-        }
-    }
-
-    fclose(fpt);
-}
-
-/* store the slip information into file */
-void writeRSS(const char *dataName, int step)
-{
-    FILE *fpt = fopen(dataName, "a+");
-    fprintf(fpt, "TIMESTEP ");
-    fprintf(fpt, "%d\n", step);
-    fprintf(fpt, "id type ");
-    for (int i = 0; i < nslipSys; i++)
-        fprintf(fpt, "slip%u ", i + 1);
-
-    fprintf(fpt, "\n");
+    fprintf(fpt, "ITEM: ATOMS id type x y z dx dy dz s11 s22 s33 s23 s13 s12 damage\n");
     for (int i = 0; i < nparticle; i++)
     {
-        fprintf(fpt, "%u %d ", i, type[i]);
-
-        for (int j = 0; j < nslipSys; j++)
-            fprintf(fpt, "%.6e ", cp_RSS[i][j]); // cp_RSS[i][j] OR dcp_RSS[i][j]
-
-        fprintf(fpt, "\n");
+        fprintf(fpt, "%d %d %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e\n", i, type[i],
+                xyz[i][0], xyz[i][1], xyz[i][2], xyz[i][0] - xyz_initial[i][0], xyz[i][1] - xyz_initial[i][1], xyz[i][2] - xyz_initial[i][2],
+                stress_tensor[i][0], stress_tensor[i][1], stress_tensor[i][2], stress_tensor[i][3], stress_tensor[i][4], stress_tensor[i][5],
+                damage_visual[i]);
     }
+
     fclose(fpt);
 }
 
@@ -160,29 +122,6 @@ void writeStrain(const char *dataName, int t1, int tstep)
     fclose(fpt);
 }
 
-// write out the Cab matrix for particle ii for a time step
-void writeCab(const char *dataName, int ii)
-{
-    FILE *fpt;
-    fpt = fopen(dataName, "a+");
-
-    fprintf(fpt, "Particle ID: %d\n", ii);
-
-    /* m is the alpha slip system */
-    for (int m = 0; m < nslipSys; m++)
-    {
-        /* n is the beta slip system */
-        for (int n = 0; n < nslipSys; n++)
-        {
-            fprintf(fpt, "%.4e ", cp_Cab[ii][m * nslipSys + n]);
-        }
-        fprintf(fpt, "\n");
-    }
-    fprintf(fpt, "\n");
-
-    fclose(fpt);
-}
-
 void writeInternalForce(const char *dataName, int step)
 {
     FILE *fpt = fopen(dataName, "a+");
@@ -204,73 +143,6 @@ void writeInternalForce(const char *dataName, int step)
         fprintf(fpt, "%u %d %.6e %.6e %.6e\n", ii, type[ii], fx, fy, fz);
     }
 
-    fclose(fpt);
-}
-
-/* output the active slip systems */
-void writeJact(const char *dataName, int step)
-{
-    FILE *fpt;
-    fpt = fopen(dataName, "a+");
-
-    fprintf(fpt, "timestep ");
-    fprintf(fpt, "%d\n", step);
-    fprintf(fpt, "id type actived_slip_systems\n");
-
-    for (int ii = 0; ii < nparticle; ii++)
-    {
-        fprintf(fpt, "%u %d ", ii, type[ii]);
-        for (int m = 0; m < nslipSys; m++)
-        {
-            if (cp_Jact[ii][m] == 1)
-                fprintf(fpt, "%d ", m);
-        }
-        fprintf(fpt, "\n");
-    }
-    fclose(fpt);
-}
-
-/* store the bond length change information into file */
-void writeBondstretch(const char *dataName, int step)
-{
-    FILE *fpt;
-    fpt = fopen(dataName, "a+");
-    fprintf(fpt, "TIMESTEP ");
-    fprintf(fpt, "%d\n", step);
-
-    // for (int i = 0; i < nparticle; i++)
-    // {
-    //     fprintf(fpt, "%d %d ", i, type[i]);
-    //     for (int m = 0; m < nneighbors; m++)
-    //         fprintf(fpt, "%.4e ", bond_stretch[i][m]);
-    //     fprintf(fpt, "\n");
-    // }
-    for (int i = 0; i < nparticle; i++)
-    {
-        fprintf(fpt, "%d %d ", i, type[i]);
-        for (int m = 0; m < nb_initial[i]; m++)
-            fprintf(fpt, "%.4e ", dL[i][m] / distance_initial[i][m]);
-        fprintf(fpt, "\n");
-    }
-
-    fclose(fpt);
-}
-
-/* store the bond force information into file */
-void writeBondforce(const char *dataName, int step, UnitCell cell)
-{
-    FILE *fpt;
-    fpt = fopen(dataName, "a+");
-    fprintf(fpt, "TIMESTEP ");
-    fprintf(fpt, "%d\n", step);
-
-    for (int i = 0; i < nparticle; i++)
-    {
-        fprintf(fpt, "%d %d ", i, type[i]);
-        for (int m = 0; m < cell.nneighbors; m++)
-            fprintf(fpt, "%.4e ", bond_force[i][m]);
-        fprintf(fpt, "\n");
-    }
     fclose(fpt);
 }
 
@@ -348,7 +220,7 @@ void writeForce(const char *dataname, char c, double p, int tstep, double box[])
     {
         if (c == 'x')
         {
-            if (xyz_initial[i][0] < box[0] + p * (box[1]-box[0]))
+            if (xyz_initial[i][0] < box[0] + p * (box[1] - box[0]))
             {
                 temp_BC[nbd] = i;
                 nbd += 1;
@@ -356,7 +228,7 @@ void writeForce(const char *dataname, char c, double p, int tstep, double box[])
         }
         else if (c == 'y')
         {
-            if (xyz_initial[i][1] < box[2] + p * (box[3]-box[2]))
+            if (xyz_initial[i][1] < box[2] + p * (box[3] - box[2]))
             {
                 temp_BC[nbd] = i;
                 nbd += 1;
@@ -364,7 +236,7 @@ void writeForce(const char *dataname, char c, double p, int tstep, double box[])
         }
         else if (c == 'z')
         {
-            if (xyz_initial[i][2] < box[4] + p * (box[5]-box[4]))
+            if (xyz_initial[i][2] < box[4] + p * (box[5] - box[4]))
             {
                 temp_BC[nbd] = i;
                 nbd += 1;
@@ -400,22 +272,6 @@ void writeK_global(const char *dataName, int l)
     for (int i = 0; i < l; i++)
     {
         fprintf(fpt, " %.5e\n", K_global[i]);
-    }
-
-    fclose(fpt);
-}
-
-/* write the plasticity multiplier array into file, from m to n (not included) indices */
-void writeDlambda(const char *dataName, int m, int n, int globalStep, int iterStep)
-{
-    FILE *fpt;
-    fpt = fopen(dataName, "a+");
-    fprintf(fpt, "Step (Global-Iteration) ");
-    fprintf(fpt, "%d-%d\n", globalStep, iterStep);
-
-    for (int i = m; i < n; i++)
-    {
-        fprintf(fpt, "%d %.4e %.4e %.4e\n", i, J2_dlambda[i], J2_alpha[i][0], J2_alpha[i][1]);
     }
 
     fclose(fpt);

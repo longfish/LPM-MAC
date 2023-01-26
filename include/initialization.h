@@ -15,6 +15,5 @@ void removeBlock(double r0, double r1, double r2, double r3, double r4, double r
 void removeRingz(double *pc, double R, double r);
 void createCrack(double a1, double a2, double w, double h);
 void defineCrack(double a1, double a2, double h);
-void slipSysDefine3D(UnitCell cell, double R_matrix[]);
 
 #endif

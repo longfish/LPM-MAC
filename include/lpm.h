@@ -49,9 +49,6 @@
 #define MIN(x, y) ((x) > (y) ? (y) : (x))       /* Minimum of two variables */
 #define SIGN(x) ((x) < (0) ? (-1.0) : (1))      /* Sign of variable, zero is considered as positive */
 
-#define SY(x) (620.0 + 3300.0 * (1.0 - exp(-0.4 * x)))                                       /* isotropic hardening function for J2 plasticity, MPa */
-#define DAM_PHI(x) (1.0 / damage_L / sqrt(2 * PI) * exp(-0.5 * x * x / damage_L / damage_L)) /* nonlocal helper function for damage accumulation */
-
 struct DispBCs
 {
     int type;
@@ -73,31 +70,27 @@ struct ForceBCs
 /* Declaration of global variables */
 /* int */
 extern int nparticle;
-extern int nslip_face;
-extern int max_nslip_vector, nslipSys, nbreak;
+extern int nbreak;
 
-extern int *IK, *JK, *type, *dispBC_index, *fix_index, *nslip_vector, *lacknblist, *pl_flag;
-extern int *nb, *nb_initial, *nb_conn, *state_v;
+extern int *IK, *JK, *type, *dispBC_index, *fix_index, *lacknblist, *pl_flag;
+extern int *nb, *nb_initial, *nb_conn;
 extern int **neighbors, **neighbors1, **neighbors2, **neighbors_AFEM;
-extern int **K_pointer, **conn, **nsign, **cp_Jact;
+extern int **K_pointer, **conn, **nsign;
 
 /* double precision float */
-extern double cp_tau0[3], cp_taus[3], cp_eta, cp_p, cp_h0, cp_maxloop;
-extern double cp_q, cp_dtime, cp_theta, J2_H, J2_xi, J2_C, damage_L;
-extern double damage_threshold, damageb_A, damagec_A, critical_bstrain;
+extern double critical_bstrain;
 
-extern double *K_global, *plastic_K_global, *residual, *Pin, *Pex, *Pex_temp, *disp, *sigmay, *cp_dA;
+extern double *K_global, *residual, *Pin, *Pex, *Pex_temp, *disp;
 extern double *reaction_force, *damage_visual;
-extern double *J2_dlambda, *J2_stresseq, *J2_stressm, *J2_triaxiality;
 
 extern double **xyz, **xyz_initial, **xyz_temp, **distance, **distance_initial, **F, **csx, **csy, **csz;
 extern double **dL_total, **TdL_total, **csx_initial, **csy_initial, **csz_initial, **Ce;
-extern double **slip_normal, **schmid_tensor, **schmid_tensor_local, **cp_RSS, **stress_tensor;
-extern double **cp_Cab, **strain_tensor, **dL_ave, **ddL_total, **TddL_total, **F_temp, **ddLp;
-extern double **dL, **ddL, **bond_stress, **damage_broken, **damage_w, **bond_stretch, **bond_vector, **bond_force;
+extern double **stress_tensor;
+extern double **strain_tensor, **ddL_total, **TddL_total, **F_temp;
+extern double **dL, **ddL, **bond_stress, **damage_broken, **damage_w, **bond_vector;
 
-extern double **Kn, **Tv, **J2_alpha, **damage_local, **damage_nonlocal, **cp_A, **cp_dgy, **cp_dA_single, **J2_beta_eq;
-extern double ***slip_vector, ***dLp, ***J2_beta, ***damage_D, ***cp_gy, ***cp_A_single;
+extern double **Kn, **Tv;
+extern double ***slip_vector, ***damage_D;
 
 /* function prototype */
 void computeBondForceGeneral(int plmode, int temp, UnitCell cell);

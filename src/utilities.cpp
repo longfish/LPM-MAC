@@ -4,51 +4,6 @@
 
 #include "lpm.h"
 
-/* organize the bond force in order */
-void computeBondForce(UnitCell cell)
-{
-    for (int i = 0; i < nparticle; i++)
-    {
-        for (int k = 0; k < cell.nneighbors; k++)
-        {
-            for (int j = 0; j < nb_initial[i]; j++)
-            {
-                double p[3] = {csx[i][j] - bond_vector[k][0],
-                               csy[i][j] - bond_vector[k][1],
-                               csz[i][j] - bond_vector[k][2]};
-                double pnrm = cblas_dnrm2(3, p, 1); // Euclidean norm
-                if (pnrm < TOL)
-                {
-                    bond_force[i][k] = F[i][j];
-                    break;
-                }
-            }
-        }
-    }
-}
-
-void computeBondStretch(UnitCell cell)
-{
-    for (int i = 0; i < nparticle; i++)
-    {
-        for (int k = 0; k < cell.nneighbors; k++)
-        {
-            for (int j = 0; j < nb_initial[i]; j++)
-            {
-                double p[3] = {csx[i][j] - bond_vector[k][0],
-                               csy[i][j] - bond_vector[k][1],
-                               csz[i][j] - bond_vector[k][2]};
-                double pnrm = cblas_dnrm2(3, p, 1); // Euclidean norm
-                if (pnrm < TOL)
-                {
-                    bond_stretch[i][k] = dL[i][j] / distance_initial[i][j];
-                    break;
-                }
-            }
-        }
-    }
-}
-
 /* compute the stress tensor (modified-2) */
 void computeStress(UnitCell cell)
 {
@@ -97,19 +52,6 @@ void computeStress(UnitCell cell)
             stress_tensor[i][4] += opp_flag / cell.particle_volume * distance_initial[i][j] * F[i][j] * csx[i][j] * csz[i][j];
             stress_tensor[i][5] += opp_flag / cell.particle_volume * distance_initial[i][j] * F[i][j] * csx[i][j] * csy[i][j];
         }
-
-        J2_stresseq[i] = 0.0;
-        for (int j = 0; j < 2 * NDIM; j++)
-        {
-            if (j < NDIM)
-                J2_stresseq[i] += stress_tensor[i][j] * stress_tensor[i][j]; // s11, s22, s33
-            else
-                J2_stresseq[i] += 2.0 * stress_tensor[i][j] * stress_tensor[i][j]; // s23, s13, s12
-        }
-        J2_stresseq[i] = sqrt(3.0 / 2.0 * J2_stresseq[i]);
-        J2_stressm[i] = 1.0 / 3.0 * (stress_tensor[i][0] + stress_tensor[i][1] + stress_tensor[i][2]);
-        if (J2_stresseq[i] > EPS)
-            J2_triaxiality[i] = J2_stressm[i] / J2_stresseq[i];
 
         /* compute bond stress (even the bond has broken) */
         for (int j = 0; j < nb_initial[i]; j++)
@@ -273,7 +215,6 @@ void computedL()
                                   pow(xyz[i][2] - xyz_j[2], 2));
 
             dL[i][j] = distance[i][j] - distance_initial[i][j];
-            dL[i][j] -= dLp[i][j][0]; /* update the elastic bond stretch */
 
             dL_total[i][nsign[i][j]] += dL[i][j];
             TdL_total[i][nsign[i][j]] += Tv[i][j] * dL[i][j];
