@@ -291,14 +291,6 @@ void createCuboid(double box[], UnitCell cell, double R_matrix[])
         }
 
         freeDouble2D(xyz_t, nparticle_t);
-
-        // define the bond vectors
-        double ref_bond_vectorLocal[18][3] = {
-            {1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {-1, 0, 0}, {0, -1, 0}, {0, 0, -1}, {1 / sqrt(2), 1 / sqrt(2), 0}, {1 / sqrt(2), 0, 1 / sqrt(2)}, {0, 1 / sqrt(2), 1 / sqrt(2)}, {-1 / sqrt(2), -1 / sqrt(2), 0}, {-1 / sqrt(2), 0, -1 / sqrt(2)}, {0, -1 / sqrt(2), -1 / sqrt(2)}, {1 / sqrt(2), -1 / sqrt(2), 0}, {1 / sqrt(2), 0, -1 / sqrt(2)}, {0, 1 / sqrt(2), -1 / sqrt(2)}, {-1 / sqrt(2), 1 / sqrt(2), 0}, {-1 / sqrt(2), 0, 1 / sqrt(2)}, {0, -1 / sqrt(2), 1 / sqrt(2)}};
-
-        bond_vector = allocDouble2D(cell.nneighbors, cell.dim, 0);
-        for (i = 0; i < cell.nneighbors; i++)
-            cblas_dgemv(layout, trans, 3, 3, blasAlpha, R_matrix, lda, ref_bond_vectorLocal[i], incx, blasBeta, bond_vector[i], incy);
     }
 
     if (cell.lattice == 3) /* face centered cubic  */

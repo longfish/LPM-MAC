@@ -19,9 +19,10 @@
 int nparticle;
 int nbreak;
 
-int *IK, *JK, *type, *dispBC_index, *fix_index, *lacknblist, *pl_flag;
+MKL_INT *IK, *JK;
+int *type, *dispBC_index, *fix_index, *pl_flag;
 int *nb, *nb_initial, *nb_conn;
-int **neighbors, **neighbors1, **neighbors2, **neighbors_AFEM;
+int **neighbors, **neighbors1, **neighbors2;
 int **K_pointer, **conn, **nsign;
 
 /* double precision float */
@@ -34,11 +35,15 @@ double **xyz, **xyz_initial, **xyz_temp, **distance, **distance_initial, **KnTve
 double **dL_total, **TdL_total, **csx_initial, **csy_initial, **csz_initial, **Ce;
 double **stress_tensor;
 double **strain_tensor, **ddL_total, **TddL_total, **F_temp;
-double **dL, **ddL, **bond_stress, **damage_broken, **damage_w, **bond_vector;
+double **dL, **ddL, **bond_stress, **damage_broken, **damage_w;
 
 double **Kn, **Tv;
-double ***slip_vector, ***damage_D;
+double ***damage_D;
 
+/* function prototype */
+void computeBondForceGeneral(int plmode, int temp, UnitCell cell);
+void initMatrices(UnitCell cell);
+int updateDamageGeneral(const char *dataName, int tstep, int plmode, UnitCell cell);
 
 /************************************************************************/
 /****************************** Main procedure **************************/
@@ -46,11 +51,11 @@ double ***slip_vector, ***damage_D;
 int main(int argc, char *argv[])
 {
     printf("\n==================================================\n");
-    printf("            Nonlocal LPM Program in C             \n");
+    printf("            Nonlocal C++ LPM Program              \n");
     printf("==================================================\n");
 
     const int nt = omp_get_max_threads(); /* maximum number of threads provided by the computer */
-    const int nt_force = 2;               /* number of threads for general force calculation */
+    const int nt_force = 3;               /* number of threads for general force calculation */
 
     omp_set_num_threads(nt);
     printf("OpenMP with %d/%d threads for bond force calculation\n", nt_force, nt);
@@ -177,15 +182,6 @@ int main(int argc, char *argv[])
     struct ForceBCs fBP[MAXLINE][MAXSMALL] = {0};
     int load_indicator[MAXLINE] = {0}; // tension (1) or compressive (-1) loading condition for uniaxial loading
 
-    // displace boundary conditions
-    // for (int i = 0; i < n_steps; i++)
-    // {
-    //     nbd = 0;
-    //     load_indicator[i] = 1;
-    //     dBP[i][nbd].type = 1, dBP[i][nbd].flag = 'z', dBP[i][nbd++].step = 0.0;
-    //     dBP[i][nbd].type = 2, dBP[i][nbd].flag = 'z', dBP[i][nbd++].step = step_size;
-    // }
-
     // force boundary conditions
     for (int i = 0; i < n_steps; i++)
     {
@@ -221,20 +217,6 @@ int main(int argc, char *argv[])
         // writeForce(forceFile, aflag, 0.3, 0); // lower half body force
     }
     writeDump(dumpFile, 0, dumpflag, box, plmode);
-
-    // writeCab(cabFile, 0);
-    // writeCab(cabFile, 288);
-    // writeCab(cabFile, 4227);
-    // writeCab(cabFile, 4228);
-    // writeCab(cabFile, 4229);
-
-    // compute the elastic stiffness matrix
-    // omp_set_num_threads(nt_force);
-    // if (dim == 2)
-    //     calcStiffness2DFiniteDifference(6);
-    // else if (dim == 3)
-    //     calcStiffness3DFiniteDifference(6);
-    // omp_set_num_threads(nt);
 
     // omp_set_num_threads(nt_force);
     double initrun = omp_get_wtime();
@@ -456,8 +438,6 @@ void initMatrices(UnitCell cell)
     TddL_total = allocDouble2D(nparticle, 2, 0);
     bond_stress = allocDouble2D(nparticle, cell.nneighbors, 0); /* bond stress, projection of stress tensor */
 
-    pl_flag = allocInt1D(nparticle, 0); /* denote whether the plastic deformtion has been calculated, to avoid repetition */
-
     nb = allocInt1D(nparticle, -1);         /* number of normal bonds */
     nb_initial = allocInt1D(nparticle, -1); /* initial number of normal bonds */
     nb_conn = allocInt1D(nparticle, -1);    /* number of connections, including itself */
@@ -473,8 +453,10 @@ void initMatrices(UnitCell cell)
     Pin = allocDouble1D(NDIM * nparticle, 0);      /* total internal force, fixed 3 dimension */
     Pex = allocDouble1D(cell.dim * nparticle, 0);       /* total external force */
     Pex_temp = allocDouble1D(cell.dim * nparticle, 0);  /* temp external force */
+
     dispBC_index = allocInt1D(cell.dim * nparticle, 1); /* disp info for each degree of freedom, 0 as being applied disp BC */
     fix_index = allocInt1D(cell.dim * nparticle, 1);    /* fix info for each degree of freedom, 0 as being fixed */
+    pl_flag = allocInt1D(nparticle, 0); /* denote whether the plastic deformtion has been calculated, to avoid repetition */
 
     Kn = allocDouble2D(nparticle, cell.nneighbors, 0.0);
     Tv = allocDouble2D(nparticle, cell.nneighbors, 0.0);

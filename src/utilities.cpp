@@ -309,6 +309,16 @@ int *allocInt1D(int num, int a)
     return res;
 }
 
+MKL_INT *allocMKLInt1D(int num, int a)
+{
+    MKL_INT *res = (MKL_INT *)malloc(sizeof(MKL_INT) * num);
+
+    for (int i = 0; i < num; i++)
+        res[i] = a;
+
+    return res;
+}
+
 double *allocDouble1D(int num, double a)
 {
     double *res = (double *)malloc(sizeof(double) * num);

@@ -6,7 +6,7 @@ A multi-threaded implementation of a nonlocal lattice particle method (LPM) usin
 ## Prerequisites
 - Linux operating system (also work in Windows or other systems, but require other Integrated Development Environment like [Visual Studio](https://visualstudio.microsoft.com/))
 - Editor (such as VS Code)
-- CMake version 13+
+- CMake version 3.25+
 
 ## Building instructions
 
@@ -20,8 +20,9 @@ A multi-threaded implementation of a nonlocal lattice particle method (LPM) usin
 ### Compile and run LPM-CPP
 1. Clone the project source files into your own machine: `git clone https://github.com/longfish/LPM-CPP.git` 
 2. `mkdir build & cd build`
-3. `cmake .. -G "Ninja" -DMKL_INTERFACE=lp64 -DCMAKE_BUILD_TYPE=Release ` # change to *Debug* from *Release* if needed
-4. `cmake --build . -j 8`
+3. `source /opt/intel/oneapi/setvars.sh linux64 `
+4. `cmake .. -G "Ninja" -DMKL_INTERFACE=ilp64 -DCMAKE_BUILD_TYPE=Release ` # change to *Debug* from *Release* if needed
+5. `cmake --build . -j 8`
 
 ### Run the code
 `./lpmcpp`

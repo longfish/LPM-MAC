@@ -49,7 +49,7 @@ void solverPARDISO(UnitCell cell)
     PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, K_global, IK, JK, &idum, &nrhs, iparm, &msglvl, &ddum, &ddum, &error);
     if (error != 0)
     {
-        printf("\nERROR during symbolic factorization: %d", error);
+        printf("\nERROR during symbolic factorization: " IFORMAT, error);
         exit(1);
     }
     //printf("PARDISO: Size of factors(MB): %f", MAX(iparm[14], iparm[15] + iparm[16]) / 1000.0);
@@ -60,7 +60,7 @@ void solverPARDISO(UnitCell cell)
     PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, K_global, IK, JK, &idum, &nrhs, iparm, &msglvl, &ddum, &ddum, &error);
     if (error != 0)
     {
-        printf("\nERROR during numerical factorization: %d", error);
+        printf("\nERROR during numerical factorization: " IFORMAT, error);
         exit(2);
     }
 
@@ -69,17 +69,17 @@ void solverPARDISO(UnitCell cell)
     PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, K_global, IK, JK, &idum, &nrhs, iparm, &msglvl, residual, disp, &error);
     if (error != 0)
     {
-        printf("\nERROR during solution: %d", error);
+        printf("\nERROR during solution: " IFORMAT, error);
         exit(3);
     }
-    printf("\nSolve completed at iteration: %d\n", iter);
+    printf("\nSolve completed at iteration: " IFORMAT "\n" , iter);
 
     /* Termination and release of memory */
     phase = -1; /* Release internal memory. */
     PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, &ddum, IK, JK, &idum, &nrhs, iparm, &msglvl, &ddum, &ddum, &error1);
     if (error1 != 0)
     {
-        printf("\nERROR on release stage: %d", error1);
+        printf("\nERROR on release stage: " IFORMAT, error1);
         exit(4);
     }
 
@@ -251,11 +251,11 @@ rci:
     /* Get the current iteration number into itercount                           */
 getsln:
     dcg_get(&n, disp, residual, &rci_request, ipar, dpar, tmp, &itercount);
-    printf("The system has been solved after %d iterations\n", itercount);
+    printf("The system has been solved after " IFORMAT " iterations\n", itercount);
     goto success;
 
 failure:
-    printf("The computation FAILED as the solver has returned the ERROR code %d\n", rci_request);
+    printf("The computation FAILED as the solver has returned the ERROR code " IFORMAT "\n", rci_request);
 
 success:
 

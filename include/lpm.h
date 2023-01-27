@@ -32,8 +32,14 @@
 #include "constitutive.h"
 #include "unit_cell.h"
 
+// Define the format to printf MKL_INT values
+#ifndef MKL_ILP64
+#define IFORMAT "%i"
+#else
+#define IFORMAT "%lli"
+#endif
+
 #define PI 3.14159265358979323846
-#define NLAYER 2      /* number of neighbor layers */
 #define NDIM 3        /* max number of dimensions, no matter what dimension of the problem */
 #define TOL 1e-3      /* tolerance to determine whether two quantities are equal */
 #define MAXLINE 500   /* maximum line number */
@@ -72,9 +78,10 @@ struct ForceBCs
 extern int nparticle;
 extern int nbreak;
 
-extern int *IK, *JK, *type, *dispBC_index, *fix_index, *lacknblist, *pl_flag;
+extern MKL_INT *IK, *JK;
+extern int *type, *dispBC_index, *fix_index, *pl_flag;
 extern int *nb, *nb_initial, *nb_conn;
-extern int **neighbors, **neighbors1, **neighbors2, **neighbors_AFEM;
+extern int **neighbors, **neighbors1, **neighbors2;
 extern int **K_pointer, **conn, **nsign;
 
 /* double precision float */
@@ -87,14 +94,9 @@ extern double **xyz, **xyz_initial, **xyz_temp, **distance, **distance_initial, 
 extern double **dL_total, **TdL_total, **csx_initial, **csy_initial, **csz_initial, **Ce;
 extern double **stress_tensor;
 extern double **strain_tensor, **ddL_total, **TddL_total, **F_temp;
-extern double **dL, **ddL, **bond_stress, **damage_broken, **damage_w, **bond_vector;
+extern double **dL, **ddL, **bond_stress, **damage_broken, **damage_w;
 
 extern double **Kn, **Tv;
-extern double ***slip_vector, ***damage_D;
-
-/* function prototype */
-void computeBondForceGeneral(int plmode, int temp, UnitCell cell);
-void initMatrices(UnitCell cell);
-int updateDamageGeneral(const char *dataName, int tstep, int plmode, UnitCell cell);
+extern double ***damage_D;
 
 #endif

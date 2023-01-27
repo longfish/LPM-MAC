@@ -129,8 +129,8 @@ int searchAFEMNeighbor(UnitCell cell)
             K_pointer[i + 1][1] = K_pointer[i][1] + cell.dim * cell.dim * index1 - 3;
     }
 
-    JK = allocInt1D(K_pointer[nparticle][1], -1);
-    IK = allocInt1D(cell.dim * nparticle + 1, -1);
+    JK = allocMKLInt1D(K_pointer[nparticle][1], -1);
+    IK = allocMKLInt1D(cell.dim * nparticle + 1, -1);
     K_global = allocDouble1D(K_pointer[nparticle][1], -1);
 
     free(temp);

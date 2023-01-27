@@ -29,6 +29,7 @@ void printDouble(double *target, int m, int n);
 void printInt(int *target, int n);
 
 /* allocate memory and initialize specific value into the array */
+MKL_INT *allocMKLInt1D(int num, int a);
 int *allocInt1D(int num, int a);
 int **allocInt2D(int row, int column, int a);
 int ***allocInt3D(int row, int column, int layer, int a);
