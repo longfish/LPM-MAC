@@ -50,7 +50,6 @@ int searchAFEMNeighbor(UnitCell cell)
 {
     int* temp = allocInt1D(cell.nneighbors_AFEM + 1, -1);
     int** collection = allocInt2D(nparticle + 1, cell.nneighbors * cell.nneighbors, -1);
-    int** collectionInitial = allocInt2D(nparticle + 1, cell.nneighbors * cell.nneighbors, -1);
 
 #pragma omp parallel for
     for (int i = 0; i < nparticle; i++) /* Collecting the afem neighbors for each particle */
@@ -135,7 +134,6 @@ int searchAFEMNeighbor(UnitCell cell)
 
     free(temp);
     freeInt2D(collection, nparticle + 1);
-    freeInt2D(collectionInitial, nparticle + 1);
 
     return K_pointer[nparticle][1];
 }

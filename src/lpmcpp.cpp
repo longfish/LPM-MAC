@@ -13,6 +13,7 @@
 ******************************************************************************/
 
 #include "lpm.h"
+#include "particle.h"
 
 /* definition of global variables */
 /* int */

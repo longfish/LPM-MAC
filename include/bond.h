@@ -7,6 +7,9 @@
 #include "particle.h"
 
 template <int nlayer>
+class Particle;
+
+template <int nlayer>
 class Bond
 {
 public:

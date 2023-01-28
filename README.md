@@ -18,9 +18,9 @@ A multi-threaded implementation of a nonlocal lattice particle method (LPM) usin
 5. note: you may need to add the MKL include path into your editor preference (like VS Code)
 
 ### Compile and run LPM-CPP
-1. Clone the project source files into your own machine: `git clone https://github.com/longfish/LPM-CPP.git` 
-2. `mkdir build & cd build`
-3. `source /opt/intel/oneapi/setvars.sh linux64 `
+1. `source /opt/intel/oneapi/setvars.sh linux64 `
+2. `git clone https://github.com/longfish/LPM-CPP.git`  # clone the project source files into your own machine
+3. `mkdir build & cd build`
 4. `cmake .. -G "Ninja" -DMKL_INTERFACE=ilp64 -DCMAKE_BUILD_TYPE=Release ` # change to *Debug* from *Release* if needed
 5. `cmake --build . -j 8`
 
