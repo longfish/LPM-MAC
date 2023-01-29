@@ -3,6 +3,7 @@
 #include <memory.h>
 
 #include "lpm.h"
+#include "utilities.h"
 
 // void readLammps(const char *dataName, int skip)
 // {

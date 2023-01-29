@@ -7,6 +7,7 @@
 #include <mkl.h>
 
 #include "lpm.h"
+#include "utilities.h"
 
 void calcKnTv(int ntype, UnitCell cell)
 {

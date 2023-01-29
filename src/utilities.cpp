@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "lpm.h"
+#include "utilities.h"
 
 /* compute the stress tensor (modified-2) */
 void computeStress(UnitCell cell)
@@ -16,12 +17,12 @@ void computeStress(UnitCell cell)
         for (int j = 0; j < nb_initial[i]; j++)
         {
             /* compute stress tensor, s11, s22, s33, s23, s13, s12 */
-            //stress_tensor[i][0] += 0.5 / particle_volume * distance_initial[i][j] * F[i][j] * csx[i][j] * csx[i][j] * nneighbors / nb[i];
-            //stress_tensor[i][1] += 0.5 / particle_volume * distance_initial[i][j] * F[i][j] * csy[i][j] * csy[i][j] * nneighbors / nb[i];
-            //stress_tensor[i][2] += 0.5 / particle_volume * distance_initial[i][j] * F[i][j] * csz[i][j] * csz[i][j] * nneighbors / nb[i];
-            //stress_tensor[i][3] += 0.5 / particle_volume * distance_initial[i][j] * F[i][j] * csy[i][j] * csz[i][j] * nneighbors / nb[i];
-            //stress_tensor[i][4] += 0.5 / particle_volume * distance_initial[i][j] * F[i][j] * csx[i][j] * csz[i][j] * nneighbors / nb[i];
-            //stress_tensor[i][5] += 0.5 / particle_volume * distance_initial[i][j] * F[i][j] * csx[i][j] * csy[i][j] * nneighbors / nb[i];
+            // stress_tensor[i][0] += 0.5 / particle_volume * distance_initial[i][j] * F[i][j] * csx[i][j] * csx[i][j] * nneighbors / nb[i];
+            // stress_tensor[i][1] += 0.5 / particle_volume * distance_initial[i][j] * F[i][j] * csy[i][j] * csy[i][j] * nneighbors / nb[i];
+            // stress_tensor[i][2] += 0.5 / particle_volume * distance_initial[i][j] * F[i][j] * csz[i][j] * csz[i][j] * nneighbors / nb[i];
+            // stress_tensor[i][3] += 0.5 / particle_volume * distance_initial[i][j] * F[i][j] * csy[i][j] * csz[i][j] * nneighbors / nb[i];
+            // stress_tensor[i][4] += 0.5 / particle_volume * distance_initial[i][j] * F[i][j] * csx[i][j] * csz[i][j] * nneighbors / nb[i];
+            // stress_tensor[i][5] += 0.5 / particle_volume * distance_initial[i][j] * F[i][j] * csx[i][j] * csy[i][j] * nneighbors / nb[i];
 
             /* check if there are any opposite bonds, if yes then 1 */
             double opp_flag = 1.0;
@@ -63,6 +64,512 @@ void computeStress(UnitCell cell)
                                  2 * stress_tensor[i][4] * csx[i][j] * csz[i][j] +
                                  2 * stress_tensor[i][5] * csx[i][j] * csy[i][j]);
         }
+    }
+}
+
+std::vector<std::array<double, NDIM>> createCuboidSC3D(double box[], UnitCell cell, double R_matrix[])
+{
+    int i, j, k, n, nparticle_t, particles_first_row, rows, layers;
+    double x, y, z, a;
+    double **xyz_t, p[3] = {0};
+
+    /* settings for matrix-vector product, BLAS */
+    CBLAS_LAYOUT layout = CblasRowMajor;
+    CBLAS_TRANSPOSE trans = CblasNoTrans;
+
+    int lda = 3, incx = 1, incy = 1;
+    double blasAlpha = 1.0, blasBeta = 0.0;
+
+    a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2) + pow(box[5] - box[4], 2));
+
+    double box_t[6] = {-a, a, -a, a, -a, a};
+    /* model parameters */
+    double hx = 2 * cell.radius;
+    double hy = hx;
+    double hz = hx;
+    particles_first_row = 1 + (int)floor((box_t[1] - box_t[0]) / hx);
+    rows = 1 + (int)floor((box_t[3] - box_t[2]) / hy);
+    layers = 1 + (int)floor((box_t[5] - box_t[4]) / hz);
+
+    nparticle = 0;
+    nparticle_t = (int)particles_first_row * rows * layers;
+    xyz_t = allocDouble2D(nparticle_t, NDIM, 0);
+
+    /* initialize the particle xyz*/
+    n = 0;
+    for (k = 1; k <= layers; k++)
+    {
+        z = box_t[4] + hz * (k - 1);
+        for (j = 1; j <= rows; j++)
+        {
+            y = box_t[2] + hy * (j - 1);
+            for (i = 1; i <= particles_first_row; i++, n++)
+            {
+                x = box[0] + hx * (i - 1);
+                if (n < nparticle_t)
+                {
+                    xyz_t[n][0] = x;
+                    xyz_t[n][1] = y;
+                    xyz_t[n][2] = z;
+                }
+            }
+        }
+    }
+
+    /* rotate and specify the system region */
+    for (i = 0; i < nparticle_t; i++)
+    {
+        cblas_dgemv(layout, trans, 3, 3, blasAlpha, R_matrix, lda, xyz_t[i], incx, blasBeta, p, incy);
+
+        if (p[0] >= box[0] && p[0] <= box[1] &&
+            p[1] >= box[2] && p[1] <= box[3] &&
+            p[2] >= box[4] && p[2] <= box[5])
+            nparticle++;
+    }
+
+    xyz = allocDouble2D(nparticle, NDIM, 0);
+
+    k = 0;
+    for (i = 0; i < nparticle_t; i++)
+    {
+        cblas_dgemv(layout, trans, 3, 3, blasAlpha, R_matrix, lda, xyz_t[i], incx, blasBeta, p, incy);
+
+        if (p[0] >= box[0] && p[0] <= box[1] &&
+            p[1] >= box[2] && p[1] <= box[3] &&
+            p[2] >= box[4] && p[2] <= box[5])
+        {
+            xyz[k][0] = p[0];
+            xyz[k][1] = p[1];
+            xyz[k][2] = p[2];
+            k++;
+        }
+    }
+
+    freeDouble2D(xyz_t, nparticle_t);
+}
+
+void createCuboid(double box[], UnitCell cell, double R_matrix[])
+{
+    int i, j, k, n, nparticle_t, particles_first_row, rows, layers;
+    double x, y, z, a;
+    double **xyz_t, p[3] = {0};
+
+    /* settings for matrix-vector product, BLAS */
+    CBLAS_LAYOUT layout = CblasRowMajor;
+    CBLAS_TRANSPOSE trans = CblasNoTrans;
+
+    int lda = 3, incx = 1, incy = 1;
+    double blasAlpha = 1.0, blasBeta = 0.0;
+
+    if (cell.dim == 2)
+        a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2));
+    else
+        a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2) + pow(box[5] - box[4], 2));
+
+    double box_t[6] = {-a, a, -a, a, -a, a};
+
+    if (cell.lattice == 0) /* 2D square lattice (double layer neighbor) */
+    {
+        /* model parameters */
+        double hx = 2 * cell.radius;
+        double hy = hx;
+        particles_first_row = floor((box_t[1] - box_t[0]) / hx);
+        rows = floor((box_t[3] - box_t[2]) / hy);
+
+        nparticle = 0;
+        nparticle_t = particles_first_row * rows;
+        xyz_t = allocDouble2D(nparticle_t, NDIM, 0.);
+
+        /* initialize the particle positions*/
+        k = 0;
+        for (j = 1; j <= rows; j++)
+        {
+            y = box_t[2] + hy * (j - 1) + cell.radius;
+            for (i = 1; i <= particles_first_row; i++, k++)
+            {
+                x = box_t[0] + hx * (i - 1) + cell.radius;
+                if (k < nparticle_t)
+                {
+                    xyz_t[k][0] = x;
+                    xyz_t[k][1] = y;
+                }
+            }
+        }
+
+        /* rotate the system */
+        for (i = 0; i < nparticle_t; i++)
+        {
+            cblas_dgemv(layout, trans, NDIM, NDIM, blasAlpha, R_matrix, lda, xyz_t[i], incx, blasBeta, p, incy);
+
+            if (p[0] >= box[0] && p[0] <= box[1] &&
+                p[1] >= box[2] && p[1] <= box[3])
+                nparticle++;
+        }
+
+        xyz = allocDouble2D(nparticle, NDIM, 0.);
+
+        k = 0;
+        for (i = 0; i < nparticle_t; i++)
+        {
+            cblas_dgemv(layout, trans, NDIM, NDIM, blasAlpha, R_matrix, lda, xyz_t[i], incx, blasBeta, p, incy);
+
+            if (p[0] >= box[0] && p[0] <= box[1] &&
+                p[1] >= box[2] && p[1] <= box[3])
+            {
+                xyz[k][0] = p[0];
+                xyz[k][1] = p[1];
+                k++;
+            }
+        }
+
+        freeDouble2D(xyz_t, nparticle_t);
+    }
+
+    if (cell.lattice == 1) /* 2D hexagon lattice (double layer neighbor) */
+    {
+        /* model parameters */
+        double hx = 2 * cell.radius;
+        double hy = hx * sqrt(3.0) / 2.0;
+        particles_first_row = 1 + floor((box_t[1] - box_t[0]) / hx);
+        rows = 1 + floor((box_t[3] - box_t[2]) / hy);
+
+        nparticle = 0;
+        nparticle_t = particles_first_row * floor((rows + 1) / 2.0) + (particles_first_row - 1) * (rows - floor((rows + 1) / 2.0));
+        xyz_t = allocDouble2D(nparticle_t, NDIM, 0.);
+
+        /* initialize the particle positions*/
+        k = 0;
+        for (j = 1; j <= rows; j++)
+        {
+            y = box_t[2] + hy * (j - 1);
+            if (j % 2 == 1)
+                for (i = 1; i <= particles_first_row; i++, k++)
+                {
+                    x = box_t[0] + hx * (i - 1);
+                    if (k < nparticle_t)
+                    {
+                        xyz_t[k][0] = x;
+                        xyz_t[k][1] = y;
+                    }
+                }
+            else
+                for (i = 1; i <= particles_first_row - 1; i++, k++)
+                {
+                    x = box_t[0] + hx * (2 * i - 1) / 2.0;
+                    if (k < nparticle_t)
+                    {
+                        xyz_t[k][0] = x;
+                        xyz_t[k][1] = y;
+                    }
+                }
+        }
+
+        /* rotate the system */
+        for (i = 0; i < nparticle_t; i++)
+        {
+            cblas_dgemv(layout, trans, NDIM, NDIM, blasAlpha, R_matrix, lda, xyz_t[i], incx, blasBeta, p, incy);
+
+            if (p[0] >= box[0] && p[0] <= box[1] &&
+                p[1] >= box[2] && p[1] <= box[3])
+                nparticle++;
+        }
+
+        xyz = allocDouble2D(nparticle, NDIM, 0.);
+
+        k = 0;
+        for (i = 0; i < nparticle_t; i++)
+        {
+            cblas_dgemv(layout, trans, NDIM, NDIM, blasAlpha, R_matrix, lda, xyz_t[i], incx, blasBeta, p, incy);
+
+            if (p[0] >= box[0] && p[0] <= box[1] &&
+                p[1] >= box[2] && p[1] <= box[3])
+            {
+                xyz[k][0] = p[0];
+                xyz[k][1] = p[1];
+                k++;
+            }
+        }
+
+        freeDouble2D(xyz_t, nparticle_t);
+    }
+
+    if (cell.lattice == 2) /* simple cubic */
+    {
+        /* model parameters */
+        double hx = 2 * cell.radius;
+        double hy = hx;
+        double hz = hx;
+        particles_first_row = 1 + (int)floor((box_t[1] - box_t[0]) / hx);
+        rows = 1 + (int)floor((box_t[3] - box_t[2]) / hy);
+        layers = 1 + (int)floor((box_t[5] - box_t[4]) / hz);
+
+        nparticle = 0;
+        nparticle_t = (int)particles_first_row * rows * layers;
+        xyz_t = allocDouble2D(nparticle_t, NDIM, 0);
+
+        /* initialize the particle xyz*/
+        n = 0;
+        for (k = 1; k <= layers; k++)
+        {
+            z = box_t[4] + hz * (k - 1);
+            for (j = 1; j <= rows; j++)
+            {
+                y = box_t[2] + hy * (j - 1);
+                for (i = 1; i <= particles_first_row; i++, n++)
+                {
+                    x = box[0] + hx * (i - 1);
+                    if (n < nparticle_t)
+                    {
+                        xyz_t[n][0] = x;
+                        xyz_t[n][1] = y;
+                        xyz_t[n][2] = z;
+                    }
+                }
+            }
+        }
+
+        /* rotate and specify the system region */
+        for (i = 0; i < nparticle_t; i++)
+        {
+            cblas_dgemv(layout, trans, 3, 3, blasAlpha, R_matrix, lda, xyz_t[i], incx, blasBeta, p, incy);
+
+            if (p[0] >= box[0] && p[0] <= box[1] &&
+                p[1] >= box[2] && p[1] <= box[3] &&
+                p[2] >= box[4] && p[2] <= box[5])
+                nparticle++;
+        }
+
+        xyz = allocDouble2D(nparticle, NDIM, 0);
+
+        k = 0;
+        for (i = 0; i < nparticle_t; i++)
+        {
+            cblas_dgemv(layout, trans, 3, 3, blasAlpha, R_matrix, lda, xyz_t[i], incx, blasBeta, p, incy);
+
+            if (p[0] >= box[0] && p[0] <= box[1] &&
+                p[1] >= box[2] && p[1] <= box[3] &&
+                p[2] >= box[4] && p[2] <= box[5])
+            {
+                xyz[k][0] = p[0];
+                xyz[k][1] = p[1];
+                xyz[k][2] = p[2];
+                k++;
+            }
+        }
+
+        freeDouble2D(xyz_t, nparticle_t);
+    }
+
+    if (cell.lattice == 3) /* face centered cubic  */
+    {
+        /* model parameters */
+        double hx = 4 * cell.radius / sqrt(2.0);
+        double hy = hx;
+        double hz = hx;
+        particles_first_row = 1 + (int)floor((box_t[1] - box_t[0]) / hx);
+        rows = 1 + (int)floor((box_t[3] - box_t[2]) / (hy / 2.0));
+        layers = 1 + (int)floor((box_t[5] - box_t[4]) / (hz / 2.0));
+
+        nparticle = 0;
+        nparticle_t = (int)(floor((layers + 1) / 2.0) * (particles_first_row * floor((rows + 1) / 2.0) + (particles_first_row - 1) * floor(rows / 2.0)) +
+                            floor(layers / 2.0) * ((particles_first_row - 1) * floor((rows + 1) / 2.0) + particles_first_row * floor(rows / 2.0)));
+        xyz_t = allocDouble2D(nparticle_t, 3, 0);
+
+        /* initialize the particle xyz*/
+        /* raise the system by (radius, radius, radius) */
+        n = 0;
+        for (k = 1; k <= layers; k++)
+        {
+            z = box_t[4] + hz / 2.0 * (k - 1);
+            if (k % 2 == 1)
+            {
+                for (j = 1; j <= rows; j++)
+                {
+                    y = box_t[2] + hy / 2.0 * (j - 1);
+                    if (j % 2 == 1)
+                    {
+                        for (i = 1; i <= particles_first_row; i++, n++)
+                        {
+                            x = box_t[0] + hx * (i - 1);
+                            if (n < nparticle_t)
+                            {
+                                xyz_t[n][0] = x;
+                                xyz_t[n][1] = y;
+                                xyz_t[n][2] = z;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for (i = 1; i <= particles_first_row - 1; i++, n++)
+                        {
+                            x = box_t[0] + hx * (i - 1) + hx / 2.0;
+                            if (n < nparticle_t)
+                            {
+                                xyz_t[n][0] = x;
+                                xyz_t[n][1] = y;
+                                xyz_t[n][2] = z;
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                for (j = 1; j <= rows; j++)
+                {
+                    y = box_t[2] + hy / 2.0 * (j - 1);
+                    if (j % 2 == 1)
+                    {
+                        for (i = 1; i <= particles_first_row - 1; i++, n++)
+                        {
+                            x = box_t[0] + hx * (i - 1) + hx / 2.0;
+                            if (n < nparticle_t)
+                            {
+                                xyz_t[n][0] = x;
+                                xyz_t[n][1] = y;
+                                xyz_t[n][2] = z;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for (i = 1; i <= particles_first_row; i++, n++)
+                        {
+                            x = box_t[0] + hx * (i - 1);
+                            if (n < nparticle_t)
+                            {
+                                xyz_t[n][0] = x;
+                                xyz_t[n][1] = y;
+                                xyz_t[n][2] = z;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /* rotate and specify the system region */
+        for (i = 0; i < nparticle_t; i++)
+        {
+            cblas_dgemv(layout, trans, 3, 3, blasAlpha, R_matrix, lda, xyz_t[i], incx, blasBeta, p, incy);
+
+            if (p[0] >= box[0] && p[0] <= box[1] &&
+                p[1] >= box[2] && p[1] <= box[3] &&
+                p[2] >= box[4] && p[2] <= box[5])
+                nparticle++;
+        }
+
+        xyz = allocDouble2D(nparticle, 3, 0);
+
+        k = 0;
+        for (i = 0; i < nparticle_t; i++)
+        {
+            cblas_dgemv(layout, trans, 3, 3, blasAlpha, R_matrix, lda, xyz_t[i], incx, blasBeta, p, incy);
+
+            if (p[0] >= box[0] && p[0] <= box[1] &&
+                p[1] >= box[2] && p[1] <= box[3] &&
+                p[2] >= box[4] && p[2] <= box[5])
+            {
+                // printf("%f, %f, %f\n", p[0], p[1], p[2]);
+                xyz[k][0] = p[0];
+                xyz[k][1] = p[1];
+                xyz[k][2] = p[2];
+                k++;
+            }
+        }
+
+        freeDouble2D(xyz_t, nparticle_t);
+    }
+
+    if (cell.lattice == 4) /* body centered cubic  */
+    {
+        /* model parameters */
+        double hx = 4.0 / sqrt(3.0) * cell.radius;
+        double hy = hx;
+        double hz = hx;
+        particles_first_row = 1 + (int)floor((box_t[1] - box_t[0]) / hx);
+        rows = 1 + (int)floor((box_t[3] - box_t[2]) / hy);
+        layers = 1 + (int)floor((box_t[5] - box_t[4]) / (hz / 2.0));
+
+        nparticle = 0;
+        nparticle_t = (int)floor((layers + 1) / 2.0) * (particles_first_row * rows) + (int)floor(layers / 2.0) * ((particles_first_row - 1) * (rows - 1));
+        // printf("%d\n", nparticle_t);
+        xyz_t = allocDouble2D(nparticle_t, 3, 0);
+
+        /* initialize the particle xyz*/
+        n = 0;
+        for (k = 1; k <= layers; k++)
+        {
+            z = box_t[4] + hz / 2.0 * (k - 1);
+            if (k % 2 == 1)
+            {
+                for (j = 1; j <= rows; j++)
+                {
+                    y = box_t[2] + hy * (j - 1);
+                    for (i = 1; i <= particles_first_row; i++, n++)
+                    {
+                        x = box_t[0] + hx * (i - 1);
+                        if (n < nparticle_t)
+                        {
+                            xyz_t[n][0] = x;
+                            xyz_t[n][1] = y;
+                            xyz_t[n][2] = z;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                for (j = 1; j <= rows - 1; j++)
+                {
+                    y = box_t[2] + hy * (j - 1) + hy / 2.0;
+                    for (i = 1; i <= particles_first_row - 1; i++, n++)
+                    {
+                        x = box_t[0] + hx * (i - 1) + hx / 2.0;
+                        if (n < nparticle_t)
+                        {
+                            // printf("%f %f %f\n", x, y, z);
+                            xyz_t[n][0] = x;
+                            xyz_t[n][1] = y;
+                            xyz_t[n][2] = z;
+                        }
+                    }
+                }
+            }
+        }
+
+        /* rotate and specify the system region */
+        for (i = 0; i < nparticle_t; i++)
+        {
+            cblas_dgemv(layout, trans, 3, 3, blasAlpha, R_matrix, lda, xyz_t[i], incx, blasBeta, p, incy);
+
+            if (p[0] >= box[0] && p[0] <= box[1] &&
+                p[1] >= box[2] && p[1] <= box[3] &&
+                p[2] >= box[4] && p[2] <= box[5])
+                nparticle++;
+        }
+
+        xyz = allocDouble2D(nparticle, 3, 0);
+
+        k = 0;
+        for (i = 0; i < nparticle_t; i++)
+        {
+            cblas_dgemv(layout, trans, 3, 3, blasAlpha, R_matrix, lda, xyz_t[i], incx, blasBeta, p, incy);
+
+            if (p[0] >= box[0] && p[0] <= box[1] &&
+                p[1] >= box[2] && p[1] <= box[3] &&
+                p[2] >= box[4] && p[2] <= box[5])
+            {
+                // printf("%f, %f, %f\n", p[0], p[1], p[2]);
+                xyz[k][0] = p[0];
+                xyz[k][1] = p[1];
+                xyz[k][2] = p[2];
+                k++;
+            }
+        }
+
+        freeDouble2D(xyz_t, nparticle_t);
     }
 }
 
@@ -149,7 +656,7 @@ void computeStrain(UnitCell cell)
         /* compute the strain tensor e = rhs_b/matrix_A */
         MKL_INT n = 3 * (cell.dim - 1),
                 nrhs = 1, lda = 3 * (cell.dim - 1), ldb = 1; /* ldb is 1 for ROW MAJOR layout */
-        MKL_INT ipiv[2 * 3];                            /* max number of strain components is 6 */
+        MKL_INT ipiv[2 * 3];                                 /* max number of strain components is 6 */
 
         int info = LAPACKE_dgesv(LAPACK_ROW_MAJOR, n, nrhs, matrix_A, lda, ipiv, rhs_b, ldb);
 

@@ -2,9 +2,10 @@
 #ifndef UTILITIES_H
 #define UTILITIES_H
 
-#include <stdio.h>
-#include "lpm.h"
 #include "unit_cell.h"
+#include "lpm.h"
+
+std::vector<std::array<double, NDIM>> createCuboidSC3D(double box[], UnitCell cell, double R_matrix[]);
 
 // basic lpm computations
 void setTypeRect(double r0, double r1, double r2, double r3, double r4, double r5, int t);
@@ -13,6 +14,7 @@ void setTypeFullNeighbor(int k, UnitCell cell);
 void computedL();
 void computeStress(UnitCell cell);
 void computeStrain(UnitCell cell);
+void createCuboid(double box[], UnitCell cell, double R_matrix[]);
 
 // basic operations
 int findMaxInt(int *arr, int len);

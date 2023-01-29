@@ -4,6 +4,7 @@
 #include <time.h>
 
 #include "lpm.h"
+#include "utilities.h"
 
 /* For implicit integration, the incremental load should be small enough, otherwise the
    solution would not converge */

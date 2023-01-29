@@ -4,6 +4,7 @@
 #include <omp.h>
 
 #include "lpm.h"
+#include "utilities.h"
 
 /* search the neighbor for the particle system, without a crack */
 void searchNormalNeighbor(UnitCell cell)

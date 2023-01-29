@@ -1,4 +1,5 @@
 #include "lpm.h"
+#include "utilities.h"
 
 void solverPARDISO(UnitCell cell)
 {

@@ -5,6 +5,7 @@
 #include <omp.h>
 
 #include "lpm.h"
+#include "utilities.h"
 
 struct BondStrain
 {

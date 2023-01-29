@@ -5,9 +5,8 @@
 #include "lpm.h"
 #include "unit_cell.h"
 
-void createCuboid(double box[], UnitCell cell, double R_matrix[]);
 double * createRMatrix(int eulerflag, double angles[]);
-void createCylinderz(double *pc, double ra);
+void removeCylinderz(double *pc, double ra);
 void moveParticle(double box[], double *movexyz);
 void removeCircle(double *pc, double ra, char c);
 void removeCirclePartZ(double *pc, double ra, double theta1, double theta2);

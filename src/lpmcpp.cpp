@@ -13,6 +13,7 @@
 ******************************************************************************/
 
 #include "lpm.h"
+#include "utilities.h"
 #include "particle.h"
 
 /* definition of global variables */
@@ -83,7 +84,7 @@ int main(int argc, char *argv[])
     // xmin; xmax; ymin; ymax; zmin; zmax
     double box[] = {-0.2, 10.2, -0.2, 10.2, -0.2, 10.2};
     
-    createCuboid(box, cell, R_matrix);
+    createCuboidSC3D(box, cell, R_matrix);
 
     // move the particles coordinates
     double offset[] = {-0., -0., -0.};

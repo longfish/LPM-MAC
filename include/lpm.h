@@ -2,6 +2,9 @@
 #ifndef LPM3D_H
 #define LPM3D_H
 
+#include <vector>
+#include <array>
+
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
@@ -28,9 +31,7 @@
 #include "neighbor.h"
 #include "solver.h"
 #include "stiffness.h"
-#include "utilities.h"
 #include "constitutive.h"
-#include "unit_cell.h"
 
 // Define the format to printf MKL_INT values
 #ifndef MKL_ILP64
