@@ -77,14 +77,15 @@ int main(int argc, char *argv[])
     // flag is 0 ~ 2 for different conventions, (0: direct rotation; 1: Kocks convention; 2: Bunge convention)
     // angle1, angle2 and an angle3 are Euler angles in degree, double
     int eulerflag = 0; // direct rotation
-    double angles[] = {PI / 180.0 * 45.0, PI / 180.0 * 0.0, PI / 180.0 * 0.0};
+    double angles[] = {PI / 180.0 * 30.0, PI / 180.0 * 0.0, PI / 180.0 * 0.0};
     double *R_matrix = createRMatrix(eulerflag, angles);
 
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
     double box[] = {-0.2, 10.2, -0.2, 10.2, -0.2, 10.2};
     
-    createCuboidSC3D(box, cell, R_matrix);
+    std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
+    printf("size: %ld\n", sc_xyz.size());
 
     // move the particles coordinates
     double offset[] = {-0., -0., -0.};

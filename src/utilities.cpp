@@ -69,10 +69,6 @@ void computeStress(UnitCell cell)
 
 std::vector<std::array<double, NDIM>> createCuboidSC3D(double box[], UnitCell cell, double R_matrix[])
 {
-    int i, j, k, n, nparticle_t, particles_first_row, rows, layers;
-    double x, y, z, a;
-    double **xyz_t, p[3] = {0};
-
     /* settings for matrix-vector product, BLAS */
     CBLAS_LAYOUT layout = CblasRowMajor;
     CBLAS_TRANSPOSE trans = CblasNoTrans;
@@ -80,72 +76,44 @@ std::vector<std::array<double, NDIM>> createCuboidSC3D(double box[], UnitCell ce
     int lda = 3, incx = 1, incy = 1;
     double blasAlpha = 1.0, blasBeta = 0.0;
 
-    a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2) + pow(box[5] - box[4], 2));
-
+    /* initialize the particle xyz_t (a larger system) */
+    double a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2) + pow(box[5] - box[4], 2));
     double box_t[6] = {-a, a, -a, a, -a, a};
+
     /* model parameters */
     double hx = 2 * cell.radius;
     double hy = hx;
     double hz = hx;
-    particles_first_row = 1 + (int)floor((box_t[1] - box_t[0]) / hx);
-    rows = 1 + (int)floor((box_t[3] - box_t[2]) / hy);
-    layers = 1 + (int)floor((box_t[5] - box_t[4]) / hz);
+    int particles_first_row = 1 + (int)floor((box_t[1] - box_t[0]) / hx);
+    int rows = 1 + (int)floor((box_t[3] - box_t[2]) / hy);
+    int layers = 1 + (int)floor((box_t[5] - box_t[4]) / hz);
 
-    nparticle = 0;
-    nparticle_t = (int)particles_first_row * rows * layers;
-    xyz_t = allocDouble2D(nparticle_t, NDIM, 0);
-
-    /* initialize the particle xyz*/
-    n = 0;
-    for (k = 1; k <= layers; k++)
+    std::vector<std::array<double, NDIM>> xyz_t;
+    double p[NDIM] = {0}, p_new[NDIM] = {0};
+    for (int k = 1; k <= layers; k++)
     {
-        z = box_t[4] + hz * (k - 1);
-        for (j = 1; j <= rows; j++)
+        p[2] = box_t[4] + hz * (k - 1); // z
+        for (int j = 1; j <= rows; j++)
         {
-            y = box_t[2] + hy * (j - 1);
-            for (i = 1; i <= particles_first_row; i++, n++)
+            p[1] = box_t[2] + hy * (j - 1); // y
+            for (int i = 1; i <= particles_first_row; i++)
             {
-                x = box[0] + hx * (i - 1);
-                if (n < nparticle_t)
+                p[0] = box[0] + hx * (i - 1); // x
+                cblas_dgemv(layout, trans, NDIM, NDIM, blasAlpha, R_matrix, lda, p, incx, blasBeta, p_new, incy);
+
+                /* test if the rotated system is within the specified domain */
+                if (p_new[0] >= box[0] && p_new[0] <= box[1] &&
+                    p_new[1] >= box[2] && p_new[1] <= box[3] &&
+                    p_new[2] >= box[4] && p_new[2] <= box[5])
                 {
-                    xyz_t[n][0] = x;
-                    xyz_t[n][1] = y;
-                    xyz_t[n][2] = z;
+                    std::array<double, NDIM> p_arr{p_new[0], p_new[1], p_new[2]};
+                    xyz_t.push_back(p_arr);
                 }
             }
         }
     }
 
-    /* rotate and specify the system region */
-    for (i = 0; i < nparticle_t; i++)
-    {
-        cblas_dgemv(layout, trans, 3, 3, blasAlpha, R_matrix, lda, xyz_t[i], incx, blasBeta, p, incy);
-
-        if (p[0] >= box[0] && p[0] <= box[1] &&
-            p[1] >= box[2] && p[1] <= box[3] &&
-            p[2] >= box[4] && p[2] <= box[5])
-            nparticle++;
-    }
-
-    xyz = allocDouble2D(nparticle, NDIM, 0);
-
-    k = 0;
-    for (i = 0; i < nparticle_t; i++)
-    {
-        cblas_dgemv(layout, trans, 3, 3, blasAlpha, R_matrix, lda, xyz_t[i], incx, blasBeta, p, incy);
-
-        if (p[0] >= box[0] && p[0] <= box[1] &&
-            p[1] >= box[2] && p[1] <= box[3] &&
-            p[2] >= box[4] && p[2] <= box[5])
-        {
-            xyz[k][0] = p[0];
-            xyz[k][1] = p[1];
-            xyz[k][2] = p[2];
-            k++;
-        }
-    }
-
-    freeDouble2D(xyz_t, nparticle_t);
+    return xyz_t;
 }
 
 void createCuboid(double box[], UnitCell cell, double R_matrix[])

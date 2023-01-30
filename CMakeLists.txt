@@ -7,7 +7,7 @@ else()
 endif()
 
 set(OBJ lpmcpp)
-set(CMAKE_CXX_COMPILER "icpx")
+set(CMAKE_CXX_COMPILER "g++")
 
 project(${OBJ} LANGUAGES CXX)
 find_package(MKL CONFIG REQUIRED)
