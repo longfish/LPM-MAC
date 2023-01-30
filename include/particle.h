@@ -22,12 +22,13 @@ public:
     int id{0};                                                 // identifier of the particle
     int lattice{0};                                            // lattice type of the current particle
     double radius{0.0};                                        // radius of current particle
-    int K_pt{0};                                               // number of conn larger than (or equal to) its own index
     int nb{0}, nconn{0};                                       // number of bonds and connections
-    double m_damage_visual{0.};                                // damage value for visualization
+    double damage_visual{0.};                                  // damage value for visualization
+    int K_pt{0};                                               // number of conn larger than (or equal to) its own index
     UnitCell cell;                                             // unit cell
     std::array<double, NDIM> xyz, Pin, Pex;                    // xyz, internal and external particle force
     std::array<std::vector<Bond<nlayer>>, nlayer> bond_layers; // an array that store n layers of bonds
+    std::vector<Bond<nlayer>> bonds;                           // vector that stores all bonds
     std::vector<Particle<nlayer>> conn;                        // store all connections of the particle
     std::array<double, NDIM> stress, strain;                   // stress and strain tensor
 
@@ -38,6 +39,7 @@ public:
     Particle<nlayer> &operator=(const Particle<nlayer> &A);
 
     void moveTo(double new_x, double new_y, double new_z);
+    double distanceTo(const Particle<nlayer> &A);
 };
 
 template <int nlayer>

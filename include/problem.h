@@ -25,14 +25,15 @@ public:
     double *K_global, *residual, *reaction_force;
     std::vector<Particle<nlayer>> psystem;                 // system of particles
 
-    LPMProblem(){}
     LPMProblem(std::vector<std::array<double, NDIM>> p_xyz, UnitCell p_cell)
     {
-        assemblyParticles(p_xyz, p_cell);
+        createParticles(p_xyz, p_cell);
+        createBonds();
         nparticle = psystem.size();
     }
 
-    void assemblyParticles(std::vector<std::array<double, NDIM>> p_xyz, UnitCell p_cell);
+    void createParticles(std::vector<std::array<double, NDIM>> p_xyz, UnitCell p_cell);
+    void createBonds();
 };
 
 #endif
