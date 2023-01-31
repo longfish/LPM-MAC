@@ -18,22 +18,24 @@ class Particle;
 template <int nlayer>
 class LPMProblem
 {
-// Given a particle system, construct a stiffness matrix, RHS and solver
+    // Given a particle system, construct a stiffness matrix, RHS and solver
 public:
-    int nparticle{0};                                    // number of particles
+    int nparticle; // number of particles
     MKL_INT *IK, *JK;
     double *K_global, *residual, *reaction_force;
-    std::vector<Particle<nlayer>> psystem;                 // system of particles
+    std::vector<Particle<nlayer>> ptsystem; // system of particles
 
-    LPMProblem(std::vector<std::array<double, NDIM>> p_xyz, UnitCell p_cell)
+    LPMProblem(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell)
     {
         createParticles(p_xyz, p_cell);
         createBonds();
-        nparticle = psystem.size();
+        createConnections();
+        nparticle = ptsystem.size();
     }
 
-    void createParticles(std::vector<std::array<double, NDIM>> p_xyz, UnitCell p_cell);
+    void createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
     void createBonds();
+    void createConnections();
 };
 
 #endif

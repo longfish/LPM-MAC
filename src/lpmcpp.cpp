@@ -13,8 +13,9 @@
 ******************************************************************************/
 
 #include "lpm.h"
-#include "utilities.h"
 #include "particle.h"
+#include "problem.h"
+#include "utilities.h"
 
 /* definition of global variables */
 /* int */
@@ -72,6 +73,8 @@ int main(int argc, char *argv[])
     int lattice = 2;
     double radius = 0.25;
     UnitCell cell(lattice, radius); /*lattice type is 2, simple cubic*/
+    double p[3] = {0.1, 0.2, 0.3};
+    Particle<2> p1(p[0], p[1], p[2], cell);
 
     // Euler angles setting for system rotation
     // flag is 0 ~ 2 for different conventions, (0: direct rotation; 1: Kocks convention; 2: Bunge convention)
@@ -83,8 +86,10 @@ int main(int argc, char *argv[])
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
     double box[] = {-0.2, 10.2, -0.2, 10.2, -0.2, 10.2};
+    createCuboid(box, cell, R_matrix);
     
     std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
+
     printf("size: %ld\n", sc_xyz.size());
 
     // move the particles coordinates

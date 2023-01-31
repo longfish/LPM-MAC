@@ -1,7 +1,9 @@
+#include <cmath>
+#include "unit_cell.h"
 #include "particle.h"
 
 template <int nlayer>
-Particle<nlayer>::Particle(double p_x, double p_y, double p_z, int p_lattice, double p_radius)
+Particle<nlayer>::Particle(double &p_x, double &p_y, double &p_z, int &p_lattice, double &p_radius)
 {
     xyz[0] = p_x;
     xyz[1] = p_y;
@@ -13,7 +15,7 @@ Particle<nlayer>::Particle(double p_x, double p_y, double p_z, int p_lattice, do
 }
 
 template <int nlayer>
-Particle<nlayer>::Particle(double p_x, double p_y, double p_z, UnitCell p_cell)
+Particle<nlayer>::Particle(double &p_x, double &p_y, double &p_z, UnitCell &p_cell)
 {
     xyz[0] = p_x;
     xyz[1] = p_y;
@@ -48,7 +50,7 @@ Particle<nlayer> &Particle<nlayer>::operator=(const Particle<nlayer> &A)
 }
 
 template <int nlayer>
-void Particle<nlayer>::moveTo(double new_x, double new_y, double new_z)
+void Particle<nlayer>::moveTo(double &new_x, double &new_y, double &new_z)
 {
     xyz[0] = new_x;
     xyz[1] = new_y;

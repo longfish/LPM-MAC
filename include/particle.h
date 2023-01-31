@@ -5,7 +5,6 @@
 #include <vector>
 #include <array>
 
-#include "lpm.h"
 #include "unit_cell.h"
 #include "bond.h"
 
@@ -28,21 +27,28 @@ public:
     UnitCell cell;                                             // unit cell
     std::array<double, NDIM> xyz, Pin, Pex;                    // xyz, internal and external particle force
     std::array<std::vector<Bond<nlayer>>, nlayer> bond_layers; // an array that store n layers of bonds
-    std::vector<Bond<nlayer>> bonds;                           // vector that stores all bonds
-    std::vector<Particle<nlayer>> conn;                        // store all connections of the particle
+    std::vector<Particle<nlayer>> bonds;                       // vector that stores all particles that form bonds
+    std::vector<Particle<nlayer>> conns;                       // store all connections of the particle
     std::array<double, NDIM> stress, strain;                   // stress and strain tensor
 
     Particle() { id = _ID++; /* id starts from 0 */ }
-    Particle(double p_x, double p_y, double p_z, int p_lattice, double p_radius);
-    Particle(double p_x, double p_y, double p_z, UnitCell p_cell);
+    Particle(double &p_x, double &p_y, double &p_z, int &p_lattice, double &p_radius);
+    Particle(double &p_x, double &p_y, double &p_z, UnitCell &p_cell);
     Particle(const Particle<nlayer> &A);
     Particle<nlayer> &operator=(const Particle<nlayer> &A);
 
-    void moveTo(double new_x, double new_y, double new_z);
+    void moveTo(double &new_x, double &new_y, double &new_z);
     double distanceTo(const Particle<nlayer> &A);
+    bool operator==(const Particle<nlayer> &other);
 };
 
 template <int nlayer>
 int Particle<nlayer>::_ID = 0;
+
+template <int nlayer>
+bool Particle<nlayer>::operator==(const Particle<nlayer> &other)
+{
+    return id == other.id;
+}
 
 #endif
