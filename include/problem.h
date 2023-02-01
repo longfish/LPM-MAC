@@ -24,7 +24,7 @@ public:
     int nparticle; // number of particles
     MKL_INT *IK, *JK;
     double *K_global, *residual, *reaction_force;
-    std::vector<Particle<nlayer>> ptsystem; // system of particles
+    std::vector<Particle<nlayer> *> ptsystem; // system of particles
 
     LPMProblem(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
 
@@ -47,7 +47,7 @@ void LPMProblem<nlayer>::createParticles(std::vector<std::array<double, NDIM>> &
 {
     for (auto xyz : p_xyz)
     {
-        Particle<nlayer> pt{xyz[0], xyz[1], xyz[2], p_cell};
+        Particle<nlayer> *pt = new Particle<nlayer>(xyz[0], xyz[1], xyz[2], p_cell);
         ptsystem.push_back(pt);
     }
 }
@@ -55,48 +55,49 @@ void LPMProblem<nlayer>::createParticles(std::vector<std::array<double, NDIM>> &
 template <int nlayer>
 void LPMProblem<nlayer>::createBonds()
 {
-    for (Particle<nlayer> p1 : ptsystem)
+#pragma omp parallel for
+    for (Particle<nlayer> *p1 : ptsystem)
     {
-        for (Particle<nlayer> p2 : ptsystem)
+        for (Particle<nlayer> *p2 : ptsystem)
         {
-            Bond<nlayer> bd{p1, p2};
-            if (bd.layer == 0)
+            double distance = p1->distanceTo(*p2);
+            if ((distance < 1.01 * p1->cell.neighbor2_cutoff) && (p1->id != p2->id))
             {
-                p1.bond_layers[0].push_back(bd);
-                p1.bonds.push_back(p2);
-            }
-            else if (bd.layer == 1)
-            {
-                p1.bond_layers[1].push_back(bd);
-                p1.bonds.push_back(p2);
+                int layer = 1;
+                if (distance < 1.01 * p1->cell.neighbor1_cutoff)
+                    layer = 0;
+
+                Bond<nlayer> *bd = new Bond<nlayer>(p1, p2, layer, distance);
+                p1->bond_layers[0].push_back(bd);
+                p1->neighbors.push_back(p2);
             }
         }
-        p1.nb = p1.bonds.size();
+        p1->nb = p1->neighbors.size();
     }
 }
 
 template <int nlayer>
 void LPMProblem<nlayer>::createConnections()
 {
-    for (Particle<nlayer> p1 : ptsystem)
+#pragma omp parallel for 
+    for (Particle<nlayer> *p1 : ptsystem)
     {
         for (int i = 0; i < nlayer; i++)
         {
             // loop forward bond particles
-            for (Bond<nlayer> bd_fw : p1.bond_layers[i])
+            for (Bond<nlayer> *bd_fw : p1->bond_layers[i])
             {
-                p1.conns.push_back(bd_fw.p2);
+                p1->conns.push_back(bd_fw->p2);
 
                 // loop backward bond particles
-                for (Bond<nlayer> bd_bw : bd_fw.p2.bond_layers[i])
-                {
-                    if (std::find(p1.bonds.begin(), p1.bonds.end(), bd_bw.p2) == p1.bonds.end())
-                        p1.conns.push_back(bd_bw.p2);
-                }
+                for (Bond<nlayer> *bd_bw : bd_fw->p2->bond_layers[i])
+                    p1->conns.push_back(bd_bw->p2);
             }
         }
-        std::sort(p1.conns.begin(), p1.conns.end(), [](Particle<nlayer> &a, Particle<nlayer> &b)
-                  { return a.id < b.id; });
+        std::sort(p1->conns.begin(), p1->conns.end(), [](Particle<nlayer> *a, Particle<nlayer> *b)
+                  { return a->id < b->id; });
+        p1->conns.erase(unique(p1->conns.begin(), p1->conns.end()), p1->conns.end());
+        p1->nconn = p1->conns.size();
     }
 }
 

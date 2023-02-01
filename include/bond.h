@@ -18,21 +18,33 @@ public:
     double Kn, Tv;                   // LPM coefficient
     double csx, csy, csz;            // damage value for visualization
     double bforce, bstress, bstrain; // bond-wise quantities
-    Particle<nlayer> p1, p2;         // particles
+    Particle<nlayer> *p1, *p2;       // particles are not owned by the bond 
 
-    Bond(const Particle<nlayer> &p_p1, const Particle<nlayer> &p_p2)
+    Bond(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2)
     {
         p1 = p_p1;
         p2 = p_p2;
-        distance = p1.distanceTo(p2);
-        if ((distance < 1.01 * p1.cell.neighbor1_cutoff) && (p1.id != p2.id))
+        distance = p1->distanceTo(*p2);
+        if ((distance < 1.01 * p1->cell.neighbor1_cutoff) && (p1->id != p2->id))
             layer = 0;
-        else if ((distance > 1.01 * p1.cell.neighbor1_cutoff) && (distance < 1.01 * p1.cell.neighbor2_cutoff))
+        else if ((distance > 1.01 * p1->cell.neighbor1_cutoff) && (distance < 1.01 * p1->cell.neighbor2_cutoff))
             layer = 1;
 
-        csx = (p1.xyz[0] - p2.xyz[0]) / distance;
-        csy = (p1.xyz[1] - p2.xyz[1]) / distance;
-        csz = (p1.xyz[2] - p2.xyz[2]) / distance;
+        csx = (p1->xyz[0] - p2->xyz[0]) / distance;
+        csy = (p1->xyz[1] - p2->xyz[1]) / distance;
+        csz = (p1->xyz[2] - p2->xyz[2]) / distance;
+    }
+    
+    Bond(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2, int p_layer, double p_dis)
+    {
+        p1 = p_p1;
+        p2 = p_p2;
+        distance = p_dis;
+        layer = p_layer;
+
+        csx = (p1->xyz[0] - p2->xyz[0]) / distance;
+        csy = (p1->xyz[1] - p2->xyz[1]) / distance;
+        csz = (p1->xyz[2] - p2->xyz[2]) / distance;
     }
 };
 

@@ -306,10 +306,30 @@ void writeNeighbor(const char *dataName)
 
     for (int i = 0; i < nparticle; i++)
     {
-        fprintf(fpt, "%d %d ", i, type[i]);
+        //fprintf(fpt, "%d %d ", i, type[i]);
+        fprintf(fpt, "%d %d ", i, nb[i]);
         for (int m = 0; m < nb_initial[i]; m++)
         {
             fprintf(fpt, "%d ", neighbors[i][m]);
+        }
+        fprintf(fpt, "\n");
+    }
+    fclose(fpt);
+}
+
+/* write the connection information of all particles into file */
+void writeConnection(const char *dataName)
+{
+    FILE *fpt;
+    fpt = fopen(dataName, "a+");
+
+    for (int i = 0; i < nparticle; i++)
+    {
+        //fprintf(fpt, "%d %d ", i, type[i]);
+        fprintf(fpt, "%d %d ", i, nb_conn[i]);
+        for (int m = 0; m < nb_conn[i]; m++)
+        {
+            fprintf(fpt, "%d ", conn[i][m]);
         }
         fprintf(fpt, "\n");
     }

@@ -41,6 +41,7 @@
 #endif
 
 #define PI 3.14159265358979323846
+#define NL 2          /* number of layers */
 #define NDIM 3        /* max number of dimensions, no matter what dimension of the problem */
 #define TOL 1e-3      /* tolerance to determine whether two quantities are equal */
 #define MAXLINE 500   /* maximum line number */
