@@ -104,15 +104,17 @@ int main(int argc, char *argv[])
 
     for (Particle<NL> *p1 : lpm_prob.ptsystem)
     {
-            // assign boundary conditions
+        // assign boundary conditions
         if (p1->xyz[2] > 10.0 - 1.2 * radius)
             p1->type = 1; // top
         if (p1->xyz[2] < 1.2 * radius)
             p1->type = 2; // bottom
         if (p1->nb == cell.nneighbors)
             p1->type = 3; // particles with full neighbor list
-    
-    // assign material properties
+
+        // assign material properties
+        for (auto bd: p1->neighbors){
+        }
     }
 
     // xlo, xhi, ylo, yhi, zlo, zhi, type
