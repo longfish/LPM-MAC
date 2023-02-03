@@ -113,7 +113,10 @@ int main(int argc, char *argv[])
             p1->type = 3; // particles with full neighbor list
 
         // assign material properties
-        for (auto bd: p1->neighbors){
+        for (int i=0;i<NL;++i){
+            for(ElasticBond<NL> bd: p1->bond_layers[i]){
+                
+            }
         }
     }
 
