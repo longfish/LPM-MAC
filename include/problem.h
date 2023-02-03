@@ -5,13 +5,19 @@
 #include <vector>
 #include <array>
 #include <algorithm>
+#include <string>
 
 #include "lpm.h"
 #include "unit_cell.h"
 #include "bond.h"
+#include "elastic_bond.h"
+#include "elastic_planestress_bond.h"
 
 template <int nlayer>
 class Bond;
+
+template <int nlayer>
+class ElasticBond;
 
 template <int nlayer>
 class Particle;
@@ -26,18 +32,18 @@ public:
     double *K_global, *residual, *reaction_force;
     std::vector<Particle<nlayer> *> ptsystem; // system of particles
 
-    LPMProblem(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
+    LPMProblem(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, int btype);
 
     void createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
-    void createBonds();
+    void createBonds(int btype);
     void createConnections();
 };
 
 template <int nlayer>
-LPMProblem<nlayer>::LPMProblem(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell)
+LPMProblem<nlayer>::LPMProblem(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, int btype)
 {
     createParticles(p_xyz, p_cell);
-    createBonds();
+    createBonds(btype);
     createConnections();
     nparticle = ptsystem.size();
 }
@@ -53,7 +59,7 @@ void LPMProblem<nlayer>::createParticles(std::vector<std::array<double, NDIM>> &
 }
 
 template <int nlayer>
-void LPMProblem<nlayer>::createBonds()
+void LPMProblem<nlayer>::createBonds(int btype)
 {
 #pragma omp parallel for
     for (Particle<nlayer> *p1 : ptsystem)
@@ -67,8 +73,11 @@ void LPMProblem<nlayer>::createBonds()
                 if (distance < 1.01 * p1->cell.neighbor1_cutoff)
                     layer = 0;
 
-                Bond<nlayer> *bd = new Bond<nlayer>(p1, p2, layer, distance);
-                p1->bond_layers[0].push_back(bd);
+                Bond<nlayer> *bd = nullptr;
+                if(btype == 0)
+                    bd = new ElasticBond<nlayer>(p1, p2, layer, distance); // create elastic bond
+
+                p1->bond_layers[layer].push_back(bd);
                 p1->neighbors.push_back(p2);
             }
         }
@@ -85,12 +94,12 @@ void LPMProblem<nlayer>::createConnections()
         for (int i = 0; i < nlayer; i++)
         {
             // loop forward bond particles
-            for (Bond<nlayer> *bd_fw : p1->bond_layers[i])
+            for (auto *bd_fw : p1->bond_layers[i])
             {
                 p1->conns.push_back(bd_fw->p2);
 
                 // loop backward bond particles
-                for (Bond<nlayer> *bd_bw : bd_fw->p2->bond_layers[i])
+                for (auto *bd_bw : bd_fw->p2->bond_layers[i])
                     p1->conns.push_back(bd_bw->p2);
             }
         }

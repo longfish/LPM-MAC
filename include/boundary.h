@@ -2,8 +2,8 @@
 #ifndef BOUNDARY_H
 #define BOUNDARY_H
 
-#include "lpm.h"
 #include "unit_cell.h"
+#include "lpm.h"
 
 struct DispBCs;
 struct ForceBCs;

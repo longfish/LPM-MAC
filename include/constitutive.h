@@ -2,7 +2,6 @@
 #ifndef PLASTICITY_H
 #define PLASTICITY_H
 
-#include "lpm.h"
 #include "unit_cell.h"
 
 void computeBondForceElastic(int i, UnitCell cell);

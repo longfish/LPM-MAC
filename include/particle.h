@@ -9,9 +9,6 @@
 #include "unit_cell.h"
 #include "bond.h"
 
-// template <int nlayer>
-// class Bond;
-
 template <int nlayer>
 class Particle
 {
@@ -19,18 +16,19 @@ protected:
     static int _ID;
 
 public:
-    int id{0};                                                 // identifier of the particle
-    int lattice{0};                                            // lattice type of the current particle
-    double radius{0.0};                                        // radius of current particle
-    int nb{0}, nconn{0};                                       // number of bonds and connections
-    double damage_visual{0.};                                  // damage value for visualization
-    int K_pt{0};                                               // number of conn larger than (or equal to) its own index
-    UnitCell cell;                                             // unit cell
-    std::array<double, NDIM> xyz, Pin, Pex;                    // xyz, internal and external particle force
-    std::array<std::vector<Bond<nlayer>*>, nlayer> bond_layers; // an array that store n layers of bonds
-    std::vector<Particle<nlayer>*> neighbors;                   // vector that stores all particles that form bonds
-    std::vector<Particle<nlayer>*> conns;                       // store all connections of the particle
-    std::array<double, NDIM> stress, strain;                   // stress and strain tensor
+    int id{0};                                                   // identifier of the particle
+    int type{0};                                                 // particle type which is needed for boundary condition settings
+    int lattice{0};                                              // lattice type of the current particle
+    double radius{0.0};                                          // radius of current particle
+    int nb{0}, nconn{0};                                         // number of bonds and connections
+    double damage_visual{0.};                                    // damage value for visualization
+    int K_pt{0};                                                 // number of conn larger than (or equal to) its own index
+    UnitCell cell;                                               // unit cell
+    std::array<double, NDIM> xyz, Pin, Pex;                      // xyz, internal and external particle force
+    std::array<std::vector<Bond<nlayer> *>, nlayer> bond_layers; // an array that store n layers of bonds
+    std::vector<Particle<nlayer> *> neighbors;                   // vector that stores all particles that form bonds
+    std::vector<Particle<nlayer> *> conns;                       // store all connections of the particle
+    std::array<double, NDIM> stress, strain;                     // stress and strain tensor
 
     Particle() { id = _ID++; /* id starts from 0 */ }
     Particle(const double &p_x, const double &p_y, const double &p_z, const int &p_lattice, const double &p_radius);

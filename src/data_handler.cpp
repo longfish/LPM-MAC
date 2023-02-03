@@ -310,6 +310,7 @@ void writeNeighbor(const char *dataName)
         fprintf(fpt, "%d %d ", i, nb[i]);
         for (int m = 0; m < nb_initial[i]; m++)
         {
+            //fprintf(fpt, "%d ", neighbors2[i][m]);
             fprintf(fpt, "%d ", neighbors[i][m]);
         }
         fprintf(fpt, "\n");

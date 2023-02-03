@@ -25,21 +25,6 @@
 #include <mkl_spblas.h>
 #include <mkl_service.h>
 
-#include "boundary.h"
-#include "data_handler.h"
-#include "initialization.h"
-#include "neighbor.h"
-#include "solver.h"
-#include "stiffness.h"
-#include "constitutive.h"
-
-// Define the format to printf MKL_INT values
-#ifndef MKL_ILP64
-#define IFORMAT "%i"
-#else
-#define IFORMAT "%lli"
-#endif
-
 #define PI 3.14159265358979323846
 #define NL 2          /* number of layers */
 #define NDIM 3        /* max number of dimensions, no matter what dimension of the problem */
@@ -50,6 +35,13 @@
 #define MAXSLIPSYS 50 /* maximum size of slip systems */
 #define TOLITER 1e-4  /* newton iteration tolerance */
 #define EPS 1e-6      /* small perturbation coefficient used to compute the stiffness matrix */
+
+// Define the format to printf MKL_INT values
+#ifndef MKL_ILP64
+#define IFORMAT "%i"
+#else
+#define IFORMAT "%lli"
+#endif
 
 /* simple functions */
 #define LEN(arr) (sizeof(arr) / sizeof(arr[0])) /* Length of an array */

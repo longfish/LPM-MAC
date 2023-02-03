@@ -8,6 +8,7 @@
 
 #include "lpm.h"
 #include "utilities.h"
+#include "constitutive.h"
 
 void calcKnTv(int ntype, UnitCell cell)
 {

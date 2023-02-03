@@ -18,6 +18,9 @@ UnitCell::UnitCell(int p_lattice, double p_radius)
         nneighbors_AFEM1 = 12;
         nneighbors_AFEM2 = 12;
         particle_volume = 4 * pow(radius, 2); /* volume (area) of unit cell */
+        el_mapping[0] = 1 / 2.0, el_mapping[1] = -1 / 2.0, el_mapping[2] = 0.0;
+        el_mapping[3] = 0.0, el_mapping[4] = 0.0, el_mapping[5] = 1. / 2;
+        el_mapping[6] = 0.0, el_mapping[7] = 1 / 12.0, el_mapping[8] = -1 / 12.0;
     }
 
     if (lattice == 1) /* 2D hexagon lattice (double layer neighbor) */
@@ -32,6 +35,9 @@ UnitCell::UnitCell(int p_lattice, double p_radius)
         neighbor1_cutoff = 2.0 * radius;
         neighbor2_cutoff = 2.0 * sqrt(3.0) * radius;
         particle_volume = 2 * sqrt(3) * pow(radius, 2); /* volume (area) of unit cell */
+        el_mapping[0] = sqrt(3.0) / 12.0, el_mapping[1] = -sqrt(3.0) / 12.0, el_mapping[2] = 0.0;
+        el_mapping[3] = -sqrt(3.0) / 144.0, el_mapping[4] = sqrt(3.0) / 48.0, el_mapping[5] = 0.0;
+        el_mapping[6] = 0.0, el_mapping[7] = 0.0, el_mapping[8] = 1.0;
     }
 
     if (lattice == 2) /* simple cubic */
@@ -46,6 +52,9 @@ UnitCell::UnitCell(int p_lattice, double p_radius)
         nneighbors_AFEM1 = 24;
         nneighbors_AFEM2 = 54;
         particle_volume = pow(2 * radius, 3); /* volume of unit cell */
+        el_mapping[0] = 1, el_mapping[1] = -1, el_mapping[2] = -1.0;
+        el_mapping[3] = 0.0, el_mapping[4] = 0.0, el_mapping[5] = 1.;
+        el_mapping[6] = 0.0, el_mapping[7] = 1 / 18.0, el_mapping[8] = -1 / 18.0;
     }
 
     if (lattice == 3) /* face centered cubic  */
@@ -60,6 +69,9 @@ UnitCell::UnitCell(int p_lattice, double p_radius)
         nneighbors_AFEM1 = 54;
         nneighbors_AFEM2 = 24;
         particle_volume = 4.0 * sqrt(2.0) * pow(radius, 3); /* volume of unit cell 1, rhombic dodecahedron */
+        el_mapping[0] = 0.0, el_mapping[1] = 0.0, el_mapping[2] = sqrt(2.0);
+        el_mapping[3] = sqrt(2.0) / 4, el_mapping[4] = -sqrt(2.0) / 4, el_mapping[5] = -sqrt(2.0) / 4;
+        el_mapping[6] = 0.0, el_mapping[7] = sqrt(2.0) / 24, el_mapping[8] = -sqrt(2.0) / 24;
     }
 
     if (lattice == 4) /* body centered cubic  */
@@ -74,5 +86,8 @@ UnitCell::UnitCell(int p_lattice, double p_radius)
         nneighbors_AFEM1 = 34;
         nneighbors_AFEM2 = 24;
         particle_volume = 32.0 * sqrt(3.0) / 9.0 * pow(radius, 3); /* volume of unit cell 1, truncated octahedron */
+        el_mapping[0] = 0.0, el_mapping[1] = 0.0, el_mapping[2] = sqrt(3.0);
+        el_mapping[3] = 1/sqrt(3.0) , el_mapping[4] = -1/sqrt(3.0) , el_mapping[5] = 0.;
+        el_mapping[6] = 0.0, el_mapping[7] = sqrt(3.0) / 14, el_mapping[8] = sqrt(3.0) / 14;
     }
 }

@@ -3,19 +3,24 @@
  * general cases(2 layers of neighbors)
  * This code can deal with general elastic and plasticity problems under careful
  * modifications
- * 
- * Supported lattice types: 
- *     2D square, 2D hexagon, 3D simple cubic, 3D BCC & FCC crystal(crystal 
+ *
+ * Supported lattice types:
+ *     2D square, 2D hexagon, 3D simple cubic, 3D BCC & FCC crystal(crystal
  *     plasticity simulation)
- * 
+ *
  * Contact information:
  *     Changyu Meng, PhD candidate, Arizona State University, cmeng12@asu.edu
-******************************************************************************/
+ ******************************************************************************/
 
 #include "lpm.h"
 #include "particle.h"
 #include "problem.h"
 #include "utilities.h"
+#include "initialization.h"
+#include "neighbor.h"
+#include "stiffness.h"
+#include "data_handler.h"
+#include "constitutive.h"
 
 /* definition of global variables */
 /* int */
@@ -58,10 +63,7 @@ int main(int argc, char *argv[])
     printf("==================================================\n");
 
     const int nt = omp_get_max_threads(); /* maximum number of threads provided by the computer */
-    const int nt_force = 3;               /* number of threads for general force calculation */
-
-    omp_set_num_threads(nt);
-    printf("OpenMP with %d/%d threads for bond force calculation\n", nt_force, nt);
+    printf("OpenMP with %d threads\n", nt);
 
     double start = omp_get_wtime(); // record the CPU time, begin
 
@@ -85,17 +87,10 @@ int main(int argc, char *argv[])
     // xmin; xmax; ymin; ymax; zmin; zmax
     double box[] = {-0.2, 10.2, -0.2, 10.2, -0.2, 10.2};
     createCuboid(box, cell, R_matrix);
-    
-    std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
-    LPMProblem<NL> lpm_prob{sc_xyz, cell};
-    printf("size: %d\n", lpm_prob.nparticle);
-    for(auto p: lpm_prob.ptsystem[0]->neighbors){
-        printf("number of neighbors of particle %d is %d\n", p->id, p->nb);
-    }
 
-    // move the particles coordinates
-    double offset[] = {-0., -0., -0.};
-    moveParticle(box, offset);
+    int btype = 0; // btype is 0: elastic bond with brittle damage law
+    std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
+    LPMProblem<NL> lpm_prob{sc_xyz, cell, btype};
 
     // initialize the necessary matrices
     initMatrices(cell);
@@ -107,7 +102,19 @@ int main(int argc, char *argv[])
     searchNormalNeighbor(cell);
     int len_K_global = searchAFEMNeighbor(cell);
 
-    // assign types for particles located in different rectangular regions
+    for (Particle<NL> *p1 : lpm_prob.ptsystem)
+    {
+            // assign boundary conditions
+        if (p1->xyz[2] > 10.0 - 1.2 * radius)
+            p1->type = 1; // top
+        if (p1->xyz[2] < 1.2 * radius)
+            p1->type = 2; // bottom
+        if (p1->nb == cell.nneighbors)
+            p1->type = 3; // particles with full neighbor list
+    
+    // assign material properties
+    }
+
     // xlo, xhi, ylo, yhi, zlo, zhi, type
     int ntype = 0;
     type = allocInt1D(nparticle, ntype++); // set particle type as 0 in default
@@ -180,7 +187,7 @@ int main(int argc, char *argv[])
     char connFile[] = "result_conn.txt";
 
     // boundary conditions and whole simulation settings
-    int n_steps = 0;           // number of loading steps
+    int n_steps = 0;            // number of loading steps
     double step_size = -2000.0; // step size for force or displacement loading
     // int n_steps = 10;        // number of loading steps
     // double step_size = -2e-3; // step size for force or displacement loading
@@ -426,7 +433,7 @@ int updateDamageGeneral(const char *dataName, int tstep, int plmode, UnitCell ce
 /* allocate memories for some global matrices */
 void initMatrices(UnitCell cell)
 {
-    disp = allocDouble1D(cell.dim * nparticle, 0);        /* global displacement vector */
+    disp = allocDouble1D(cell.dim * nparticle, 0);   /* global displacement vector */
     xyz_initial = allocDouble2D(nparticle, NDIM, 0); /* store coordinate information as 3D */
     xyz_temp = allocDouble2D(nparticle, NDIM, 0);
 
@@ -459,14 +466,14 @@ void initMatrices(UnitCell cell)
 
     K_pointer = allocInt2D(nparticle + 1, 2, 0);
 
-    residual = allocDouble1D(cell.dim * nparticle, 0);  /* right hand side, residual */
-    Pin = allocDouble1D(NDIM * nparticle, 0);      /* total internal force, fixed 3 dimension */
-    Pex = allocDouble1D(cell.dim * nparticle, 0);       /* total external force */
-    Pex_temp = allocDouble1D(cell.dim * nparticle, 0);  /* temp external force */
+    residual = allocDouble1D(cell.dim * nparticle, 0); /* right hand side, residual */
+    Pin = allocDouble1D(NDIM * nparticle, 0);          /* total internal force, fixed 3 dimension */
+    Pex = allocDouble1D(cell.dim * nparticle, 0);      /* total external force */
+    Pex_temp = allocDouble1D(cell.dim * nparticle, 0); /* temp external force */
 
     dispBC_index = allocInt1D(cell.dim * nparticle, 1); /* disp info for each degree of freedom, 0 as being applied disp BC */
     fix_index = allocInt1D(cell.dim * nparticle, 1);    /* fix info for each degree of freedom, 0 as being fixed */
-    pl_flag = allocInt1D(nparticle, 0); /* denote whether the plastic deformtion has been calculated, to avoid repetition */
+    pl_flag = allocInt1D(nparticle, 0);                 /* denote whether the plastic deformtion has been calculated, to avoid repetition */
 
     Kn = allocDouble2D(nparticle, cell.nneighbors, 0.0);
     Tv = allocDouble2D(nparticle, cell.nneighbors, 0.0);
@@ -478,8 +485,8 @@ void initMatrices(UnitCell cell)
     damage_broken = allocDouble2D(nparticle, cell.nneighbors, 1.); /* crack index parameter */
     damage_D = allocDouble3D(nparticle, cell.nneighbors, 2, 0.);   /* bond-associated damage parameter, initially be 0, state variable */
     damage_w = allocDouble2D(nparticle, cell.nneighbors, 1.);      /* intact parameter, apply on bond force */
-    damage_visual = allocDouble1D(nparticle, 0.0);            /* damage indicator for visualization */
+    damage_visual = allocDouble1D(nparticle, 0.0);                 /* damage indicator for visualization */
 
-    F = allocDouble2D(nparticle, cell.nneighbors, 0.);          /* FIJ is total bond force between I and J */
-    F_temp = allocDouble2D(nparticle, cell.nneighbors, 0.);     /* F_tempIJ stores the bond force at last time step */
+    F = allocDouble2D(nparticle, cell.nneighbors, 0.);      /* FIJ is total bond force between I and J */
+    F_temp = allocDouble2D(nparticle, cell.nneighbors, 0.); /* F_tempIJ stores the bond force at last time step */
 }
