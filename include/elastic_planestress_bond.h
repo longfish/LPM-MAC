@@ -34,7 +34,10 @@ public:
                         E * mu / (1.0 - mu) / (1.0 + mu),
                         E / 2.0 / (1.0 + mu)}; // C11, C12, C44
         double KnTv[NDIM]{0};
+        
         cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, 1.0, this->p1->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
+        if (this->p1->cell.dim != 2)
+            printf("Warning: ElasticPlaneStressBond bond only work in 2D!\n");
 
         if (this->p1->cell.lattice == 1)
         {
