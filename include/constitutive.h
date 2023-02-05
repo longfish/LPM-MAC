@@ -8,6 +8,6 @@ void computeBondForceElastic(int i, UnitCell cell);
 void computeBondForceIncrementalUpdating(int ii, UnitCell cell);
 void updateCrack(UnitCell cell);
 
-int updateBrittleDamage(const char *dataName, int tstep, int nbreak);
+int updateBrittleDamage(const char *dataName, int tstep, int nbreak, double critical_bstrain);
 
 #endif

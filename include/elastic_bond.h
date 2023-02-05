@@ -34,17 +34,21 @@ public:
                         E * mu / (1.0 + mu) / (1.0 - 2.0 * mu),
                         E / 2.0 / (1.0 + mu)}; // C11, C12, C44
         double KnTv[NDIM]{0};
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, 1.0, this->p1->cell.el_mapping, 3, Ce, 1, 0.0, KnTv, 1);
+
+        if (this->p1->cell.dim == 2)
+            cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, 1.0, this->p1->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
+        else
+            cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, this->p1->cell.radius, this->p1->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
 
         if (this->p1->cell.lattice == 1)
         {
-            Kn = KnTv[0];
-            Tv = KnTv[1];
+            this->Kn = KnTv[0];
+            this->Tv = KnTv[1];
         }
         else
         {
-            Kn = KnTv[this->layer];
-            Tv = KnTv[2];
+            this->Kn = KnTv[this->layer]; // layer is 0 or 1
+            this->Tv = KnTv[2];
         }
     }
 };

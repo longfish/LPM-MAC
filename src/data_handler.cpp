@@ -336,3 +336,21 @@ void writeConnection(const char *dataName)
     }
     fclose(fpt);
 }
+
+/* write the Kn/Tv values */
+void writeKnTv(const char *dataName)
+{
+    FILE *fpt;
+    fpt = fopen(dataName, "a+");
+
+    for (int i = 0; i < nparticle; i++)
+    {
+        fprintf(fpt, "%d %d ", i, nb[i]);
+        for (int m = 0; m < nb_initial[i]; m++)
+        {
+            fprintf(fpt, "%f/%f ", Kn[i][m], Tv[i][m]);
+        }
+        fprintf(fpt, "\n");
+    }
+    fclose(fpt);
+}

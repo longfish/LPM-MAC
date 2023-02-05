@@ -18,5 +18,6 @@ void writeInternalForce(const char *dataName, int step);
 void writeDamage(const char *dataName, int step);
 void writeNeighbor(const char *dataName);
 void writeConnection(const char *dataName);
+void writeKnTv(const char *dataName);
 
 #endif

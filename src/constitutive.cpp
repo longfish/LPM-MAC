@@ -171,7 +171,7 @@ void updateCrack(UnitCell cell)
 }
 
 /* break the bond for elastic materials, when bond strain reaches a critical value (we limit the maximum broken number) */
-int updateBrittleDamage(const char *dataName, int tstep, int nbreak)
+int updateBrittleDamage(const char *dataName, int tstep, int nbreak, double critical_bstrain)
 {
     FILE *fpt;
     fpt = fopen(dataName, "a+");

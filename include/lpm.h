@@ -70,7 +70,6 @@ struct ForceBCs
 /* Declaration of global variables */
 /* int */
 extern int nparticle;
-extern int nbreak;
 
 extern MKL_INT *IK, *JK;
 extern int *type, *dispBC_index, *fix_index, *pl_flag;
@@ -79,8 +78,6 @@ extern int **neighbors, **neighbors1, **neighbors2;
 extern int **K_pointer, **conn, **nsign;
 
 /* double precision float */
-extern double critical_bstrain;
-
 extern double *K_global, *residual, *Pin, *Pex, *Pex_temp, *disp;
 extern double *reaction_force, *damage_visual;
 

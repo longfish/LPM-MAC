@@ -182,7 +182,7 @@ void calcKnTv(int ntype, UnitCell cell)
 
         for (int k = 0; k < ntype; k++)
             cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 3, 1, 3, cell.radius, mapping, 3, Ce[k], 1, 0.0, KnTve[k], 1);
-
+        
         for (int i = 0; i < nparticle; i++)
         {
             for (int j = 0; j < nb_initial[i]; j++)
@@ -190,13 +190,13 @@ void calcKnTv(int ntype, UnitCell cell)
                 /* assign properties for different layer of neighbors */
                 if (nsign[i][j] == 0)
                 {
-                    Kn[i][j] = 0.5 * (KnTve[type[i]][0] + KnTve[type[neighbors[i][j]]][0]);
-                    Tv[i][j] = 0.5 * (KnTve[type[i]][2] + KnTve[type[neighbors[i][j]]][2]);
+                    Kn[i][j] = KnTve[type[i]][0]; //0.5 * (KnTve[type[i]][0] + KnTve[type[neighbors[i][j]]][0]);
+                    Tv[i][j] = KnTve[type[i]][2]; //0.5 * (KnTve[type[i]][2] + KnTve[type[neighbors[i][j]]][2]);
                 }
                 else if (nsign[i][j] == 1)
                 {
-                    Kn[i][j] = 0.5 * (KnTve[type[i]][1] + KnTve[type[neighbors[i][j]]][1]);
-                    Tv[i][j] = 0.5 * (KnTve[type[i]][2] + KnTve[type[neighbors[i][j]]][2]);
+                    Kn[i][j] = KnTve[type[i]][1]; //0.5 * (KnTve[type[i]][1] + KnTve[type[neighbors[i][j]]][1]);
+                    Tv[i][j] = KnTve[type[i]][2]; //0.5 * (KnTve[type[i]][2] + KnTve[type[neighbors[i][j]]][2]);
                 }
             }
         }

@@ -4,7 +4,6 @@
 #include <time.h>
 
 #include "lpm.h"
-#include "unit_cell.h"
 #include "utilities.h"
 
 /* For implicit integration, the incremental load should be small enough, otherwise the
