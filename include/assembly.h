@@ -25,14 +25,11 @@ class Particle;
 template <int nlayer>
 class Assembly
 {
-    // Given a particle system, construct a stiffness matrix, RHS and solver
 public:
     int nparticle; // number of particles
-    MKL_INT *IK, *JK;
-    double *K_global, *residual, *reaction_force;
     std::vector<Particle<nlayer> *> ptsystem; // system of particles
 
-    Assembly(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, int btype);
+    Assembly(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, int btype); // Construct a particle system
 
     void createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
     void createBonds(int btype);

@@ -1,5 +1,6 @@
 #include "lpm.h"
 #include "utilities.h"
+#include "mkl_solver.h"
 
 void solverPARDISO(UnitCell cell)
 {

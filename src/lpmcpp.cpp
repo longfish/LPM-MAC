@@ -22,7 +22,7 @@
 #include "data_handler.h"
 #include "constitutive.h"
 #include "boundary.h"
-#include "solver.h"
+#include "mkl_solver.h"
 
 /* definition of global variables */
 /* int */
@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
 
     int btype = 0; // btype is 0: elastic bond with brittle damage law
     std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
-    Assembly<NL> lpm_prob{sc_xyz, cell, btype};
+    Assembly<NL> pt_assembly{sc_xyz, cell, btype};
 
     // initialize the necessary matrices
     initMatrices(cell);
@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
     double critical_bstrain = 1.0e-2; // critical bond strain value at which bond will break
     int nbreak = 20;                  // limit the broken number of bonds in a single iteration, should be an even number
 
-    for (Particle<NL> *p1 : lpm_prob.ptsystem)
+    for (Particle<NL> *p1 : pt_assembly.ptsystem)
     {
         // assign boundary and internal particles
         if (p1->xyz[2] > 10.0 - 1.2 * radius)
@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
     // check the Kn Tv of bonds
     // for (int i = 0; i < NL; ++i)
     // {
-    //     for (auto bd : lpm_prob.ptsystem[20]->bond_layers[i])
+    //     for (auto bd : pt_assembly.ptsystem[20]->bond_layers[i])
     //     {
     //         printf("Particle %d, Kn is %f, Tv is %f\n", bd->p1->id, bd->Kn, bd->Tv);
     //     }
