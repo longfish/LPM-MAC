@@ -146,10 +146,14 @@ int main(int argc, char *argv[])
     printf("            Nonlocal C++ LPM Program              \n");
     printf("==================================================\n");
 
-    const int nt = omp_get_max_threads(); /* maximum number of threads provided by the computer */
+    // const int nt = omp_get_max_threads(); /* maximum number of threads provided by the computer */
+    const int nt = 1;
     printf("OpenMP with %d threads\n", nt);
 
     double start = omp_get_wtime(); // record the CPU time, begin
+
+    // number of neighbor layers (currently only support 2 layers of neighbors)
+    const int n_layer = 2;
 
     // lattice type -> lattice number, int
     // square -> 0; hexagon -> 1; simple cubic -> 2; face-centered cubic -> 3
@@ -157,14 +161,14 @@ int main(int argc, char *argv[])
     // body-centered cubic with 2 types of slip systems -> 5
     // body-centered cubic with 3 types of slip systems -> 6
     int lattice = 2;
-    double radius = 0.2;
+    double radius = 1.15;
     UnitCell cell(lattice, radius); /*lattice type is 2, simple cubic*/
 
     // Euler angles setting for system rotation
     // flag is 0 ~ 2 for different conventions, (0: direct rotation; 1: Kocks convention; 2: Bunge convention)
     // angle1, angle2 and an angle3 are Euler angles in degree, double
     int eulerflag = 0; // direct rotation
-    double angles[] = {PI / 180.0 * 30.0, PI / 180.0 * 0.0, PI / 180.0 * 0.0};
+    double angles[] = {PI / 180.0 * 0.0, PI / 180.0 * 0.0, PI / 180.0 * 0.0};
     double *R_matrix = createRMatrix(eulerflag, angles);
 
     // create a simulation box
@@ -174,7 +178,7 @@ int main(int argc, char *argv[])
 
     int btype = 0; // btype is 0: elastic bond with brittle damage law
     std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
-    Assembly<NL> pt_assembly{sc_xyz, cell, btype};
+    Assembly<n_layer> pt_assembly{sc_xyz, cell, btype};
 
     // initialize the necessary matrices
     initMatrices(cell);
@@ -191,7 +195,7 @@ int main(int argc, char *argv[])
     double critical_bstrain = 1.0e-2; // critical bond strain value at which bond will break
     int nbreak = 20;                  // limit the broken number of bonds in a single iteration, should be an even number
 
-    for (Particle<NL> *p1 : pt_assembly.ptsystem)
+    for (Particle<n_layer> *p1 : pt_assembly.ptsystem)
     {
         // assign boundary and internal particles
         if (p1->xyz[2] > 10.0 - 1.2 * radius)
@@ -202,23 +206,28 @@ int main(int argc, char *argv[])
             p1->type = 3; // particles with full neighbor list
 
         // assign material properties
-        for (int i = 0; i < NL; ++i)
+        for (int i = 0; i < n_layer; ++i)
         {
             for (auto bd : p1->bond_layers[i])
             {
                 // cast to elastic bond
-                ElasticBond<NL> *elbd = dynamic_cast<ElasticBond<NL> *>(bd);
+                ElasticBond<n_layer> *elbd = dynamic_cast<ElasticBond<n_layer> *>(bd);
                 elbd->setBondProperty(E0, mu0, critical_bstrain, nbreak);
             }
         }
     }
 
     // check the Kn Tv of bonds
-    // for (int i = 0; i < NL; ++i)
+    // int pid = 20;
+    // for (int i = 0; i < n_layer; ++i)
     // {
-    //     for (auto bd : pt_assembly.ptsystem[20]->bond_layers[i])
+    //     for (auto bd : pt_assembly.ptsystem[pid]->bond_layers[i])
     //     {
-    //         printf("Particle %d, Kn is %f, Tv is %f\n", bd->p1->id, bd->Kn, bd->Tv);
+    //         printf("Particle %d, Kn is %f, Tv is %f\n", bd->p2->id, bd->Kn, bd->Tv);
+    //         auto op_bd = std::find_if(bd->p2->bond_layers[i].begin(), bd->p2->bond_layers[i].end(),
+    //                                   [&](Bond<n_layer> *b)
+    //                                   { return b->p2->id == pid; });
+    //         printf("Its op Particle %d, Kn is %f, Tv is %f\n", (*op_bd)->p2->id, (*op_bd)->Kn, (*op_bd)->Tv);
     //     }
     // }
 
@@ -353,7 +362,7 @@ int main(int argc, char *argv[])
         copyDouble2D(F_temp, F, nparticle, cell.nneighbors);
         copyDouble1D(Pex_temp, Pex, cell.dim * nparticle);
 
-        omp_set_num_threads(2);
+        omp_set_num_threads(1);
         // compute the elastic stiffness matrix
         if (cell.dim == 2)
             calcStiffness2DFiniteDifference(6, cell);
