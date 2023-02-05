@@ -29,7 +29,7 @@ public:
     std::array<std::vector<Bond<nlayer> *>, nlayer> bond_layers;             // an array that store n layers of bonds
     std::vector<Particle<nlayer> *> neighbors;                               // vector that stores all particles that form bonds
     std::vector<Particle<nlayer> *> conns;                                   // store all connections of the particle
-    std::array<double, NDIM> stress, strain;                                 // stress and strain tensor
+    std::array<double, NDIM * NDIM> stress, strain;                          // stress and strain tensor
 
     Particle() { id = _ID++; /* id starts from 0 */ }
     Particle(const double &p_x, const double &p_y, const double &p_z, const int &p_lattice, const double &p_radius);

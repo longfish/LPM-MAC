@@ -40,7 +40,7 @@
 // }
 
 /* write the particle-wise information into LAMMPS dump file type */
-void writeDump(const char *dataName, int step, char flag, double box[], double plmode)
+void writeDump(const char *dataName, int step, char flag, double box[])
 {
     FILE *fpt;
     if (flag == 's')
