@@ -1,6 +1,6 @@
 #pragma once
-#ifndef PROBLEM_H
-#define PROBLEM_H
+#ifndef LPM_SYSTEM_H
+#define LPM_SYSTEM_H
 
 #include <vector>
 #include <array>
@@ -23,7 +23,7 @@ template <int nlayer>
 class Particle;
 
 template <int nlayer>
-class LPMProblem
+class Assembly
 {
     // Given a particle system, construct a stiffness matrix, RHS and solver
 public:
@@ -32,7 +32,7 @@ public:
     double *K_global, *residual, *reaction_force;
     std::vector<Particle<nlayer> *> ptsystem; // system of particles
 
-    LPMProblem(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, int btype);
+    Assembly(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, int btype);
 
     void createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
     void createBonds(int btype);
@@ -40,7 +40,7 @@ public:
 };
 
 template <int nlayer>
-LPMProblem<nlayer>::LPMProblem(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, int btype)
+Assembly<nlayer>::Assembly(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, int btype)
 {
     createParticles(p_xyz, p_cell);
     createBonds(btype);
@@ -49,7 +49,7 @@ LPMProblem<nlayer>::LPMProblem(std::vector<std::array<double, NDIM>> &p_xyz, Uni
 }
 
 template <int nlayer>
-void LPMProblem<nlayer>::createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell)
+void Assembly<nlayer>::createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell)
 {
     for (auto xyz : p_xyz)
     {
@@ -59,7 +59,7 @@ void LPMProblem<nlayer>::createParticles(std::vector<std::array<double, NDIM>> &
 }
 
 template <int nlayer>
-void LPMProblem<nlayer>::createBonds(int btype)
+void Assembly<nlayer>::createBonds(int btype)
 {
 #pragma omp parallel for
     for (Particle<nlayer> *p1 : ptsystem)
@@ -86,7 +86,7 @@ void LPMProblem<nlayer>::createBonds(int btype)
 }
 
 template <int nlayer>
-void LPMProblem<nlayer>::createConnections()
+void Assembly<nlayer>::createConnections()
 {
 #pragma omp parallel for 
     for (Particle<nlayer> *p1 : ptsystem)
