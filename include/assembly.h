@@ -104,6 +104,10 @@ void Assembly<nlayer>::createConnections()
                   { return a->id < b->id; });
         p1->conns.erase(unique(p1->conns.begin(), p1->conns.end()), p1->conns.end());
         p1->nconn = p1->conns.size();
+
+        // get the number of conns with id larger or equal to self
+        auto curr = std::find(p1->conns.begin(), p1->conns.end(), p1);
+        p1->nconn_le = (int)std::distance(curr, p1->conns.end());
     }
 }
 
