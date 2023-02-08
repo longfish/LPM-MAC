@@ -107,7 +107,7 @@ void Assembly<nlayer>::createConnections()
 
         // get the number of conns with id larger or equal to self
         auto curr = std::find(p1->conns.begin(), p1->conns.end(), p1);
-        p1->nconn_le = (int)std::distance(curr, p1->conns.end());
+        p1->nconn_largeq = (int)std::distance(curr, p1->conns.end());
     }
 }
 

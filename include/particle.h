@@ -19,13 +19,13 @@ protected:
 public:
     int id{0};                                                               // identifier of the particle
     int type{0};                                                             // particle type which is needed for boundary condition settings
-    int nconn_le{0};                                                       // matrix pointer, number of conn larger than (or equal to) its own index
+    int nconn_largeq{0};                                                         // matrix pointer, number of conn larger than (or equal to) its own index
     int nb{0}, nconn{0};                                                     // number of bonds and connections
     double damage_visual{0.};                                                // damage value for visualization
     UnitCell cell{0, 0.0};                                                   // unit cell
     std::array<double, nlayer> dLe_total, TdLe_total, ddL_total, TddL_total; // volumetric bond measure
     std::array<double, NDIM> xyz, xyz_initial, xyz_last;                     // particle coordinates
-    std::array<double, NDIM> Pin, Pex;                                       // internal and external particle force
+    std::array<double, NDIM> Pin{0}, Pex{0};                                 // internal and external particle force
     std::array<std::vector<Bond<nlayer> *>, nlayer> bond_layers;             // an array that store n layers of bonds
     std::vector<Particle<nlayer> *> neighbors;                               // vector that stores all particles that form bonds
     std::vector<Particle<nlayer> *> conns;                                   // all connections of the particle (include self)
@@ -36,8 +36,11 @@ public:
     Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell);
 
     void moveTo(const double &new_x, const double &new_y, const double &new_z);
+    void moveTo(const std::array<double, NDIM> &new_xyz);
     void updateParticleForce();
-    void updateNeighborsGeometry();
+    void updateBondsGeometry();
+    void updateBondsForce();
+    void resumeParticle();
     double distanceTo(const Particle<nlayer> &A);
     bool operator==(const Particle<nlayer> &other);
 };
@@ -77,7 +80,14 @@ void Particle<nlayer>::moveTo(const double &new_x, const double &new_y, const do
 }
 
 template <int nlayer>
-void Particle<nlayer>::updateNeighborsGeometry()
+void Particle<nlayer>::moveTo(const std::array<double, NDIM> &new_xyz)
+{
+    xyz_last = xyz;
+    xyz = new_xyz;
+}
+
+template <int nlayer>
+void Particle<nlayer>::updateBondsGeometry()
 {
     // update all the neighbors information
     for (int i = 0; i < nlayer; ++i)
@@ -87,18 +97,37 @@ void Particle<nlayer>::updateNeighborsGeometry()
         for (Bond<nlayer> *bd : bond_layers[i])
         {
             bd->updatebGeometry();
-            dLe_total += bd->dLe;
-            TdLe_total += bd->Tv * bd->dLe;
-            ddL_total += bd->ddL;
-            TddL_total += bd->Tv * bd->ddL;
+            dLe_total[i] += bd->dLe;
+            TdLe_total[i] += bd->Tv * bd->dLe;
+            ddL_total[i] += bd->ddL;
+            TddL_total[i] += bd->Tv * bd->ddL;
         }
     }
 }
 
 template <int nlayer>
+void Particle<nlayer>::updateBondsForce()
+{
+    // update all the bond forces
+    for (int i = 0; i < nlayer; ++i)
+    {
+        for (Bond<nlayer> *bd : bond_layers[i])
+            bd->updatebForce();
+    }
+}
+
+template <int nlayer>
+void Particle<nlayer>::resumeParticle()
+{
+    // used for calculating stiffness matrix
+    updateBondsGeometry();
+    updateBondsForce();
+}
+
+template <int nlayer>
 void Particle<nlayer>::updateParticleForce()
 {
-    // sum up all the particle forces
+    // sum up all bond forces
     Pin = {0., 0., 0.};
     for (int i = 0; i < nlayer; ++i)
     {

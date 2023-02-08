@@ -182,7 +182,7 @@ void calcKnTv(int ntype, UnitCell cell)
 
         for (int k = 0; k < ntype; k++)
             cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 3, 1, 3, cell.radius, mapping, 3, Ce[k], 1, 0.0, KnTve[k], 1);
-        
+
         for (int i = 0; i < nparticle; i++)
         {
             for (int j = 0; j < nb_initial[i]; j++)
@@ -190,13 +190,13 @@ void calcKnTv(int ntype, UnitCell cell)
                 /* assign properties for different layer of neighbors */
                 if (nsign[i][j] == 0)
                 {
-                    Kn[i][j] = KnTve[type[i]][0]; //0.5 * (KnTve[type[i]][0] + KnTve[type[neighbors[i][j]]][0]);
-                    Tv[i][j] = KnTve[type[i]][2]; //0.5 * (KnTve[type[i]][2] + KnTve[type[neighbors[i][j]]][2]);
+                    Kn[i][j] = KnTve[type[i]][0]; // 0.5 * (KnTve[type[i]][0] + KnTve[type[neighbors[i][j]]][0]);
+                    Tv[i][j] = KnTve[type[i]][2]; // 0.5 * (KnTve[type[i]][2] + KnTve[type[neighbors[i][j]]][2]);
                 }
                 else if (nsign[i][j] == 1)
                 {
-                    Kn[i][j] = KnTve[type[i]][1]; //0.5 * (KnTve[type[i]][1] + KnTve[type[neighbors[i][j]]][1]);
-                    Tv[i][j] = KnTve[type[i]][2]; //0.5 * (KnTve[type[i]][2] + KnTve[type[neighbors[i][j]]][2]);
+                    Kn[i][j] = KnTve[type[i]][1]; // 0.5 * (KnTve[type[i]][1] + KnTve[type[neighbors[i][j]]][1]);
+                    Tv[i][j] = KnTve[type[i]][2]; // 0.5 * (KnTve[type[i]][2] + KnTve[type[neighbors[i][j]]][2]);
                 }
             }
         }
@@ -381,7 +381,7 @@ void calcStiffness3DFiniteDifference(int plmode, UnitCell cell)
 {
     memset(K_global, 0.0, K_pointer[nparticle][1] * sizeof(double)); /* initialization od stiffness matrix */
 
-#pragma omp parallel for
+    // #pragma omp parallel for
     for (int i = 0; i < nparticle; i++)
     {
         double *K_local = allocDouble1D(NDIM * nb_conn[i] * NDIM, 0.);
@@ -433,6 +433,10 @@ void calcStiffness3DFiniteDifference(int plmode, UnitCell cell)
             for (int r = 0; r < NDIM; r++)
                 for (int s = 0; s < NDIM; s++)
                     K_locallocal[r][s] = K_local[NDIM * nb_conn[i] * s + NDIM * jID + r];
+            // if (i == 30)
+            // {
+            //     printf("%f, %f, %f\n", K_locallocal[0][0], K_locallocal[1][1], K_locallocal[2][2]);
+            // }
 
             if (jj == i)
             {
@@ -446,6 +450,8 @@ void calcStiffness3DFiniteDifference(int plmode, UnitCell cell)
             else if (jj > i)
             {
                 num1++;
+                // if(i == 30)
+                // printf("%d, ", num1);
                 K_global[K_pointer[i][1] + cell.dim * num1] += 0.5 * K_locallocal[0][0];
                 K_global[K_pointer[i][1] + cell.dim * num1 + 1] += 0.5 * K_locallocal[0][1];
                 K_global[K_pointer[i][1] + cell.dim * num1 + 2] += 0.5 * K_locallocal[0][2];
@@ -466,6 +472,8 @@ void calcStiffness3DFiniteDifference(int plmode, UnitCell cell)
                     num2++;
                     if (conn[jj][k] == i)
                     {
+                        // if (i == 40)
+                        //     printf("%d, ", num2);
                         K_global[K_pointer[jj][1] + cell.dim * num2] += 0.5 * K_locallocal[0][0];
                         K_global[K_pointer[jj][1] + cell.dim * num2 + 1] += 0.5 * K_locallocal[1][0];
                         K_global[K_pointer[jj][1] + cell.dim * num2 + 2] += 0.5 * K_locallocal[2][0];
@@ -478,6 +486,10 @@ void calcStiffness3DFiniteDifference(int plmode, UnitCell cell)
                     }
                 }
             }
+
+            // if (i == 40)
+            //     printf("%f, ", K_global[K_pointer[jj][1] + cell.dim * 1 + 1]);
+
             /* The JK array */
             if (jj == i)
             {
@@ -506,6 +518,10 @@ void calcStiffness3DFiniteDifference(int plmode, UnitCell cell)
         IK[cell.dim * i] = K_pointer[i][1] + 1;
         IK[cell.dim * i + 1] = K_pointer[i][1] + cell.dim * K_pointer[i][0] + 1;
         IK[cell.dim * i + 2] = K_pointer[i][1] + 2 * cell.dim * K_pointer[i][0];
+
+        // if (i == 40)
+        //     printf("%d, ", IK[cell.dim * i] );
+
         free(K_local);
     }
     IK[cell.dim * nparticle] = K_pointer[nparticle][1] + 1;

@@ -16,7 +16,7 @@ public:
     int layer{-1};                              // index of current bond layer
     double dis_initial{0}, dis_last{0}, dis{0}; // initial, last, and current bond length
     double ddL{0};                              // incremental change of particle distance
-    double dLe{0}, dLp{0};                      // elastic and plastic bond change
+    double dLe{0}, dLp{0}, dLp_last{0};         // elastic and plastic bond change
     double Kn{0}, Tv{0};                        // LPM coefficient
     double csx{0}, csy{0}, csz{0};              // direction cosine
     double bforce_last{0}, bforce{0};           // bond-wise quantities

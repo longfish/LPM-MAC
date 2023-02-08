@@ -30,8 +30,9 @@ public:
 template <int nlayer>
 void ElasticBond<nlayer>::updatebForce()
 {
+    // for elastic bonds, a trial elastic calculation is enough
     this->bforce_last = this->bforce;
-    this->bforce = 2. * this->Kn * this->dLe + this->p1->TdLe_total[this->layer] + this->Tv * this->p1->dLe_total[this->layer];
+    this->bforce += 2. * this->Kn * this->ddL + this->p1->TddL_total[this->layer] + this->Tv * this->p1->ddL_total[this->layer];
 }
 
 template <int nlayer>

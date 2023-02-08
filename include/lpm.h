@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <boost/range/adaptor/indexed.hpp>
 
 #include <omp.h>
 #include <mkl.h>
@@ -24,6 +25,8 @@
 #include <mkl_blas.h>
 #include <mkl_spblas.h>
 #include <mkl_service.h>
+
+using namespace boost::adaptors;
 
 #define PI 3.14159265358979323846
 #define NDIM 3        /* max number of dimensions, no matter what dimension of the problem */

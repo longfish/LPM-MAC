@@ -23,6 +23,7 @@
 #include "constitutive.h"
 #include "boundary.h"
 #include "mkl_solver.h"
+#include "solver.h"
 
 /* definition of global variables */
 /* int */
@@ -47,7 +48,6 @@ double **dL, **ddL, **bond_stress, **damage_broken, **damage_w;
 double **Kn, **Tv;
 double ***damage_D;
 
-
 template <int nlayer>
 void writeDump(Assembly<nlayer> ass, const char *dataName, int step, char flag, double box[])
 {
@@ -67,11 +67,11 @@ void writeDump(Assembly<nlayer> ass, const char *dataName, int step, char flag, 
     fprintf(fpt, "%8.8f %8.8f\n", box[4], box[5]);
 
     fprintf(fpt, "ITEM: ATOMS id type x y z dx dy dz s11 s22 s33 s23 s13 s12 damage\n");
-    for (auto pt: ass.ptsystem)
+    for (auto pt : ass.ptsystem)
     {
-        fprintf(fpt, "%d %d %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e\n", 
+        fprintf(fpt, "%d %d %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e\n",
                 pt->id, pt->type,
-                pt->xyz[0], pt->xyz[1], pt->xyz[2], 
+                pt->xyz[0], pt->xyz[1], pt->xyz[2],
                 pt->xyz[0] - pt->xyz_initial[0], pt->xyz[1] - pt->xyz_initial[1], pt->xyz[2] - pt->xyz_initial[2],
                 pt->stress[0], pt->stress[1], pt->stress[2], pt->stress[3], pt->stress[4], pt->stress[5],
                 pt->damage_visual);
@@ -170,17 +170,17 @@ void initMatrices(UnitCell cell)
     F = allocDouble2D(nparticle, cell.nneighbors, 0.);      /* FIJ is total bond force between I and J */
     F_temp = allocDouble2D(nparticle, cell.nneighbors, 0.); /* F_tempIJ stores the bond force at last time step */
 }
+
 /************************************************************************/
 /****************************** Main procedure **************************/
 /************************************************************************/
 int main(int argc, char *argv[])
 {
     printf("\n==================================================\n");
-    printf("            Nonlocal C++ LPM Program              \n");
+    printf("            Nonlocal LPM C++ Program              \n");
     printf("==================================================\n");
 
-    // const int nt = omp_get_max_threads(); /* maximum number of threads provided by the computer */
-    const int nt = 1;
+    const int nt = omp_get_max_threads(); /* maximum number of threads provided by the computer */
     printf("OpenMP with %d threads\n", nt);
 
     double start = omp_get_wtime(); // record the CPU time, begin
@@ -211,13 +211,17 @@ int main(int argc, char *argv[])
 
     int btype = 0; // btype is 0: elastic bond with brittle damage law
     std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
-    Assembly<n_layer> pt_assembly{sc_xyz, cell, btype};
+    Assembly<n_layer> pt_prob{sc_xyz, cell, btype};
 
     // initialize the necessary matrices
     initMatrices(cell);
     copyDouble2D(xyz_initial, xyz, nparticle, NDIM);
 
     printf("\nParticle number is %d\n", nparticle);
+
+    std::vector<double> aa{3.2, 5.6, 7.6, 8.7, 2.3, 4.5, 6.7};
+    for (const auto &ele : aa | indexed(0))
+        printf("idx %d, value %f\n", ele.index(), ele.value());
 
     // search neighbor
     searchNormalNeighbor(cell);
@@ -228,7 +232,7 @@ int main(int argc, char *argv[])
     double critical_bstrain = 1.0e-2; // critical bond strain value at which bond will break
     int nbreak = 20;                  // limit the broken number of bonds in a single iteration, should be an even number
 
-    for (Particle<n_layer> *p1 : pt_assembly.ptsystem)
+    for (Particle<n_layer> *p1 : pt_prob.ptsystem)
     {
         // assign boundary and internal particles
         if (p1->xyz[2] > 10.0 - 1.2 * radius)
@@ -250,11 +254,30 @@ int main(int argc, char *argv[])
         }
     }
 
+    // initialize the solver
+    double stiff1 = omp_get_wtime();
+    Solver<n_layer> solv{pt_prob.ptsystem};
+    double stiff1_end = omp_get_wtime();
+    printf("Class stiffness matrix calculation costs %f seconds\n", stiff1_end - stiff1);
+
+    // for (int i = 0; i < pt_prob.nparticle + 1; i++)
+    // {
+    //     printf("%d\n", solv.K_pointer[i]);
+    // }
+
+    // int pid = 20;
+    // for (auto pt : pt_prob.ptsystem[pid]->conns)
+    // {
+    //     // printf("Particle %d, conn particle is %d\n", pid, pt->id);
+    //     printf("particle id %d, nconn_largeq %d\n", pt->id, pt->nconn_largeq);
+    //     printf("it should be %d\n", K_pointer[pt->id][0]);
+    // }
+
     // check the Kn Tv of bonds
     // int pid = 20;
     // for (int i = 0; i < n_layer; ++i)
     // {
-    //     for (auto bd : pt_assembly.ptsystem[pid]->bond_layers[i])
+    //     for (auto bd : pt_prob.ptsystem[pid]->bond_layers[i])
     //     {
     //         printf("Particle %d, Kn is %f, Tv is %f\n", bd->p2->id, bd->Kn, bd->Tv);
     //         auto op_bd = std::find_if(bd->p2->bond_layers[i].begin(), bd->p2->bond_layers[i].end(),
@@ -380,12 +403,44 @@ int main(int argc, char *argv[])
     }
 
     writeDump(dumpFile, 0, dumpflag, box);
-    writeDump(pt_assembly, dumpFileNew, 0, dumpflag, box);
-    writeNeighbor(neighborFile);
 
-    // // omp_set_num_threads(nt_force);
-    // double initrun = omp_get_wtime();
-    // printf("Initialization finished in %f seconds\n\n", initrun - start);
+    // // move particles
+    // int pid = 0;
+    // pt_prob.ptsystem[pid]->moveTo(-3.0000e-01, 3.8667e-01, 3.8667e-01);
+    // pt_prob.ptsystem[pid]->updateBondsGeometry();
+    // pt_prob.ptsystem[pid]->updateBondsForce();
+
+    // pt_prob.ptsystem[pid + 1]->updateBondsGeometry();
+    // pt_prob.ptsystem[pid + 1]->updateBondsForce();
+    // pt_prob.ptsystem[pid + 1]->updateParticleForce();
+    // printf("Pinx %f, Piny %f, Pinz %f\n", pt_prob.ptsystem[pid + 1]->Pin[0], pt_prob.ptsystem[pid + 1]->Pin[1], pt_prob.ptsystem[pid + 1]->Pin[2]);
+
+    // for (int i = 0; i < n_layer; ++i)
+    // {
+    //     for (auto bd : pt_prob.ptsystem[pid+1]->bond_layers[i])
+    //     {
+    //         printf("bforce is %f\n", bd->bforce);
+    //     }
+    // }
+
+    writeDump(pt_prob, dumpFileNew, 0, dumpflag, box);
+    writeNeighbor(neighborFile);
+    writeConnection(connFile);
+
+    // omp_set_num_threads(nt_force);
+    double initrun = omp_get_wtime();
+    printf("Initialization finished in %f seconds\n\n", initrun - start);
+
+    double startrun = omp_get_wtime();
+
+    // compute the elastic stiffness matrix
+    if (cell.dim == 2)
+        calcStiffness2DFiniteDifference(6, cell);
+    else if (cell.dim == 3)
+        calcStiffness3DFiniteDifference(6, cell);
+
+    double time_t1 = omp_get_wtime();
+    printf("Stiffness matrix calculation costs %f seconds\n", time_t1 - startrun);
 
     // // incremental loading procedure
     // for (int i = 0; i < n_steps; i++)
@@ -522,8 +577,8 @@ int main(int argc, char *argv[])
     //     printf("Time costed for step %d: %f seconds\n\n", i + 1, finishrun - startrun);
     // }
 
-    // double finish = omp_get_wtime();
-    // printf("Computation time for total steps: %f seconds\n\n", finish - start);
+    double finish = omp_get_wtime();
+    printf("Computation time for total steps: %f seconds\n\n", finish - start);
 
     // frees unused memory allocated by the Intel MKL Memory Allocator
     mkl_free_buffers();
