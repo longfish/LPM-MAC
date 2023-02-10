@@ -17,12 +17,15 @@ protected:
     static int _ID;
 
 public:
-    int id{0};                                                               // identifier of the particle
-    int type{0};                                                             // particle type which is needed for boundary condition settings
-    int nconn_largeq{0};                                                         // matrix pointer, number of conn larger than (or equal to) its own index
-    int nb{0}, nconn{0};                                                     // number of bonds and connections
-    double damage_visual{0.};                                                // damage value for visualization
-    UnitCell cell{0, 0.0};                                                   // unit cell
+    int id{0};                // identifier of the particle
+    int type{0};              // particle type which is needed for boundary condition settings
+    int frozen{0};            // totally fix the particle's position
+    int nconn_largeq{0};      // matrix pointer, number of conn larger than (or equal to) its own index
+    int nb{0}, nconn{0};      // number of bonds and connections
+    double damage_visual{0.}; // damage value for visualization
+    UnitCell cell{0, 0.0};    // unit cell
+
+    std::array<int, NDIM> disp_constraint{0};                                // disp BC indicator, 1 means disp BC applied, 0 otherwise
     std::array<double, nlayer> dLe_total, TdLe_total, ddL_total, TddL_total; // volumetric bond measure
     std::array<double, NDIM> xyz, xyz_initial, xyz_last;                     // particle coordinates
     std::array<double, NDIM> Pin{0}, Pex{0};                                 // internal and external particle force
@@ -37,6 +40,8 @@ public:
 
     void moveTo(const double &new_x, const double &new_y, const double &new_z);
     void moveTo(const std::array<double, NDIM> &new_xyz);
+    void moveBy(const std::array<double, NDIM> &dxyz);
+
     void updateParticleForce();
     void updateBondsGeometry();
     void updateBondsForce();
@@ -84,6 +89,13 @@ void Particle<nlayer>::moveTo(const std::array<double, NDIM> &new_xyz)
 {
     xyz_last = xyz;
     xyz = new_xyz;
+}
+
+template <int nlayer>
+void Particle<nlayer>::moveBy(const std::array<double, NDIM> &dxyz)
+{
+    xyz_last = xyz;
+    xyz = {xyz[0] + dxyz[0], xyz[1] + dxyz[1], xyz[2] + dxyz[2]};
 }
 
 template <int nlayer>

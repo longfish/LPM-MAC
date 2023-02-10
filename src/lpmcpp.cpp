@@ -18,12 +18,13 @@
 #include "utilities.h"
 #include "initialization.h"
 #include "neighbor.h"
-#include "stiffness.h"
+#include "lpm_stiffness.h"
 #include "data_handler.h"
 #include "constitutive.h"
 #include "boundary.h"
 #include "mkl_solver.h"
-#include "solver.h"
+#include "stiffness.h"
+#include "load_step.h"
 
 /* definition of global variables */
 /* int */
@@ -180,7 +181,8 @@ int main(int argc, char *argv[])
     printf("            Nonlocal LPM C++ Program              \n");
     printf("==================================================\n");
 
-    const int nt = omp_get_max_threads(); /* maximum number of threads provided by the computer */
+    // const int nt = omp_get_max_threads(); /* maximum number of threads provided by the computer */
+    int nt = 1;
     printf("OpenMP with %d threads\n", nt);
 
     double start = omp_get_wtime(); // record the CPU time, begin
@@ -219,10 +221,6 @@ int main(int argc, char *argv[])
 
     printf("\nParticle number is %d\n", nparticle);
 
-    std::vector<double> aa{3.2, 5.6, 7.6, 8.7, 2.3, 4.5, 6.7};
-    for (const auto &ele : aa | indexed(0))
-        printf("idx %d, value %f\n", ele.index(), ele.value());
-
     // search neighbor
     searchNormalNeighbor(cell);
     int len_K_global = searchAFEMNeighbor(cell);
@@ -256,7 +254,7 @@ int main(int argc, char *argv[])
 
     // initialize the solver
     double stiff1 = omp_get_wtime();
-    Solver<n_layer> solv{pt_prob.ptsystem};
+    Stiffness<n_layer> solv{pt_prob.ptsystem, 0};
     double stiff1_end = omp_get_wtime();
     printf("Class stiffness matrix calculation costs %f seconds\n", stiff1_end - stiff1);
 
@@ -367,6 +365,9 @@ int main(int argc, char *argv[])
     struct ForceBCs fBP[MAXLINE][MAXSMALL] = {0};
     int load_indicator[MAXLINE] = {0}; // tension (1) or compressive (-1) loading condition for uniaxial loading
 
+    // generate force boundary conditions
+    std::vector<LoadStep> load;
+
     // force boundary conditions
     for (int i = 0; i < n_steps; i++)
     {
@@ -380,6 +381,13 @@ int main(int argc, char *argv[])
         fBP[i][nbf].flag1 = 'x', fBP[i][nbf].step1 = 0.0;
         fBP[i][nbf].flag2 = 'y', fBP[i][nbf].step2 = 0.0;
         fBP[i][nbf].flag3 = 'z', fBP[i][nbf++].step3 = step_size;
+
+        LoadStep step{1}; // 1 means tension loading
+
+        // boundary conditions
+        step.dispBCs.push_back(DispBC(1, 'z', 0.0));
+        step.forceBCs.push_back(ForceBC(2, 0.0, 0.0, step_size));
+        load.push_back(step);
     }
 
     /************************** Simulation begins *************************/
@@ -433,149 +441,149 @@ int main(int argc, char *argv[])
 
     double startrun = omp_get_wtime();
 
-    // compute the elastic stiffness matrix
-    if (cell.dim == 2)
-        calcStiffness2DFiniteDifference(6, cell);
-    else if (cell.dim == 3)
-        calcStiffness3DFiniteDifference(6, cell);
+    // // compute the elastic stiffness matrix
+    // if (cell.dim == 2)
+    //     calcStiffness2DFiniteDifference(6, cell);
+    // else if (cell.dim == 3)
+    //     calcStiffness3DFiniteDifference(6, cell);
 
     double time_t1 = omp_get_wtime();
     printf("Stiffness matrix calculation costs %f seconds\n", time_t1 - startrun);
 
-    // // incremental loading procedure
-    // for (int i = 0; i < n_steps; i++)
-    // {
-    //     double startrun = omp_get_wtime();
+    // incremental loading procedure
+    for (int i = 0; i < n_steps; i++)
+    {
+        double startrun = omp_get_wtime();
 
-    //     printf("######################################## Loading step %d ######################################\n", i + 1);
-    //     copyDouble2D(xyz_temp, xyz, nparticle, NDIM);
-    //     copyDouble2D(F_temp, F, nparticle, cell.nneighbors);
-    //     copyDouble1D(Pex_temp, Pex, cell.dim * nparticle);
+        printf("######################################## Loading step %d ######################################\n", i + 1);
+        copyDouble2D(xyz_temp, xyz, nparticle, NDIM);
+        copyDouble2D(F_temp, F, nparticle, cell.nneighbors);
+        copyDouble1D(Pex_temp, Pex, cell.dim * nparticle);
 
-    //     omp_set_num_threads(1);
-    //     // compute the elastic stiffness matrix
-    //     if (cell.dim == 2)
-    //         calcStiffness2DFiniteDifference(6, cell);
-    //     else if (cell.dim == 3)
-    //         calcStiffness3DFiniteDifference(6, cell);
+        omp_set_num_threads(1);
+        // compute the elastic stiffness matrix
+        if (cell.dim == 2)
+            calcStiffness2DFiniteDifference(6, cell);
+        else if (cell.dim == 3)
+            calcStiffness3DFiniteDifference(6, cell);
 
-    //     double time_t1 = omp_get_wtime();
-    //     printf("Stiffness matrix calculation costs %f seconds\n", time_t1 - startrun);
+        double time_t1 = omp_get_wtime();
+        printf("Stiffness matrix calculation costs %f seconds\n", time_t1 - startrun);
 
-    // label_wei:
-    //     setDispBC(nbd, dBP[i], cell);  // update displacement BC
-    //     setForceBC(nbf, fBP[i], cell); // update force BC
+    label_wei:
+        setDispBC(nbd, dBP[i], cell);  // update displacement BC
+        setForceBC(nbf, fBP[i], cell); // update force BC
 
-    //     computeBondForceGeneral(plmode, load_indicator[i], cell); // incremental updating
-    //     omp_set_num_threads(nt);
+        computeBondForceGeneral(plmode, load_indicator[i], cell); // incremental updating
+        omp_set_num_threads(nt);
 
-    // label_broken_bond:
-    //     updateRR(cell); // residual force vector and reaction force (RR)
+    label_broken_bond:
+        updateRR(cell); // residual force vector and reaction force (RR)
 
-    //     // compute the Euclidean norm (L2 norm)
-    //     double norm_residual = cblas_dnrm2(cell.dim * nparticle, residual, 1);
-    //     double norm_reaction_force = cblas_dnrm2(countNEqual(dispBC_index, nparticle * cell.dim, 1), reaction_force, 1);
-    //     double tol_multiplier = MAX(norm_residual, norm_reaction_force);
-    //     char tempChar1[] = "residual", tempChar2[] = "reaction";
-    //     printf("\nNorm of residual is %.5e, norm of reaction is %.5e, tolerance criterion is based on ", norm_residual, norm_reaction_force);
-    //     if (norm_residual > norm_reaction_force)
-    //         printf("%s force\n", tempChar1);
-    //     else
-    //         printf("%s force\n", tempChar2);
+        // compute the Euclidean norm (L2 norm)
+        double norm_residual = cblas_dnrm2(cell.dim * nparticle, residual, 1);
+        double norm_reaction_force = cblas_dnrm2(countNEqual(dispBC_index, nparticle * cell.dim, 1), reaction_force, 1);
+        double tol_multiplier = MAX(norm_residual, norm_reaction_force);
+        char tempChar1[] = "residual", tempChar2[] = "reaction";
+        printf("\nNorm of residual is %.5e, norm of reaction is %.5e, tolerance criterion is based on ", norm_residual, norm_reaction_force);
+        if (norm_residual > norm_reaction_force)
+            printf("%s force\n", tempChar1);
+        else
+            printf("%s force\n", tempChar2);
 
-    //     // global Newton iteration starts
-    //     int ni = 0;
-    //     while (norm_residual > TOLITER * tol_multiplier && ni < MAXITER)
-    //     {
-    //         printf("Step-%d, iteration-%d: ", i + 1, ++ni);
+        // global Newton iteration starts
+        int ni = 0;
+        while (norm_residual > TOLITER * tol_multiplier && ni < MAXITER)
+        {
+            printf("Step-%d, iteration-%d: ", i + 1, ++ni);
 
-    //         // time_t1 = omp_get_wtime();
-    //         // compute the stiffness matrix, then modify it for displacement boundary condition
-    //         if (cell.dim == 2)
-    //         {
-    //             // calcStiffness2DFiniteDifference(6);
-    //             setDispBC_stiffnessUpdate2D(cell);
-    //         }
-    //         else if (cell.dim == 3)
-    //         {
-    //             // calcStiffness3DFiniteDifference(6);
-    //             setDispBC_stiffnessUpdate3D(cell);
-    //         }
-    //         // time_t2 = omp_get_wtime();
-    //         // printf("Modify stiffness costs %f seconds\n", time_t2 - time_t1);
+            // time_t1 = omp_get_wtime();
+            // compute the stiffness matrix, then modify it for displacement boundary condition
+            if (cell.dim == 2)
+            {
+                // calcStiffness2DFiniteDifference(6);
+                setDispBC_stiffnessUpdate2D(cell);
+            }
+            else if (cell.dim == 3)
+            {
+                // calcStiffness3DFiniteDifference(6);
+                setDispBC_stiffnessUpdate3D(cell);
+            }
+            // time_t2 = omp_get_wtime();
+            // printf("Modify stiffness costs %f seconds\n", time_t2 - time_t1);
 
-    //         // solve for the incremental displacement
-    //         if (strcmp(cal_method, "pardiso") == 0)
-    //             solverPARDISO(cell);
-    //         else if (strcmp(cal_method, "cg") == 0)
-    //             solverCG(cell);
-    //         // time_t1 = omp_get_wtime();
-    //         // printf("Solve the linear system costs %f seconds\n", time_t1 - time_t2);
+            // solve for the incremental displacement
+            if (strcmp(cal_method, "pardiso") == 0)
+                solverPARDISO(cell);
+            else if (strcmp(cal_method, "cg") == 0)
+                solverCG(cell);
+            // time_t1 = omp_get_wtime();
+            // printf("Solve the linear system costs %f seconds\n", time_t1 - time_t2);
 
-    //         omp_set_num_threads(1);
-    //         computeBondForceGeneral(4, load_indicator[i], cell); // update the bond force
-    //         omp_set_num_threads(nt);
+            omp_set_num_threads(1);
+            computeBondForceGeneral(4, load_indicator[i], cell); // update the bond force
+            omp_set_num_threads(nt);
 
-    //         // time_t2 = omp_get_wtime();
-    //         // printf("Update bond force costs %f seconds\n", time_t2 - time_t1);
+            // time_t2 = omp_get_wtime();
+            // printf("Update bond force costs %f seconds\n", time_t2 - time_t1);
 
-    //         // writeDlambda(dlambdaFile, 9039, 9047, i + 1, ni);
+            // writeDlambda(dlambdaFile, 9039, 9047, i + 1, ni);
 
-    //         updateRR(cell); /* update the RHS risidual force vector */
-    //         norm_residual = cblas_dnrm2(cell.dim * nparticle, residual, 1);
-    //         printf("Norm of residual is %.3e, residual ratio is %.3e\n", norm_residual, norm_residual / tol_multiplier);
-    //     }
-    //     computeStrain(cell);
+            updateRR(cell); /* update the RHS risidual force vector */
+            norm_residual = cblas_dnrm2(cell.dim * nparticle, residual, 1);
+            printf("Norm of residual is %.3e, residual ratio is %.3e\n", norm_residual, norm_residual / tol_multiplier);
+        }
+        computeStrain(cell);
 
-    //     /* accumulate damage, and break bonds when damage reaches critical values */
-    //     int broken_bond = updateBrittleDamage(bondFile, i, 20, 0.01);
-    //     updateCrack(cell);
+        /* accumulate damage, and break bonds when damage reaches critical values */
+        int broken_bond = updateBrittleDamage(bondFile, i, 20, 0.01);
+        updateCrack(cell);
 
-    //     printf("Loading step %d has finished in %d iterations\n\nData output ...\n", i + 1, ni);
+        printf("Loading step %d has finished in %d iterations\n\nData output ...\n", i + 1, ni);
 
-    //     /* ----------------------- data output setting section ------------------------ */
+        /* ----------------------- data output setting section ------------------------ */
 
-    //     if ((i + 1) % out_step == 0)
-    //     {
-    //         if (outdisp_flag)
-    //         {
-    //             writeStrain(strainFile, 3, i + 1);
-    //             writeDisp(dispFile, aflag, dtype, i + 1);
-    //             // writeDisp(dispFile1, 'y', 5, i + 1);
-    //             // writeDisp(dispFile2, 'y', 6, i + 1);
-    //         }
-    //         if (outforce_flag)
-    //         {
-    //             writeStress(stressFile, 3, i + 1);
-    //             writeReaction(forceFile, aflag, dtype, i + 1);
-    //             // writeForce(forceFile, aflag, 0.3, i + 1);
-    //         }
-    //         writeDump(dumpFile, i + 1, dumpflag, box, plmode); /* print particle position info */
-    //     }
+        if ((i + 1) % out_step == 0)
+        {
+            if (outdisp_flag)
+            {
+                writeStrain(strainFile, 3, i + 1);
+                writeDisp(dispFile, aflag, dtype, i + 1);
+                // writeDisp(dispFile1, 'y', 5, i + 1);
+                // writeDisp(dispFile2, 'y', 6, i + 1);
+            }
+            if (outforce_flag)
+            {
+                writeStress(stressFile, 3, i + 1);
+                writeReaction(forceFile, aflag, dtype, i + 1);
+                // writeForce(forceFile, aflag, 0.3, i + 1);
+            }
+            writeDump(dumpFile, i + 1, dumpflag, box); /* print particle position info */
+        }
 
-    //     // check if breakage happens, recompute stiffness matrix (this is same as a new loading step)
-    //     if (broken_bond > 0)
-    //     {
-    //         // switchStateV(0); // copy the last converged state variable [1] into current one [0]
-    //         // computeBondForceGeneral(plmode, load_indicator[i]); // update the bond force
+        // check if breakage happens, recompute stiffness matrix (this is same as a new loading step)
+        if (broken_bond > 0)
+        {
+            // switchStateV(0); // copy the last converged state variable [1] into current one [0]
+            // computeBondForceGeneral(plmode, load_indicator[i]); // update the bond force
 
-    //         startrun = omp_get_wtime();
-    //         omp_set_num_threads(1);
-    //         // recompute stiffness matrix
-    //         if (cell.dim == 2)
-    //             calcStiffness2DFiniteDifference(6, cell);
-    //         else if (cell.dim == 3)
-    //             calcStiffness3DFiniteDifference(6, cell);
-    //         omp_set_num_threads(nt);
-    //         time_t1 = omp_get_wtime();
-    //         printf("\nStiffness matrix calculation costs %f seconds\n", time_t1 - startrun);
+            startrun = omp_get_wtime();
+            omp_set_num_threads(1);
+            // recompute stiffness matrix
+            if (cell.dim == 2)
+                calcStiffness2DFiniteDifference(6, cell);
+            else if (cell.dim == 3)
+                calcStiffness3DFiniteDifference(6, cell);
+            omp_set_num_threads(nt);
+            time_t1 = omp_get_wtime();
+            printf("\nStiffness matrix calculation costs %f seconds\n", time_t1 - startrun);
 
-    //         goto label_broken_bond;
-    //     }
+            goto label_broken_bond;
+        }
 
-    //     double finishrun = omp_get_wtime();
-    //     printf("Time costed for step %d: %f seconds\n\n", i + 1, finishrun - startrun);
-    // }
+        double finishrun = omp_get_wtime();
+        printf("Time costed for step %d: %f seconds\n\n", i + 1, finishrun - startrun);
+    }
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);

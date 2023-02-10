@@ -69,6 +69,29 @@ struct ForceBCs
     double step3;
 };
 
+class DispBC
+{
+public:
+    int type;
+    char flag;
+    double step;
+
+    DispBC(int p_type, char p_flag, double p_step)
+        : type{p_type}, flag{p_flag}, step{p_step} {}
+};
+
+class ForceBC
+{
+public:
+    int type;
+    double fx;
+    double fy;
+    double fz;
+
+    ForceBC(int p_type, double p_fx, double p_fy, double p_fz)
+        : type{p_type}, fx{p_fx}, fy{p_fy}, fz{p_fz} {}
+};
+
 /* Declaration of global variables */
 /* int */
 extern int nparticle;

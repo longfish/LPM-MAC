@@ -5,8 +5,8 @@
 #include "unit_cell.h"
 #include "lpm.h"
 
-struct DispBCs;
-struct ForceBCs;
+struct DispBC;
+struct ForceBC;
 
 void setDispBC_stiffnessUpdate2D(UnitCell cell);
 void setDispBC_stiffnessUpdate3D(UnitCell cell);
