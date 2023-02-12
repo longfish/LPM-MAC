@@ -25,14 +25,15 @@ public:
     double damage_visual{0.}; // damage value for visualization
     UnitCell cell{0, 0.0};    // unit cell
 
-    std::array<int, NDIM> disp_constraint{0};                                // disp BC indicator, 1 means disp BC applied, 0 otherwise
-    std::array<double, nlayer> dLe_total, TdLe_total, ddL_total, TddL_total; // volumetric bond measure
-    std::array<double, NDIM> xyz, xyz_initial, xyz_last;                     // particle coordinates
-    std::array<double, NDIM> Pin{0}, Pex{0};                                 // internal and external particle force
-    std::array<std::vector<Bond<nlayer> *>, nlayer> bond_layers;             // an array that store n layers of bonds
-    std::vector<Particle<nlayer> *> neighbors;                               // vector that stores all particles that form bonds
-    std::vector<Particle<nlayer> *> conns;                                   // all connections of the particle (include self)
-    std::array<double, NDIM * NDIM> stress, strain;                          // stress and strain tensor
+    std::array<int, NDIM> disp_constraint{0};                                           // disp BC indicator, 1 means disp BC applied, 0 otherwise
+    std::array<double, nlayer> dLe_total, TdLe_total, ddL_total, TddL_total;            // volumetric bond measure
+    std::array<double, nlayer> cs_sumx, cs_sumy, cs_sumz, Tcs_sumx, Tcs_sumy, Tcs_sumz; // volumetric bond measure
+    std::array<double, NDIM> xyz, xyz_initial, xyz_last;                                // particle coordinates
+    std::array<double, NDIM> Pin{0}, Pex{0};                                            // internal and external particle force
+    std::array<std::vector<Bond<nlayer> *>, nlayer> bond_layers;                        // an array that store n layers of bonds
+    std::vector<Particle<nlayer> *> neighbors;                                          // vector that stores all particles that form bonds
+    std::vector<Particle<nlayer> *> conns;                                              // all connections of the particle (include self)
+    std::array<double, NDIM * NDIM> stress, strain;                                     // stress and strain tensor
 
     Particle() { id = _ID++; /* id starts from 0 */ }
     Particle(const double &p_x, const double &p_y, const double &p_z, const int &p_lattice, const double &p_radius);
@@ -41,6 +42,8 @@ public:
     void moveTo(const double &new_x, const double &new_y, const double &new_z);
     void moveTo(const std::array<double, NDIM> &new_xyz);
     void moveBy(const std::array<double, NDIM> &dxyz);
+
+    bool hasAFEMneighbor(Particle<nlayer> *pj, int layer);
 
     void updateParticleForce();
     void updateBondsGeometry();
@@ -57,6 +60,22 @@ template <int nlayer>
 bool Particle<nlayer>::operator==(const Particle<nlayer> &other)
 {
     return id == other.id;
+}
+
+template <int nlayer>
+bool Particle<nlayer>::hasAFEMneighbor(Particle<nlayer> *pj, int layer)
+{
+    for (Bond<nlayer> *bd1 : bond_layers[layer])
+    {
+        if (bd1->p2->id == pj->id)
+            return true;
+        for (Bond<nlayer> *bd2 : bd1->p2->bond_layers[layer])
+        {
+            if (bd2->p2->id == pj->id)
+                return true;
+        }
+    }
+    return false;
 }
 
 template <int nlayer>
@@ -106,13 +125,23 @@ void Particle<nlayer>::updateBondsGeometry()
     {
         dLe_total[i] = 0, TdLe_total[i] = 0;
         ddL_total[i] = 0, TddL_total[i] = 0;
+        cs_sumx[i] = 0, cs_sumy[i] = 0, cs_sumz[i] = 0;
+        Tcs_sumx[i] = 0, Tcs_sumy[i] = 0, Tcs_sumz[i] = 0;
         for (Bond<nlayer> *bd : bond_layers[i])
         {
             bd->updatebGeometry();
+
             dLe_total[i] += bd->dLe;
             TdLe_total[i] += bd->Tv * bd->dLe;
             ddL_total[i] += bd->ddL;
             TddL_total[i] += bd->Tv * bd->ddL;
+
+            cs_sumx[i] += bd->csx;
+            cs_sumy[i] += bd->csy;
+            cs_sumz[i] += bd->csz;
+            Tcs_sumx[i] += bd->Tv * bd->csx;
+            Tcs_sumy[i] += bd->Tv * bd->csy;
+            Tcs_sumz[i] += bd->Tv * bd->csz;
         }
     }
 }
