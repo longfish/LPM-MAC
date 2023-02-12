@@ -7,7 +7,7 @@
 
 //void readLammps(const char *dataName, int skip);
 void writeDump(const char *dataName, int step, char flag, double box[]);
-void writeK_global(const char *dataName, int l);
+void writeK_global(const char *dataName, double *K, int l);
 void writeDisp(const char *dataName, char c, int t1, int tstep);
 void writeForce(const char *dataname, char c, double p, int tstep, double box[]);
 void writeReaction(const char *dataName, char c, int t1, int tstep);
