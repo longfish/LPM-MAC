@@ -26,23 +26,25 @@ template <int nlayer>
 class Assembly
 {
 public:
+    BondType btype;                         // bond type
     int nparticle;                          // number of particles
     std::vector<Particle<nlayer> *> pt_sys; // system of particles
 
-    Assembly(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, int btype); // Construct a particle system
+    Assembly(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, BondType p_btype); // Construct a particle system
 
     void createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
-    void createBonds(int btype);
+    void createBonds();
     void createConnections();
 
     void updateForceState(); // update bond force and particle forces
 };
 
 template <int nlayer>
-Assembly<nlayer>::Assembly(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, int btype)
+Assembly<nlayer>::Assembly(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, BondType p_btype)
 {
+    btype = p_btype;
     createParticles(p_xyz, p_cell);
-    createBonds(btype);
+    createBonds();
     createConnections();
     nparticle = pt_sys.size();
 }
@@ -72,7 +74,7 @@ void Assembly<nlayer>::createParticles(std::vector<std::array<double, NDIM>> &p_
 }
 
 template <int nlayer>
-void Assembly<nlayer>::createBonds(int btype)
+void Assembly<nlayer>::createBonds()
 {
 #pragma omp parallel for
     for (Particle<nlayer> *p1 : pt_sys)
@@ -86,9 +88,9 @@ void Assembly<nlayer>::createBonds(int btype)
                 if (distance < 1.01 * p1->cell.neighbor1_cutoff)
                     layer = 0;
 
-                Bond<nlayer> *bd = nullptr;
-                if (btype == 0)
-                    bd = new ElasticBond<nlayer>(p1, p2, layer, distance); // create elastic bond
+                Bond<nlayer> *bd = nullptr; // create bonds
+                if (btype == BondType::Elastic)
+                    bd = new ElasticBond<nlayer>(p1, p2, layer, distance);
 
                 p1->bond_layers[layer].push_back(bd);
                 p1->neighbors.push_back(p2);
