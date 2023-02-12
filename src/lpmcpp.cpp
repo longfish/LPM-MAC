@@ -25,6 +25,7 @@
 #include "mkl_solver.h"
 #include "stiffness.h"
 #include "load_step.h"
+#include "solver.h"
 
 /* definition of global variables */
 /* int */
@@ -68,7 +69,7 @@ void writeDump(Assembly<nlayer> ass, const char *dataName, int step, char flag, 
     fprintf(fpt, "%8.8f %8.8f\n", box[4], box[5]);
 
     fprintf(fpt, "ITEM: ATOMS id type x y z dx dy dz s11 s22 s33 s23 s13 s12 damage\n");
-    for (auto pt : ass.ptsystem)
+    for (auto pt : ass.pt_sys)
     {
         fprintf(fpt, "%d %d %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e\n",
                 pt->id, pt->type,
@@ -213,7 +214,7 @@ int main(int argc, char *argv[])
 
     int btype = 0; // btype is 0: elastic bond with brittle damage law
     std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
-    Assembly<n_layer> pt_prob{sc_xyz, cell, btype};
+    Assembly<n_layer> pt_ass{sc_xyz, cell, btype};
 
     // initialize the necessary matrices
     initMatrices(cell);
@@ -230,7 +231,7 @@ int main(int argc, char *argv[])
     double critical_bstrain = 1.0e-2; // critical bond strain value at which bond will break
     int nbreak = 20;                  // limit the broken number of bonds in a single iteration, should be an even number
 
-    for (Particle<n_layer> *p1 : pt_prob.ptsystem)
+    for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
         // assign boundary and internal particles
         if (p1->xyz[2] > 10.0 - 1.2 * radius)
@@ -253,18 +254,20 @@ int main(int argc, char *argv[])
     }
 
     // initialize the solver
-    double stiff1 = omp_get_wtime();
-    Stiffness<n_layer> solv{pt_prob.ptsystem, 0};
-    double stiff1_end = omp_get_wtime();
-    printf("Class stiffness matrix calculation costs %f seconds\n", stiff1_end - stiff1);
+    //double stiff1 = omp_get_wtime();
+    //Stiffness<n_layer> stiff{pt_ass.pt_sys, 0};
+    //double stiff1_end = omp_get_wtime();
+    //printf("Class stiffness matrix calculation costs %f seconds\n", stiff1_end - stiff1);
 
-    // for (int i = 0; i < pt_prob.nparticle + 1; i++)
+    
+
+    // for (int i = 0; i < pt_ass.nparticle + 1; i++)
     // {
     //     printf("%d\n", solv.K_pointer[i]);
     // }
 
     // int pid = 20;
-    // for (auto pt : pt_prob.ptsystem[pid]->conns)
+    // for (auto pt : pt_ass.pt_sys[pid]->conns)
     // {
     //     // printf("Particle %d, conn particle is %d\n", pid, pt->id);
     //     printf("particle id %d, nconn_largeq %d\n", pt->id, pt->nconn_largeq);
@@ -275,7 +278,7 @@ int main(int argc, char *argv[])
     // int pid = 20;
     // for (int i = 0; i < n_layer; ++i)
     // {
-    //     for (auto bd : pt_prob.ptsystem[pid]->bond_layers[i])
+    //     for (auto bd : pt_ass.pt_sys[pid]->bond_layers[i])
     //     {
     //         printf("Particle %d, Kn is %f, Tv is %f\n", bd->p2->id, bd->Kn, bd->Tv);
     //         auto op_bd = std::find_if(bd->p2->bond_layers[i].begin(), bd->p2->bond_layers[i].end(),
@@ -352,6 +355,8 @@ int main(int argc, char *argv[])
     char neighborFile[] = "result_neighbor.txt";
     char connFile[] = "result_conn.txt";
     char kntvFile[] = "result_kntv.txt";
+    char stiffFile[] = "result_stiffness.txt";
+    char stiffClassFile[] = "result_stiffness_class.txt";
 
     // boundary conditions and whole simulation settings
     int n_steps = 1;            // number of loading steps
@@ -360,7 +365,7 @@ int main(int argc, char *argv[])
     // double step_size = -2e-3; // step size for force or displacement loading
 
     int nbd = 0, nbf = 0;     // total number of disp or force boundary conditions
-    char cal_method[] = "cg"; // calculation method, pardiso or conjugate gradient
+    char cal_method[] = "pardiso"; // calculation method, pardiso or conjugate gradient
     struct DispBCs dBP[MAXLINE][MAXSMALL] = {0};
     struct ForceBCs fBP[MAXLINE][MAXSMALL] = {0};
     int load_indicator[MAXLINE] = {0}; // tension (1) or compressive (-1) loading condition for uniaxial loading
@@ -374,6 +379,8 @@ int main(int argc, char *argv[])
         load_indicator[i] = 1;
 
         nbd = 0;
+        dBP[i][nbd].type = 1, dBP[i][nbd].flag = 'x', dBP[i][nbd++].step = 0.0;
+        dBP[i][nbd].type = 1, dBP[i][nbd].flag = 'y', dBP[i][nbd++].step = 0.0;
         dBP[i][nbd].type = 1, dBP[i][nbd].flag = 'z', dBP[i][nbd++].step = 0.0;
 
         nbf = 0;
@@ -385,10 +392,16 @@ int main(int argc, char *argv[])
         LoadStep step{1}; // 1 means tension loading
 
         // boundary conditions
+        step.dispBCs.push_back(DispBC(1, 'x', 0.0));
+        step.dispBCs.push_back(DispBC(1, 'y', 0.0));
         step.dispBCs.push_back(DispBC(1, 'z', 0.0));
         step.forceBCs.push_back(ForceBC(2, 0.0, 0.0, step_size));
         load.push_back(step);
     }
+
+    Solver<n_layer> solv{pt_ass, 0, 0}; // stiffness mode and solution mode
+    solv.solveProblem(pt_ass, load);
+    writeK_global(stiffClassFile, solv.stiffness.K_global, len_K_global);
 
     /************************** Simulation begins *************************/
     // compute necessary into before loading starts
@@ -414,24 +427,24 @@ int main(int argc, char *argv[])
 
     // // move particles
     // int pid = 0;
-    // pt_prob.ptsystem[pid]->moveTo(-3.0000e-01, 3.8667e-01, 3.8667e-01);
-    // pt_prob.ptsystem[pid]->updateBondsGeometry();
-    // pt_prob.ptsystem[pid]->updateBondsForce();
+    // pt_ass.pt_sys[pid]->moveTo(-3.0000e-01, 3.8667e-01, 3.8667e-01);
+    // pt_ass.pt_sys[pid]->updateBondsGeometry();
+    // pt_ass.pt_sys[pid]->updateBondsForce();
 
-    // pt_prob.ptsystem[pid + 1]->updateBondsGeometry();
-    // pt_prob.ptsystem[pid + 1]->updateBondsForce();
-    // pt_prob.ptsystem[pid + 1]->updateParticleForce();
-    // printf("Pinx %f, Piny %f, Pinz %f\n", pt_prob.ptsystem[pid + 1]->Pin[0], pt_prob.ptsystem[pid + 1]->Pin[1], pt_prob.ptsystem[pid + 1]->Pin[2]);
+    // pt_ass.pt_sys[pid + 1]->updateBondsGeometry();
+    // pt_ass.pt_sys[pid + 1]->updateBondsForce();
+    // pt_ass.pt_sys[pid + 1]->updateParticleForce();
+    // printf("Pinx %f, Piny %f, Pinz %f\n", pt_ass.pt_sys[pid + 1]->Pin[0], pt_ass.pt_sys[pid + 1]->Pin[1], pt_ass.pt_sys[pid + 1]->Pin[2]);
 
     // for (int i = 0; i < n_layer; ++i)
     // {
-    //     for (auto bd : pt_prob.ptsystem[pid+1]->bond_layers[i])
+    //     for (auto bd : pt_ass.pt_sys[pid+1]->bond_layers[i])
     //     {
     //         printf("bforce is %f\n", bd->bforce);
     //     }
     // }
 
-    writeDump(pt_prob, dumpFileNew, 0, dumpflag, box);
+    //writeDump(pt_ass, dumpFileNew, 0, dumpflag, box);
     writeNeighbor(neighborFile);
     writeConnection(connFile);
 
@@ -441,12 +454,13 @@ int main(int argc, char *argv[])
 
     double startrun = omp_get_wtime();
 
-    // // compute the elastic stiffness matrix
+    // compute the elastic stiffness matrix
+    omp_set_num_threads(1);
     // if (cell.dim == 2)
     //     calcStiffness2DFiniteDifference(6, cell);
     // else if (cell.dim == 3)
     //     calcStiffness3DFiniteDifference(6, cell);
-
+    
     double time_t1 = omp_get_wtime();
     printf("Stiffness matrix calculation costs %f seconds\n", time_t1 - startrun);
 
@@ -466,6 +480,7 @@ int main(int argc, char *argv[])
             calcStiffness2DFiniteDifference(6, cell);
         else if (cell.dim == 3)
             calcStiffness3DFiniteDifference(6, cell);
+        writeK_global(stiffFile, K_global, len_K_global);
 
         double time_t1 = omp_get_wtime();
         printf("Stiffness matrix calculation costs %f seconds\n", time_t1 - startrun);
@@ -509,6 +524,7 @@ int main(int argc, char *argv[])
                 // calcStiffness3DFiniteDifference(6);
                 setDispBC_stiffnessUpdate3D(cell);
             }
+            //writeK_global(stiffFile, K_global, len_K_global);
             // time_t2 = omp_get_wtime();
             // printf("Modify stiffness costs %f seconds\n", time_t2 - time_t1);
 
