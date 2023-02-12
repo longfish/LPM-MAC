@@ -92,6 +92,24 @@ public:
         : type{p_type}, fx{p_fx}, fy{p_fy}, fz{p_fz} {}
 };
 
+enum class SolverMode : char
+{
+    CG,
+    PARDISO
+};
+
+enum class StiffnessMode : char
+{
+    Analytical,
+    FiniteDifference
+};
+
+enum class BondType : char
+{
+    Elastic,
+    ElasticPlaneStress
+};
+
 /* Declaration of global variables */
 /* int */
 extern int nparticle;
