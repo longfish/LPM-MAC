@@ -26,14 +26,16 @@ template <int nlayer>
 class Assembly
 {
 public:
-    int nparticle; // number of particles
-    std::vector<Particle<nlayer> *> ptsystem; // system of particles
+    int nparticle;                          // number of particles
+    std::vector<Particle<nlayer> *> pt_sys; // system of particles
 
     Assembly(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, int btype); // Construct a particle system
 
     void createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
     void createBonds(int btype);
     void createConnections();
+
+    void updateForceState(); // update bond force and particle forces
 };
 
 template <int nlayer>
@@ -42,7 +44,21 @@ Assembly<nlayer>::Assembly(std::vector<std::array<double, NDIM>> &p_xyz, UnitCel
     createParticles(p_xyz, p_cell);
     createBonds(btype);
     createConnections();
-    nparticle = ptsystem.size();
+    nparticle = pt_sys.size();
+}
+
+template <int nlayer>
+void Assembly<nlayer>::updateForceState()
+{
+    // update particle geometry and bond force
+    for (Particle<nlayer> *pt : pt_sys)
+    {
+        pt->updateBondsGeometry();
+        pt->updateBondsForce();
+    }
+
+    for (Particle<nlayer> *pt : pt_sys)
+        pt->updateParticleForce();
 }
 
 template <int nlayer>
@@ -51,7 +67,7 @@ void Assembly<nlayer>::createParticles(std::vector<std::array<double, NDIM>> &p_
     for (auto xyz : p_xyz)
     {
         Particle<nlayer> *pt = new Particle<nlayer>(xyz[0], xyz[1], xyz[2], p_cell);
-        ptsystem.push_back(pt);
+        pt_sys.push_back(pt);
     }
 }
 
@@ -59,9 +75,9 @@ template <int nlayer>
 void Assembly<nlayer>::createBonds(int btype)
 {
 #pragma omp parallel for
-    for (Particle<nlayer> *p1 : ptsystem)
+    for (Particle<nlayer> *p1 : pt_sys)
     {
-        for (Particle<nlayer> *p2 : ptsystem)
+        for (Particle<nlayer> *p2 : pt_sys)
         {
             double distance = p1->distanceTo(*p2);
             if ((distance < 1.01 * p1->cell.neighbor2_cutoff) && (p1->id != p2->id))
@@ -71,7 +87,7 @@ void Assembly<nlayer>::createBonds(int btype)
                     layer = 0;
 
                 Bond<nlayer> *bd = nullptr;
-                if(btype == 0)
+                if (btype == 0)
                     bd = new ElasticBond<nlayer>(p1, p2, layer, distance); // create elastic bond
 
                 p1->bond_layers[layer].push_back(bd);
@@ -85,8 +101,8 @@ void Assembly<nlayer>::createBonds(int btype)
 template <int nlayer>
 void Assembly<nlayer>::createConnections()
 {
-#pragma omp parallel for 
-    for (Particle<nlayer> *p1 : ptsystem)
+#pragma omp parallel for
+    for (Particle<nlayer> *p1 : pt_sys)
     {
         for (int i = 0; i < nlayer; i++)
         {
