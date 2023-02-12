@@ -266,13 +266,13 @@ void writeForce(const char *dataname, char c, double p, int tstep, double box[])
 }
 
 /* write global stiffness matrix into file */
-void writeK_global(const char *dataName, int l)
+void writeK_global(const char *dataName, double *K, int l)
 {
     FILE *fpt;
     fpt = fopen(dataName, "w+");
     for (int i = 0; i < l; i++)
     {
-        fprintf(fpt, " %.5e\n", K_global[i]);
+        fprintf(fpt, " %.5e\n", K[i]);
     }
 
     fclose(fpt);
