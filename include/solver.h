@@ -19,8 +19,9 @@ class Solver
     const int max_iter = 100;     /* maximum global iteration number */
     const double tol_iter = 1e-6; /* newton iteration tolerance */
 
+    SolverMode sol_mode;
+
     int problem_size;
-    int sol_mode;
     double *residual, *disp;
     std::vector<double> reaction_force;
 
@@ -35,7 +36,7 @@ public:
 
     int NewtonIteration(Assembly<nlayer> &ass); // return number of Newton iterations
 
-    Solver(Assembly<nlayer> &ass, int p_stiff_mode, int p_sol_mode)
+    Solver(Assembly<nlayer> &ass, StiffnessMode p_stiff_mode, SolverMode p_sol_mode)
         : sol_mode{p_sol_mode}, stiffness(ass.pt_sys, p_stiff_mode)
     { // stiff_mode = 0 means finite difference; 1 means analytical
         problem_size = (ass.pt_sys[0]->cell.dim) * ass.pt_sys.size();
@@ -53,7 +54,7 @@ public:
     void solveStepwise(Assembly<nlayer> &ass)
     {
         // 0 is direct solver, 1 is iterative solver
-        if (sol_mode == 0)
+        if (sol_mode == SolverMode::PARDISO)
             LPM_PARDISO();
         else
             LPM_CG();
@@ -64,7 +65,7 @@ public:
             std::array<double, NDIM> dxyz{0, 0, 0};
             for (int j = 0; j < pt->cell.dim; j++)
                 dxyz[j] += disp[(pt->cell.dim) * (pt->id) + j];
-                
+
             pt->moveBy(dxyz);
         }
     }
@@ -213,7 +214,7 @@ void Solver<nlayer>::LPM_PARDISO()
     iparm[6] = 0;  /* Not in use */
     iparm[7] = 0;  /* Max numbers of iterative refinement steps */
     iparm[8] = 0;  /* Not in use */
-    iparm[9] = 13;  /* Perturb the pivot elements with 1E-13 */
+    iparm[9] = 13; /* Perturb the pivot elements with 1E-13 */
     iparm[10] = 1; /* Use nonsymmetric permutation and scaling MPS */
     // iparm[11] = 0;        /* Not in use */
     iparm[12] = 0; /* Maximum weighted matching algorithm is switched-off (default for
@@ -231,10 +232,10 @@ void Solver<nlayer>::LPM_PARDISO()
     mnum = 1;         /* Which factorization to use */
     msglvl = 0;       /* 0, no print statistical info; 1, print statistical info */
     error = 0;        /* Initialize error flag */
-    
-    mtype = 2;        /* Real symmetric positive definite, -2: real+symmetric+indefinite */
-    nrhs = 1;         /* Number of right hand sides */
-    iter = 1;         /* Iteration number */
+
+    mtype = 2; /* Real symmetric positive definite, -2: real+symmetric+indefinite */
+    nrhs = 1;  /* Number of right hand sides */
+    iter = 1;  /* Iteration number */
 
     for (int i = 0; i < 64; i++)
         pt[i] = 0; /* Initiliaze the internal solver memory pointer */
