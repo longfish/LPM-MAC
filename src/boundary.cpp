@@ -87,7 +87,8 @@ void setDispBC_stiffnessUpdate2D(UnitCell cell)
 
     /* compute the norm of the diagonal */
     double norm_diag = cblas_dnrm2(cell.dim * nparticle, diag, 1); /* Euclidean norm (L2 norm) */
-    // double norm_diag = 1e4;
+    //double norm_diag = 1.0;
+    printf("lpm: %f\n", norm_diag);
 
     /* update the stiffness matrix */
     for (int i = 0; i < nparticle; i++)
@@ -175,6 +176,7 @@ void setDispBC_stiffnessUpdate3D(UnitCell cell)
 
     /* compute the norm of the diagonal */
     double norm_diag = cblas_dnrm2(cell.dim * nparticle, diag, 1); /* Euclidean norm (L2 norm) */
+    printf("lpm: %f\n", norm_diag);
 
     //printf("norm: %f\n", norm_diag);
     /* update the stiffness matrix */
@@ -182,6 +184,7 @@ void setDispBC_stiffnessUpdate3D(UnitCell cell)
     {
         if (dispBC_index[cell.dim * i] == 0 || fix_index[cell.dim * i] == 0) /* x-disp BC */
         {
+            //printf("disp id: %d, dis: 0\n", i);
             for (int j = 0; j < nb_conn[i]; j++)
             {
                 if (conn[i][j] > i)
@@ -214,6 +217,7 @@ void setDispBC_stiffnessUpdate3D(UnitCell cell)
 
         if (dispBC_index[cell.dim * i + 1] == 0 || fix_index[cell.dim * i + 1] == 0) /* y-disp BC */
         {
+            //printf("disp id: %d, dis: 1\n", i);
             for (int j = 0; j < nb_conn[i]; j++)
             {
                 if (conn[i][j] > i)
@@ -247,6 +251,7 @@ void setDispBC_stiffnessUpdate3D(UnitCell cell)
 
         if (dispBC_index[cell.dim * i + 2] == 0 || fix_index[cell.dim * i + 2] == 0) /* z-disp BC */
         {
+            //printf("disp id: %d, dis: 2\n", i);
             for (int j = 0; j < nb_conn[i]; j++)
             {
                 if (conn[i][j] > i)
@@ -279,4 +284,6 @@ void setDispBC_stiffnessUpdate3D(UnitCell cell)
             residual[cell.dim * i + 2] = 0.0;
         }
     }
+
+    free(diag);
 }
