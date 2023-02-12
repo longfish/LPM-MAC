@@ -11,26 +11,34 @@
 #include "load_step.h"
 #include "stiffness.h"
 #include "unit_cell.h"
+#include "assembly.h"
 
 template <int nlayer>
 class Solver
 {
+    const int max_iter = 100;     /* maximum global iteration number */
+    const double tol_iter = 1e-6; /* newton iteration tolerance */
+
     int problem_size;
-    double *residual, *disp, *reaction_force;
-    Stiffness<nlayer> stiffness;
+    int sol_mode;
+    double *residual, *disp;
+    std::vector<double> reaction_force;
 
 public:
-    void updateDisplacementBC(std::vector<Particle<nlayer> *> &ptsystem, LoadStep &load_step);
-    void updateForceBC(std::vector<Particle<nlayer> *> &ptsystem, LoadStep &load_step);
-    void updateRR(); // update residual force and reaction force
-    void PARDISO();
-    void CG();
+    Stiffness<nlayer> stiffness;
 
-    Solver(std::vector<Particle<nlayer> *> &ptsystem,
-           int stiff_mode)
-        : stiffness(ptsystem, stiff_mode)
-    {
-        problem_size = (ptsystem[0]->cell.dim) * ptsystem.size();
+    void updateDisplacementBC(Assembly<nlayer> &ass, LoadStep &load_step);
+    void updateForceBC(Assembly<nlayer> &ass, LoadStep &load_step);
+    void updateRR(Assembly<nlayer> &ass); // update residual force and reaction force
+    void LPM_PARDISO();
+    void LPM_CG();
+
+    int NewtonIteration(Assembly<nlayer> &ass); // return number of Newton iterations
+
+    Solver(Assembly<nlayer> &ass, int p_stiff_mode, int p_sol_mode)
+        : sol_mode{p_sol_mode}, stiffness(ass.pt_sys, p_stiff_mode)
+    { // stiff_mode = 0 means finite difference; 1 means analytical
+        problem_size = (ass.pt_sys[0]->cell.dim) * ass.pt_sys.size();
         disp = new double[problem_size];
         residual = new double[problem_size];
     }
@@ -38,35 +46,102 @@ public:
     ~Solver()
     {
         delete[] residual;
-        delete[] reaction_force;
         delete[] disp;
     }
 
-    stepwise_solve(std::vector<Particle<nlayer> *> &ptsystem, int sol_mode)
+    void solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep> &load);
+    void solveStepwise(Assembly<nlayer> &ass)
     {
         // 0 is direct solver, 1 is iterative solver
         if (sol_mode == 0)
-            PARDISO();
+            LPM_PARDISO();
         else
-            CG();
+            LPM_CG();
 
         /* update the position */
-        for (auto pt : ptsystem)
+        for (auto pt : ass.pt_sys)
         {
-            std::array<double, NDIM> xyz;
+            std::array<double, NDIM> dxyz{0, 0, 0};
             for (int j = 0; j < pt->cell.dim; j++)
-            {
-                xyz[j] += disp[(pt->cell.dim) * (pt->id) + j];
-                pt->moveTo(xyz);
-            }
+                dxyz[j] += disp[(pt->cell.dim) * (pt->id) + j];
+                
+            pt->moveBy(dxyz);
         }
     }
 };
 
 template <int nlayer>
-void Solver<nlayer>::updateDisplacementBC(std::vector<Particle<nlayer> *> &ptsystem, LoadStep &load_step)
+void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep> &load)
 {
-    for (Particle<nlayer> *pt : ptsystem)
+    for (int i = 0; i < load.size(); i++)
+    {
+        printf("Loading step-%d: ", i + 1);
+        if (ass.pt_sys[0]->cell.dim == 2)
+            stiffness.initializeStiffness2D(ass.pt_sys);
+        else
+            stiffness.initializeStiffness3D(ass.pt_sys);
+
+        updateDisplacementBC(ass, load[i]);
+        updateForceBC(ass, load[i]);
+        int ni = NewtonIteration(ass);
+
+        printf("Loading step %d has finished in %d iterations\n\nData output ...\n", i + 1, ni);
+    }
+}
+
+template <int nlayer>
+int Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
+{
+    ass.updateForceState();
+    updateRR(ass);
+
+    // compute the Euclidean norm (L2 norm)
+    double norm_residual = cblas_dnrm2(problem_size, residual, 1);
+    double norm_reaction_force = cblas_dnrm2(reaction_force.size(), reaction_force.data(), 1);
+    double tol_multiplier = MAX(norm_residual, norm_reaction_force);
+    char tempChar1[] = "residual", tempChar2[] = "reaction";
+    printf("Norm of residual is %.5e, norm of reaction is %.5e, tolerance criterion is based on ", norm_residual, norm_reaction_force);
+    if (norm_residual > norm_reaction_force)
+        printf("%s force\n", tempChar1);
+    else
+        printf("%s force\n", tempChar2);
+
+    int ni{0};
+    while (norm_residual > tol_iter * tol_multiplier && ni < max_iter)
+    {
+        printf("    Iteration-%d: ", ++ni);
+        stiffness.updateStiffnessDispBC(ass.pt_sys);
+        solveStepwise(ass); // solve for the incremental displacement
+        ass.updateForceState();
+        updateRR(ass); /* update the RHS risidual force vector */
+        norm_residual = cblas_dnrm2(problem_size, residual, 1);
+        printf("    Norm of residual is %.3e, residual ratio is %.3e\n", norm_residual, norm_residual / tol_multiplier);
+    }
+
+    return ni;
+}
+
+template <int nlayer>
+void Solver<nlayer>::updateRR(Assembly<nlayer> &ass)
+{
+    for (Particle<nlayer> *pt : ass.pt_sys)
+    {
+        for (int k = 0; k < pt->cell.dim; k++)
+        {
+            /* residual force (exclude the DoF that being applied to displacement BC) */
+            residual[(pt->cell.dim) * (pt->id) + k] = (1 - pt->disp_constraint[k]) * (pt->Pex[k] - pt->Pin[k]);
+
+            /* reaction force (DoF being applied to displacement BC) */
+            if (pt->disp_constraint[k] == 1)
+                reaction_force.push_back(pt->Pin[k]);
+        }
+    }
+}
+
+template <int nlayer>
+void Solver<nlayer>::updateDisplacementBC(Assembly<nlayer> &ass, LoadStep &load_step)
+{
+    for (Particle<nlayer> *pt : ass.pt_sys)
     {
         for (DispBC bc : load_step.dispBCs)
         {
@@ -96,18 +171,18 @@ void Solver<nlayer>::updateDisplacementBC(std::vector<Particle<nlayer> *> &ptsys
 }
 
 template <int nlayer>
-void Solver<nlayer>::updateForceBC(std::vector<Particle<nlayer> *> &ptsystem, LoadStep &load_step)
+void Solver<nlayer>::updateForceBC(Assembly<nlayer> &ass, LoadStep &load_step)
 {
 
     for (ForceBC bc : load_step.forceBCs)
     {
         int num_forceBC{0};
-        for (Particle<nlayer> *pt : ptsystem)
+        for (Particle<nlayer> *pt : ass.pt_sys)
         {
             if (pt->type == bc.type)
                 num_forceBC++;
         }
-        for (Particle<nlayer> *pt : ptsystem)
+        for (Particle<nlayer> *pt : ass.pt_sys)
         {
             if (pt->type == bc.type)
             {
@@ -120,7 +195,7 @@ void Solver<nlayer>::updateForceBC(std::vector<Particle<nlayer> *> &ptsystem, Lo
 }
 
 template <int nlayer>
-void Solver<nlayer>::PARDISO()
+void Solver<nlayer>::LPM_PARDISO()
 {
     MKL_INT n, idum, maxfct, mnum, mtype, phase, error, error1, msglvl, nrhs, iter;
     MKL_INT iparm[64];
@@ -138,7 +213,7 @@ void Solver<nlayer>::PARDISO()
     iparm[6] = 0;  /* Not in use */
     iparm[7] = 0;  /* Max numbers of iterative refinement steps */
     iparm[8] = 0;  /* Not in use */
-    iparm[9] = 13; /* Perturb the pivot elements with 1E-13 */
+    iparm[9] = 13;  /* Perturb the pivot elements with 1E-13 */
     iparm[10] = 1; /* Use nonsymmetric permutation and scaling MPS */
     // iparm[11] = 0;        /* Not in use */
     iparm[12] = 0; /* Maximum weighted matching algorithm is switched-off (default for
@@ -156,6 +231,7 @@ void Solver<nlayer>::PARDISO()
     mnum = 1;         /* Which factorization to use */
     msglvl = 0;       /* 0, no print statistical info; 1, print statistical info */
     error = 0;        /* Initialize error flag */
+    
     mtype = 2;        /* Real symmetric positive definite, -2: real+symmetric+indefinite */
     nrhs = 1;         /* Number of right hand sides */
     iter = 1;         /* Iteration number */
@@ -173,7 +249,7 @@ void Solver<nlayer>::PARDISO()
         exit(1);
     }
     // printf("PARDISO: Size of factors(MB): %f", MAX(iparm[14], iparm[15] + iparm[16]) / 1000.0);
-    printf("PARDISO: Size of factors(MB): %f", iparm[16] / 1000.0);
+    printf("    PARDISO: Size of factors(MB): %f", iparm[16] / 1000.0);
 
     /* Numerical factorization */
     phase = 22;
@@ -205,7 +281,7 @@ void Solver<nlayer>::PARDISO()
 }
 
 template <int nlayer>
-void Solver<nlayer>::CG()
+void Solver<nlayer>::LPM_CG()
 {
     MKL_INT n, rci_request, itercount, mkl_disable_fast_mm;
     MKL_INT ipar[128];
@@ -272,11 +348,11 @@ rci:
     /* Get the current iteration number into itercount                           */
 getsln:
     dcg_get(&n, disp, residual, &rci_request, ipar, dpar, tmp, &itercount);
-    printf("The system has been solved after " IFORMAT " iterations\n", itercount);
+    printf("    The system has been solved after " IFORMAT " iterations\n", itercount);
     goto success;
 
 failure:
-    printf("The computation FAILED as the solver has returned the ERROR code " IFORMAT "\n", rci_request);
+    printf("    The computation FAILED as the solver has returned the ERROR code " IFORMAT "\n", rci_request);
 
 success:
     /* free memory */
