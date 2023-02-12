@@ -25,24 +25,19 @@ public:
     int *K_pointer; // start index for each particle in the global stiffness matrix
     double *K_global;
 
-    void initialize(std::vector<Particle<nlayer> *> &ptsystem);
-    void initializeStiffness3D(std::vector<Particle<nlayer> *> &ptsystem);
-    void initializeStiffness2D(std::vector<Particle<nlayer> *> &ptsystem);
-    void updateStiffnessDispBC(std::vector<Particle<nlayer> *> &ptsystem);
+    void initialize(std::vector<Particle<nlayer> *> &pt_sys);
+    void initializeStiffness3D(std::vector<Particle<nlayer> *> &pt_sys);
+    void initializeStiffness2D(std::vector<Particle<nlayer> *> &pt_sys);
+    void updateStiffnessDispBC(std::vector<Particle<nlayer> *> &pt_sys);
 
     std::array<std::array<double, NDIM>, NDIM> localStiffness(Particle<nlayer> *pi, Particle<nlayer> *pj);
     std::array<std::array<double, NDIM>, NDIM> localStiffnessFD(Particle<nlayer> *pi, Particle<nlayer> *pj);
     std::array<std::array<double, NDIM>, NDIM> localStiffnessANA(Particle<nlayer> *pi, Particle<nlayer> *pj);
 
-    Stiffness(std::vector<Particle<nlayer> *> &ptsystem, int p_mode)
+    Stiffness(std::vector<Particle<nlayer> *> &pt_sys, int p_mode)
     { // Given a particle system, construct a stiffness matrix and solver
-
         mode = p_mode;
-        initialize(ptsystem);
-        if (ptsystem[0]->cell.dim == 2)
-            initializeStiffness2D(ptsystem);
-        else
-            initializeStiffness3D(ptsystem);
+        initialize(pt_sys);
     }
 
     ~Stiffness()
@@ -55,21 +50,21 @@ public:
 };
 
 template <int nlayer>
-void Stiffness<nlayer>::initialize(std::vector<Particle<nlayer> *> &ptsystem)
+void Stiffness<nlayer>::initialize(std::vector<Particle<nlayer> *> &pt_sys)
 {
-    K_pointer = new int[ptsystem.size() + 1];
-    K_pointer[0] = 0;
-    for (auto pt : ptsystem)
+    K_pointer = new int[pt_sys.size() + 1];
+    K_pointer[pt_sys[0]->id] = 0;
+    for (auto pt : pt_sys)
     {
         if (pt->cell.dim == 2)
-            K_pointer[pt->id + 1] = K_pointer[pt->id] + pt->cell.dim * pt->cell.dim * pt->nconn_largeq - 1;
+            K_pointer[pt->id + 1] = K_pointer[pt->id] + (pt->cell.dim) * (pt->cell.dim) * (pt->nconn_largeq) - 1;
         else
-            K_pointer[pt->id + 1] = K_pointer[pt->id] + pt->cell.dim * pt->cell.dim * pt->nconn_largeq - 3;
+            K_pointer[pt->id + 1] = K_pointer[pt->id] + (pt->cell.dim) * (pt->cell.dim) * (pt->nconn_largeq) - 3;
     }
 
-    JK = new MKL_INT[K_pointer[ptsystem.size()]];
-    IK = new MKL_INT[ptsystem[0]->cell.dim * ptsystem.size() + 1];
-    K_global = new double[K_pointer[ptsystem.size()]];
+    JK = new MKL_INT[K_pointer[pt_sys.size()]];
+    IK = new MKL_INT[pt_sys[0]->cell.dim * pt_sys.size() + 1];
+    K_global = new double[K_pointer[pt_sys.size()]];
 }
 
 template <int nlayer>
@@ -138,10 +133,10 @@ std::array<std::array<double, NDIM>, NDIM> Stiffness<nlayer>::localStiffnessFD(P
 }
 
 template <int nlayer>
-void Stiffness<nlayer>::initializeStiffness3D(std::vector<Particle<nlayer> *> &ptsystem)
+void Stiffness<nlayer>::initializeStiffness3D(std::vector<Particle<nlayer> *> &pt_sys)
 {
 #pragma omp parallel if (mode)
-    for (const auto &pi_iterator : ptsystem | indexed(0))
+    for (const auto &pi_iterator : pt_sys | indexed(0))
     {
         Particle<nlayer> *pi = pi_iterator.value();
 
@@ -224,21 +219,21 @@ void Stiffness<nlayer>::initializeStiffness3D(std::vector<Particle<nlayer> *> &p
         // if (pi->id == 40)
         //     printf("%d, ", IK[pi->cell.dim * pi->id]);
     }
-    IK[ptsystem[0]->cell.dim * ptsystem.size()] = K_pointer[ptsystem.size()] + 1;
+    IK[pt_sys[0]->cell.dim * pt_sys.size()] = K_pointer[pt_sys.size()] + 1;
 }
 
 template <int nlayer>
-void Stiffness<nlayer>::initializeStiffness2D(std::vector<Particle<nlayer> *> &ptsystem)
+void Stiffness<nlayer>::initializeStiffness2D(std::vector<Particle<nlayer> *> &pt_sys)
 {
 }
 
 template <int nlayer>
-void Stiffness<nlayer>::updateStiffnessDispBC(std::vector<Particle<nlayer> *> &ptsystem)
+void Stiffness<nlayer>::updateStiffnessDispBC(std::vector<Particle<nlayer> *> &pt_sys)
 {
-    double *diag = new double[ptsystem[0]->cell.dim * ptsystem.size()]; /* diagonal vector of stiffness matrix */
+    double *diag = new double[pt_sys[0]->cell.dim * pt_sys.size()]; /* diagonal vector of stiffness matrix */
 
     /* extract the diagonal vector of stiffness matrix */
-    for (Particle<nlayer> *pt : ptsystem)
+    for (Particle<nlayer> *pt : pt_sys)
     {
         diag[(pt->id) * (pt->cell.dim)] = K_global[K_pointer[pt->id]];
         diag[(pt->id) * (pt->cell.dim) + 1] = K_global[K_pointer[pt->id] + (pt->cell.dim) * (pt->nconn_largeq)];
@@ -247,15 +242,19 @@ void Stiffness<nlayer>::updateStiffnessDispBC(std::vector<Particle<nlayer> *> &p
     }
 
     /* compute the norm of the diagonal */
-    double norm_diag = cblas_dnrm2(ptsystem[0]->cell.dim * ptsystem.size(), diag, 1); /* Euclidean norm (L2 norm) */
+    double norm_diag = cblas_dnrm2(pt_sys[0]->cell.dim * pt_sys.size(), diag, 1); /* Euclidean norm (L2 norm) */
+    delete[] diag;
+
+    printf("class: %f\n", norm_diag);
 
     /* update the stiffness matrix */
-    for (Particle<nlayer> *pi : ptsystem)
+    for (Particle<nlayer> *pi : pt_sys)
     {
-        for (int k = 0; k < ptsystem[0]->cell.dim; k++)
+        for (int k = 0; k < pt_sys[0]->cell.dim; k++)
         {
             if (pi->disp_constraint[k] == 1 || pi->frozen == 1)
             {
+                // printf("disp id: %d, dis: %d\n", pi->id, k);
                 for (const auto &pj_iterator : pi->conns | indexed(0))
                 {
                     int idx_j = (int)pj_iterator.index();
@@ -282,17 +281,18 @@ void Stiffness<nlayer>::updateStiffnessDispBC(std::vector<Particle<nlayer> *> &p
                         {
                             K_global[K_pointer[pi->id] + 2] = 0.0;
                             K_global[K_pointer[pi->id] + (pi->cell.dim) * (pi->nconn_largeq) + 1] = 0.0;
-                            for (int kk = K_pointer[pi->id] + 2 * (pi->cell.dim) * (pi->nconn_largeq) - 1; kk <= K_pointer[pi->id + 1] - 1; kk++)
+                            for (int kk = K_pointer[pi->id] + 2 * (pi->cell.dim) * (pi->nconn_largeq) - 1; kk <= K_pointer[(pi->id) + 1] - 1; kk++)
                                 K_global[kk] = 0.0;
                             K_global[K_pointer[pi->id] + 2 * (pi->cell.dim) * (pi->nconn_largeq) - 1] = norm_diag;
                         }
                     }
                     else
                     {
-                        int num1 = pi->nconn_largeq - (pi->nconn - idx_j); // index difference between i and j, in i's conn list
-                        K_global[K_pointer[pi->id] + pi->cell.dim * num1 + k] = 0;
-                        K_global[K_pointer[pi->id] + pi->cell.dim * (pi->nconn_largeq) + pi->cell.dim * num1 - 1 + k] = 0;
-                        K_global[K_pointer[pi->id] + 2 * pi->cell.dim * (pi->nconn_largeq) + pi->cell.dim * num1 - 3 + k] = 0;
+                        auto pt_i = std::find(pj->conns.begin(), pj->conns.end(), pi);
+                        int num2 = pj->nconn_largeq - (int)std::distance(pt_i, pj->conns.end());
+                        K_global[K_pointer[pj->id] + pj->cell.dim * num2 + k] = 0;
+                        K_global[K_pointer[pj->id] + pj->cell.dim * (pj->nconn_largeq) + pj->cell.dim * num2 - 1 + k] = 0;
+                        K_global[K_pointer[pj->id] + 2 * pj->cell.dim * (pj->nconn_largeq) + pj->cell.dim * num2 - 3 + k] = 0;
                     }
                 }
             }
