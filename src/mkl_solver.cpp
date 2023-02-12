@@ -5,8 +5,10 @@
 void solverPARDISO(UnitCell cell)
 {
     MKL_INT n, idum, maxfct, mnum, mtype, phase, error, error1, msglvl, nrhs, iter;
-    MKL_INT iparm[64];
+    MKL_INT iparm[64], mkl_disable_fast_mm;
     double ddum;
+
+    mkl_disable_fast_mm = 1; /* avoid memory leaks */
 
     void* pt[64]; /* Internal solver memory pointer */
 
