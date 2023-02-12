@@ -182,8 +182,8 @@ int main(int argc, char *argv[])
     printf("            Nonlocal LPM C++ Program              \n");
     printf("==================================================\n");
 
-    // const int nt = omp_get_max_threads(); /* maximum number of threads provided by the computer */
-    int nt = 1;
+    const int nt = omp_get_max_threads(); /* maximum number of threads provided by the computer */
+    // int nt = 1;
     printf("OpenMP with %d threads\n", nt);
 
     double start = omp_get_wtime(); // record the CPU time, begin
@@ -212,9 +212,8 @@ int main(int argc, char *argv[])
     double box[] = {-0.2, 10.2, -0.2, 10.2, -0.2, 10.2};
     createCuboid(box, cell, R_matrix);
 
-    int btype = 0; // btype is 0: elastic bond with brittle damage law
     std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
-    Assembly<n_layer> pt_ass{sc_xyz, cell, btype};
+    Assembly<n_layer> pt_ass{sc_xyz, cell, BondType::Elastic}; // elastic bond with brittle damage law
 
     // initialize the necessary matrices
     initMatrices(cell);
@@ -246,7 +245,7 @@ int main(int argc, char *argv[])
         {
             for (auto bd : p1->bond_layers[i])
             {
-                // cast to elastic bond
+                // cast to elastic bond (or other type of bonds)
                 ElasticBond<n_layer> *elbd = dynamic_cast<ElasticBond<n_layer> *>(bd);
                 elbd->setBondProperty(E0, mu0, critical_bstrain, nbreak);
             }
@@ -254,12 +253,10 @@ int main(int argc, char *argv[])
     }
 
     // initialize the solver
-    //double stiff1 = omp_get_wtime();
-    //Stiffness<n_layer> stiff{pt_ass.pt_sys, 0};
-    //double stiff1_end = omp_get_wtime();
-    //printf("Class stiffness matrix calculation costs %f seconds\n", stiff1_end - stiff1);
-
-    
+    // double stiff1 = omp_get_wtime();
+    // Stiffness<n_layer> stiff{pt_ass.pt_sys, 0};
+    // double stiff1_end = omp_get_wtime();
+    // printf("Class stiffness matrix calculation costs %f seconds\n", stiff1_end - stiff1);
 
     // for (int i = 0; i < pt_ass.nparticle + 1; i++)
     // {
@@ -364,7 +361,7 @@ int main(int argc, char *argv[])
     // int n_steps = 10;        // number of loading steps
     // double step_size = -2e-3; // step size for force or displacement loading
 
-    int nbd = 0, nbf = 0;     // total number of disp or force boundary conditions
+    int nbd = 0, nbf = 0;          // total number of disp or force boundary conditions
     char cal_method[] = "pardiso"; // calculation method, pardiso or conjugate gradient
     struct DispBCs dBP[MAXLINE][MAXSMALL] = {0};
     struct ForceBCs fBP[MAXLINE][MAXSMALL] = {0};
@@ -399,7 +396,9 @@ int main(int argc, char *argv[])
         load.push_back(step);
     }
 
-    Solver<n_layer> solv{pt_ass, 0, 0}; // stiffness mode and solution mode
+    pt_ass.updateForceState();
+
+    Solver<n_layer> solv{pt_ass, StiffnessMode::FiniteDifference, SolverMode::CG}; // stiffness mode and solution mode
     solv.solveProblem(pt_ass, load);
     writeK_global(stiffClassFile, solv.stiffness.K_global, len_K_global);
 
@@ -444,7 +443,7 @@ int main(int argc, char *argv[])
     //     }
     // }
 
-    //writeDump(pt_ass, dumpFileNew, 0, dumpflag, box);
+    // writeDump(pt_ass, dumpFileNew, 0, dumpflag, box);
     writeNeighbor(neighborFile);
     writeConnection(connFile);
 
@@ -460,7 +459,7 @@ int main(int argc, char *argv[])
     //     calcStiffness2DFiniteDifference(6, cell);
     // else if (cell.dim == 3)
     //     calcStiffness3DFiniteDifference(6, cell);
-    
+
     double time_t1 = omp_get_wtime();
     printf("Stiffness matrix calculation costs %f seconds\n", time_t1 - startrun);
 
@@ -524,9 +523,9 @@ int main(int argc, char *argv[])
                 // calcStiffness3DFiniteDifference(6);
                 setDispBC_stiffnessUpdate3D(cell);
             }
-            //writeK_global(stiffFile, K_global, len_K_global);
-            // time_t2 = omp_get_wtime();
-            // printf("Modify stiffness costs %f seconds\n", time_t2 - time_t1);
+            // writeK_global(stiffFile, K_global, len_K_global);
+            //  time_t2 = omp_get_wtime();
+            //  printf("Modify stiffness costs %f seconds\n", time_t2 - time_t1);
 
             // solve for the incremental displacement
             if (strcmp(cal_method, "pardiso") == 0)
