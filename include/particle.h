@@ -17,13 +17,13 @@ protected:
     static int _ID;
 
 public:
-    int id{0};                // identifier of the particle
+    int id{0};                // identifier of the particle, id starts from 0
     int type{0};              // particle type which is needed for boundary condition settings
     int frozen{0};            // totally fix the particle's position
     int nconn_largeq{0};      // matrix pointer, number of conn larger than (or equal to) its own index
     int nb{0}, nconn{0};      // number of bonds and connections
     double damage_visual{0.}; // damage value for visualization
-    UnitCell cell{0, 0.0};    // unit cell
+    UnitCell cell;            // unit cell
 
     std::array<int, NDIM> disp_constraint{0};                                           // disp BC indicator, 1 means disp BC applied, 0 otherwise
     std::array<double, nlayer> dLe_total, TdLe_total, ddL_total, TddL_total;            // volumetric bond measure
@@ -33,10 +33,10 @@ public:
     std::array<std::vector<Bond<nlayer> *>, nlayer> bond_layers;                        // an array that store n layers of bonds
     std::vector<Particle<nlayer> *> neighbors;                                          // vector that stores all particles that form bonds
     std::vector<Particle<nlayer> *> conns;                                              // all connections of the particle (include self)
-    std::array<double, NDIM * NDIM> stress, strain;                                     // stress and strain tensor
+    std::array<double, NDIM * NDIM> stress{0}, strain{0};                               // stress and strain tensor
 
-    Particle() { id = _ID++; /* id starts from 0 */ }
-    Particle(const double &p_x, const double &p_y, const double &p_z, const int &p_lattice, const double &p_radius);
+    Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type);
+    Particle(const double &p_x, const double &p_y, const double &p_z, const LatticeType &p_lattice, const double &p_radius);
     Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell);
 
     void moveTo(const double &new_x, const double &new_y, const double &new_z);
@@ -79,20 +79,30 @@ bool Particle<nlayer>::hasAFEMneighbor(Particle<nlayer> *pj, int layer)
 }
 
 template <int nlayer>
-Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const int &p_lattice, const double &p_radius)
+Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type)
+    : cell{p_cell}
 {
     xyz = {p_x, p_y, p_z};
     xyz_initial = xyz;
-    cell = UnitCell(p_lattice, p_radius);
+    type = p_type;
+    id = _ID++;
+}
+
+template <int nlayer>
+Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const LatticeType &p_lattice, const double &p_radius)
+    : cell{p_lattice, p_radius}
+{
+    xyz = {p_x, p_y, p_z};
+    xyz_initial = xyz;
     id = _ID++;
 }
 
 template <int nlayer>
 Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell)
+    : cell{p_cell}
 {
     xyz = {p_x, p_y, p_z};
     xyz_initial = xyz;
-    cell = p_cell;
     id = _ID++;
 }
 
