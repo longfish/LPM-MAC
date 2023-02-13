@@ -24,7 +24,7 @@ double *createRMatrix(int eulerflag, double angles[])
     //     [0     0   1]
 
     double angle1 = angles[0], angle2 = angles[1], angle3 = angles[2];
-    static double R_matrix[NDIM*NDIM];
+    static double R_matrix[NDIM * NDIM];
 
     if (eulerflag == 0)
     {
@@ -83,7 +83,7 @@ double *createRMatrix(int eulerflag, double angles[])
     return R_matrix;
 }
 
-std::vector<std::array<double, NDIM>> createCuboidSC3D(double box[], UnitCell cell, double R_matrix[])
+std::vector<std::array<double, NDIM>> createCuboidSC3D(std::array<double, 2 * NDIM> box, UnitCell cell, double R_matrix[])
 {
     /* settings for matrix-vector product, BLAS */
     CBLAS_LAYOUT layout = CblasRowMajor;
@@ -126,6 +126,103 @@ std::vector<std::array<double, NDIM>> createCuboidSC3D(double box[], UnitCell ce
                     xyz_t.push_back(p_arr);
                 }
             }
+        }
+    }
+
+    return xyz_t;
+}
+
+std::vector<std::array<double, NDIM>> createCuboidFCC3D(std::array<double, 2 * NDIM> box, UnitCell cell, double R_matrix[])
+{
+    /* settings for matrix-vector product, BLAS */
+    CBLAS_LAYOUT layout = CblasRowMajor;
+    CBLAS_TRANSPOSE trans = CblasNoTrans;
+
+    int lda = 3, incx = 1, incy = 1;
+    double blasAlpha = 1.0, blasBeta = 0.0;
+
+    /* initialize the particle xyz_t (a larger system) */
+    double a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2) + pow(box[5] - box[4], 2));
+    double box_t[6] = {-a, a, -a, a, -a, a};
+
+    /* model parameters */
+    double hx = 4 * cell.radius / sqrt(2.0);
+    double hy = hx;
+    double hz = hx;
+    int particles_first_row = 1 + (int)floor((box_t[1] - box_t[0]) / hx);
+    int rows = 1 + (int)floor((box_t[3] - box_t[2]) / (hy / 2.0));
+    int layers = 1 + (int)floor((box_t[5] - box_t[4]) / (hz / 2.0));
+
+    std::vector<std::array<double, NDIM>> xyz;
+    double p[NDIM] = {0}, p_new[NDIM] = {0};
+
+    for (int k = 1; k <= layers; k++)
+    {
+        p[2] = box_t[4] + hz / 2.0 * (k - 1);
+        if (k % 2 == 1)
+        {
+            for (int j = 1; j <= rows; j++)
+            {
+                p[1] = box_t[2] + hy / 2.0 * (j - 1);
+                if (j % 2 == 1)
+                {
+                    for (int i = 1; i <= particles_first_row; i++)
+                    {
+                        p[0] = box_t[0] + hx * (i - 1);
+                        xyz.push_back(std::array<double, NDIM>{p[0], p[1], p[2]});
+                    }
+                }
+                else
+                {
+                    for (int i = 1; i <= particles_first_row - 1; i++)
+                    {
+                        p[0] = box_t[0] + hx * (i - 1) + hx / 2.0;
+                        xyz.push_back(std::array<double, NDIM>{p[0], p[1], p[2]});
+                    }
+                }
+            }
+        }
+        else
+        {
+            for (int j = 1; j <= rows; j++)
+            {
+                p[1] = box_t[2] + hy / 2.0 * (j - 1);
+                if (j % 2 == 1)
+                {
+                    for (int i = 1; i <= particles_first_row - 1; i++)
+                    {
+                        p[0] = box_t[0] + hx * (i - 1) + hx / 2.0;
+                        xyz.push_back(std::array<double, NDIM>{p[0], p[1], p[2]});
+                    }
+                }
+                else
+                {
+                    for (int i = 1; i <= particles_first_row; i++)
+                    {
+                        p[0] = box_t[0] + hx * (i - 1);
+                        xyz.push_back(std::array<double, NDIM>{p[0], p[1], p[2]});
+                    }
+                }
+            }
+        }
+    }
+
+    std::vector<std::array<double, NDIM>> xyz_t;
+    for (std::array<double, NDIM> pt : xyz)
+    {
+        p[0] = pt[0];
+        p[1] = pt[1];
+        p[2] = pt[2];
+
+        cblas_dgemv(layout, trans, NDIM, NDIM, blasAlpha, R_matrix, lda, p, incx, blasBeta, p_new, incy);
+
+        /* test if the rotated system is within the specified domain */
+        if (p_new[0] >= box[0] && p_new[0] <= box[1] &&
+            p_new[1] >= box[2] && p_new[1] <= box[3] &&
+            p_new[2] >= box[4] && p_new[2] <= box[5])
+        {
+            std::array<double, NDIM> p_arr{p_new[0], p_new[1], p_new[2]};
+            xyz_t.push_back(p_arr);
         }
     }
 
