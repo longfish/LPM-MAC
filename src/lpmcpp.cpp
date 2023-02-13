@@ -34,17 +34,9 @@ int main(int argc, char *argv[])
 
     double start = omp_get_wtime(); // record the CPU time, begin
 
-    // number of neighbor layers (currently only support 2 layers of neighbors)
-    const int n_layer = 2;
-
-    // lattice type -> lattice number, int
-    // square -> 0; hexagon -> 1; simple cubic -> 2; face-centered cubic -> 3
-    // body-centered cubic with 1 types of slip systems -> 4
-    // body-centered cubic with 2 types of slip systems -> 5
-    // body-centered cubic with 3 types of slip systems -> 6
-    int lattice = 2;
-    double radius = 1.15;
-    UnitCell cell(lattice, radius); /*lattice type is 2, simple cubic*/
+    const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
+    double radius = 0.4;   // 1.15; // particle radius
+    UnitCell cell(LatticeType::FCC3D, radius);
 
     // Euler angles setting for system rotation
     // flag is 0 ~ 2 for different conventions, (0: direct rotation; 1: Kocks convention; 2: Bunge convention)
@@ -55,10 +47,13 @@ int main(int argc, char *argv[])
 
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
-    double box[] = {-0.2, 10.2, -0.2, 10.2, -0.2, 10.2};
+    std::array<double, 2 * NDIM> box{-0.2, 10.2, -0.2, 10.2, -0.2, 10.2};
 
-    std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
-    Assembly<n_layer> pt_ass{sc_xyz, cell, BondType::Elastic}; // elastic bond with brittle damage law
+    //std::vector<std::array<double, NDIM>> fcc_xyz = createCuboidFCC3D(box, cell, R_matrix);
+    //Assembly<n_layer> pt_ass{fcc_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
+    Assembly<n_layer> pt_ass{"../examples/position.dump", cell, BondType::Elastic}; // read coordinate from dump file
+
+    printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
     double E0 = 146e3, mu0 = 0.3;     // Young's modulus and Poisson's ratio
@@ -88,10 +83,8 @@ int main(int argc, char *argv[])
     }
 
     // simulation settings
-    int n_steps = 1;            // number of loading steps
-    double step_size = -2000.0; // step size for force or displacement loading
-    char dumpflag = 'm';                             // 's' for single step; 'm' for multiple step
-    char dumpFileNew[] = "result_position_new.dump"; // output dump file
+    int n_steps = 1;                                 // number of loading steps
+    double step_size = -2000.0;                      // step size for force or displacement loading
 
     std::vector<LoadStep> load; // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
@@ -107,12 +100,11 @@ int main(int argc, char *argv[])
     }
 
     pt_ass.updateForceState();
-    pt_ass.writeDump(dumpFileNew, 0, dumpflag, box);
 
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::PARDISO}; // stiffness mode and solution mode
+    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump"}; // stiffness mode and solution mode
     solv.solveProblem(pt_ass, load);
 
     double finish = omp_get_wtime();
