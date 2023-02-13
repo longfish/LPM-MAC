@@ -34,7 +34,7 @@ The results will be in the build folder.
 A 3D simple cubic lattice example for elastic material is provided by default in `./src` directory.
 
 ### Examples
-There are some example codes in the `./examples` folder that contains additional numerical cases in [1, 2]. They define the main() functions of the project. One should change the example file name to "lpmc_project.c" and replace it with the same file in `./src` directory then run the code (possibly require some other modifications).
+There are some example codes in the `./examples` folder that contains additional numerical cases in [1, 2]. They define the main() functions of the project. One should change the example file name to "lpmcpp.cpp" and replace it with the file in `./src` directory then run the code (possibly require some other modifications).
 
 ### References
 1. Meng C, Wei H, Chen H, et al. Modeling plasticity of cubic crystals using a nonlocal lattice particle method[J]. Computer Methods in Applied Mechanics and Engineering, 2021, 385: 114069.
