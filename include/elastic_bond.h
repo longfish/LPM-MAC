@@ -53,7 +53,7 @@ void ElasticBond<nlayer>::setBondProperty(double p_E, double p_mu, double p_cr_b
     else
         cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, this->p1->cell.radius, this->p1->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
 
-    if (this->p1->cell.lattice == 1)
+    if (this->p1->cell.lattice == LatticeType::Hexagon2D)
     {
         this->Kn = KnTv[0];
         this->Tv = KnTv[1];

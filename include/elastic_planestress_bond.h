@@ -39,7 +39,7 @@ public:
         if (this->p1->cell.dim != 2)
             printf("Warning: ElasticPlaneStressBond bond only work in 2D!\n");
 
-        if (this->p1->cell.lattice == 1)
+        if (this->p1->cell.lattice == LatticeType::Hexagon2D)
         {
             this->Kn = KnTv[0];
             this->Tv = KnTv[1];

@@ -4,6 +4,10 @@
 
 #include <vector>
 #include <array>
+#include <string>
+#include <fstream>
+#include <cstdio>
+#include <iomanip>
 
 #include <stdio.h>
 #include <math.h>
@@ -31,7 +35,6 @@ using namespace boost::adaptors;
 #define PI 3.14159265358979323846
 #define NDIM 3        /* max number of dimensions, no matter what dimension of the problem */
 #define TOL 1e-3      /* tolerance to determine whether two quantities are equal */
-#define MAXLINE 500   /* maximum line number */
 #define MAXSMALL 20   /* maximum number used for small iteration etc. */
 #define MAXITER 100   /* maximum global iteration number */
 #define MAXSLIPSYS 50 /* maximum size of slip systems */
@@ -108,6 +111,17 @@ enum class BondType : char
 {
     Elastic,
     ElasticPlaneStress
+};
+
+enum class LatticeType : char
+{
+    Square2D,
+    Hexagon2D,
+    SimpleCubic3D,
+    FCC3D,
+    BCC3D_1Slip,
+    BCC3D_2Slip,
+    BCC3D_3Slip
 };
 
 #endif

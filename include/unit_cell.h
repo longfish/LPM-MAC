@@ -7,14 +7,15 @@
 class UnitCell
 {
 public:
-    int lattice, dim;
+    LatticeType lattice;
+    int dim;
     int nneighbors, nneighbors1, nneighbors2;
     int nneighbors_AFEM, nneighbors_AFEM1, nneighbors_AFEM2;
     double radius, neighbor1_cutoff, neighbor2_cutoff;
     double particle_volume;                     /* volume of unit cell */
     std::array<double, NDIM * NDIM> el_mapping; /* mapping from elasticity to Kn, Tv */
 
-    UnitCell(int p_lattice, double p_radius);
+    UnitCell(LatticeType p_lattice, double p_radius);
     void setSquare();
     void setHexagon();
     void setSimpleCubic();
@@ -22,20 +23,20 @@ public:
     void setBCC();
 };
 
-UnitCell::UnitCell(int p_lattice, double p_radius)
+UnitCell::UnitCell(LatticeType p_lattice, double p_radius)
 {
     lattice = p_lattice;
     radius = p_radius;
 
-    if (lattice == 0) /* 2D square lattice (double layer neighbor) */
+    if (lattice == LatticeType::Square2D) /* 2D square lattice (double layer neighbor) */
         setSquare();
-    else if (lattice == 1) /* 2D hexagon lattice (double layer neighbor) */
+    else if (lattice == LatticeType::Hexagon2D) /* 2D hexagon lattice (double layer neighbor) */
         setHexagon();
-    else if (lattice == 2) /* simple cubic */
+    else if (lattice == LatticeType::SimpleCubic3D) /* simple cubic */
         setSimpleCubic();
-    else if (lattice == 3) /* face centered cubic  */
+    else if (lattice == LatticeType::FCC3D) /* face centered cubic  */
         setFCC();
-    else if (lattice == 4) /* body centered cubic  */
+    else if (lattice == LatticeType::BCC3D_1Slip || lattice == LatticeType::BCC3D_2Slip || lattice == LatticeType::BCC3D_3Slip) /* body centered cubic  */
         setBCC();
 }
 
