@@ -62,6 +62,7 @@
         "limits": "cpp",
         "numbers": "cpp",
         "cfenv": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "fstream": "cpp"
     }
 }
