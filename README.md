@@ -23,18 +23,18 @@ A multi-threaded implementation of a nonlocal lattice particle method (LPM) usin
 2. `git clone https://github.com/longfish/LPM-CPP.git`  # clone the project source files into your own machine
 3. `mkdir build & cd build`
 4. `cmake .. -G "Ninja" -DMKL_INTERFACE=ilp64 -DCMAKE_BUILD_TYPE=Release` # change from *Release* to *Debug* if needed
-5. `cmake --build . -j 8`
+5. `cmake --build . -j 12`
 
 ### Run the code
 `./lpmcpp`
 
 The results will be in the build folder.
 
+### Examples
+There are some example codes in the `./examples` folder that contains additional numerical cases in [1, 2]. They define the main() functions of the project. Please change the example file name to "lpmcpp.cpp" and replace it with the file in `./src` directory then run the code. In case if a new bond type is needed, one needs to add it to `assembly.h` as well.
+
 ### Default numerical example
 A 3D simple cubic lattice example for elastic material is provided by default in `./src` directory.
-
-### Examples
-There are some example codes in the `./examples` folder that contains additional numerical cases in [1, 2]. They define the main() functions of the project. One should change the example file name to "lpmcpp.cpp" and replace it with the file in `./src` directory then run the code (possibly require some other modifications).
 
 ### References
 1. Meng C, Wei H, Chen H, et al. Modeling plasticity of cubic crystals using a nonlocal lattice particle method[J]. Computer Methods in Applied Mechanics and Engineering, 2021, 385: 114069.
