@@ -16,13 +16,13 @@
 template <int nlayer>
 class Solver
 {
-    const int max_iter = 100;     /* maximum global iteration number */
+    const int max_iter = 50;      /* maximum global iteration number */
     const double tol_iter = 1e-6; /* newton iteration tolerance */
 
     SolverMode sol_mode;
 
     int problem_size;
-    double *residual, *disp;
+    double *disp;
     std::vector<double> reaction_force;
 
 public:
@@ -41,35 +41,36 @@ public:
     { // stiff_mode = 0 means finite difference; 1 means analytical
         problem_size = (ass.pt_sys[0]->cell.dim) * ass.pt_sys.size();
         disp = new double[problem_size];
-        residual = new double[problem_size];
     }
 
     ~Solver()
     {
-        delete[] residual;
         delete[] disp;
     }
 
     void solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep> &load);
-    void solveStepwise(Assembly<nlayer> &ass)
-    {
-        // 0 is direct solver, 1 is iterative solver
-        if (sol_mode == SolverMode::PARDISO)
-            LPM_PARDISO();
-        else
-            LPM_CG();
-
-        /* update the position */
-        for (auto pt : ass.pt_sys)
-        {
-            std::array<double, NDIM> dxyz{0, 0, 0};
-            for (int j = 0; j < pt->cell.dim; j++)
-                dxyz[j] += disp[(pt->cell.dim) * (pt->id) + j];
-
-            pt->moveBy(dxyz);
-        }
-    }
+    void solveStepwise(Assembly<nlayer> &ass);
 };
+
+template <int nlayer>
+void Solver<nlayer>::solveStepwise(Assembly<nlayer> &ass)
+{
+    // 0 is direct solver, 1 is iterative solver
+    if (sol_mode == SolverMode::PARDISO)
+        LPM_PARDISO();
+    else
+        LPM_CG();
+
+    /* update the position */
+    for (auto pt : ass.pt_sys)
+    {
+        std::array<double, NDIM> dxyz{0, 0, 0};
+        for (int j = 0; j < pt->cell.dim; j++)
+            dxyz[j] += disp[(pt->cell.dim) * (pt->id) + j];
+
+        pt->moveBy(dxyz);
+    }
+}
 
 template <int nlayer>
 void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep> &load)
@@ -77,10 +78,14 @@ void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep> &
     for (int i = 0; i < load.size(); i++)
     {
         printf("Loading step-%d: ", i + 1);
+
+        double t1 = omp_get_wtime();
         if (ass.pt_sys[0]->cell.dim == 2)
             stiffness.initializeStiffness2D(ass.pt_sys);
         else
             stiffness.initializeStiffness3D(ass.pt_sys);
+        double t2 = omp_get_wtime();
+        printf("Stiffness matrix calculation costs %f seconds\n", t2 - t1);
 
         updateDisplacementBC(ass, load[i]);
         updateForceBC(ass, load[i]);
@@ -97,7 +102,7 @@ int Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
     updateRR(ass);
 
     // compute the Euclidean norm (L2 norm)
-    double norm_residual = cblas_dnrm2(problem_size, residual, 1);
+    double norm_residual = cblas_dnrm2(problem_size, stiffness.residual, 1);
     double norm_reaction_force = cblas_dnrm2(reaction_force.size(), reaction_force.data(), 1);
     double tol_multiplier = MAX(norm_residual, norm_reaction_force);
     char tempChar1[] = "residual", tempChar2[] = "reaction";
@@ -115,7 +120,7 @@ int Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
         solveStepwise(ass); // solve for the incremental displacement
         ass.updateForceState();
         updateRR(ass); /* update the RHS risidual force vector */
-        norm_residual = cblas_dnrm2(problem_size, residual, 1);
+        norm_residual = cblas_dnrm2(problem_size, stiffness.residual, 1);
         printf("    Norm of residual is %.3e, residual ratio is %.3e\n", norm_residual, norm_residual / tol_multiplier);
     }
 
@@ -130,7 +135,7 @@ void Solver<nlayer>::updateRR(Assembly<nlayer> &ass)
         for (int k = 0; k < pt->cell.dim; k++)
         {
             /* residual force (exclude the DoF that being applied to displacement BC) */
-            residual[(pt->cell.dim) * (pt->id) + k] = (1 - pt->disp_constraint[k]) * (pt->Pex[k] - pt->Pin[k]);
+            stiffness.residual[(pt->cell.dim) * (pt->id) + k] = (1 - pt->disp_constraint[k]) * (pt->Pex[k] - pt->Pin[k]);
 
             /* reaction force (DoF being applied to displacement BC) */
             if (pt->disp_constraint[k] == 1)
@@ -263,13 +268,13 @@ void Solver<nlayer>::LPM_PARDISO()
 
     /* Back substitution and iterative refinement */
     phase = 33;
-    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, stiffness.K_global, stiffness.IK, stiffness.JK, &idum, &nrhs, iparm, &msglvl, residual, disp, &error);
+    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, stiffness.K_global, stiffness.IK, stiffness.JK, &idum, &nrhs, iparm, &msglvl, stiffness.residual, disp, &error);
     if (error != 0)
     {
         printf("\nERROR during solution: " IFORMAT, error);
         exit(3);
     }
-    printf("\nSolve completed at iteration: " IFORMAT "\n", iter);
+    printf("\n    Solve completed at iteration: " IFORMAT "\n", iter);
 
     /* Termination and release of memory */
     phase = -1; /* Release internal memory. */
@@ -307,7 +312,7 @@ void Solver<nlayer>::LPM_CG()
         disp[i] = 0;
 
     /* initialize the solver */
-    dcg_init(&n, disp, residual, &rci_request, ipar, dpar, tmp);
+    dcg_init(&n, disp, stiffness.residual, &rci_request, ipar, dpar, tmp);
     if (rci_request != 0)
         goto failure;
 
@@ -320,14 +325,14 @@ void Solver<nlayer>::LPM_CG()
     dpar[1] = 1e-12; /* specifies the absolute tolerance, the default value is 0.0 */
 
     /* check the correctness and consistency of the newly set parameters */
-    dcg_check(&n, disp, residual, &rci_request, ipar, dpar, tmp);
+    dcg_check(&n, disp, stiffness.residual, &rci_request, ipar, dpar, tmp);
     if (rci_request != 0)
         goto failure;
 
     /* compute the solution by RCI (residual)CG solver */
     /* reverse Communications starts here */
 rci:
-    dcg(&n, disp, residual, &rci_request, ipar, dpar, tmp);
+    dcg(&n, disp, stiffness.residual, &rci_request, ipar, dpar, tmp);
     /* if rci_request=0, then the solution was found according to the requested  */
     /* stopping tests. in this case, this means that it was found after 100      */
     /* iterations. */
@@ -348,7 +353,7 @@ rci:
     /* Reverse Communication ends here                                           */
     /* Get the current iteration number into itercount                           */
 getsln:
-    dcg_get(&n, disp, residual, &rci_request, ipar, dpar, tmp, &itercount);
+    dcg_get(&n, disp, stiffness.residual, &rci_request, ipar, dpar, tmp, &itercount);
     printf("    The system has been solved after " IFORMAT " iterations\n", itercount);
     goto success;
 

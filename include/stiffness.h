@@ -24,7 +24,7 @@ class Stiffness
 public:
     MKL_INT *IK, *JK;
     int *K_pointer; // start index for each particle in the global stiffness matrix
-    double *K_global;
+    double *K_global, *residual;
 
     void initialize(std::vector<Particle<nlayer> *> &pt_sys);
     void initializeStiffness3D(std::vector<Particle<nlayer> *> &pt_sys);
@@ -66,6 +66,7 @@ void Stiffness<nlayer>::initialize(std::vector<Particle<nlayer> *> &pt_sys)
     JK = new MKL_INT[K_pointer[pt_sys.size()]];
     IK = new MKL_INT[pt_sys[0]->cell.dim * pt_sys.size() + 1];
     K_global = new double[K_pointer[pt_sys.size()]];
+    residual = new double[pt_sys[0]->cell.dim * pt_sys.size()];
 }
 
 template <int nlayer>
@@ -73,7 +74,7 @@ std::array<std::array<double, NDIM>, NDIM> Stiffness<nlayer>::localStiffness(Par
 {
     if (mode == StiffnessMode::Analytical)
         return localStiffnessANA(pi, pj);
-    return localStiffnessFD(pi, pj); 
+    return localStiffnessFD(pi, pj);
 }
 
 std::array<std::array<double, NDIM>, NDIM> sumArray(std::array<std::array<double, NDIM>, NDIM> &a, std::array<std::array<double, NDIM>, NDIM> &b)
@@ -286,7 +287,7 @@ void Stiffness<nlayer>::updateStiffnessDispBC(std::vector<Particle<nlayer> *> &p
     double norm_diag = cblas_dnrm2(pt_sys[0]->cell.dim * pt_sys.size(), diag, 1); /* Euclidean norm (L2 norm) */
     delete[] diag;
 
-    //printf("class: %f\n", norm_diag);
+    // printf("class: %f\n", norm_diag);
 
     /* update the stiffness matrix */
     for (Particle<nlayer> *pi : pt_sys)
@@ -336,8 +337,8 @@ void Stiffness<nlayer>::updateStiffnessDispBC(std::vector<Particle<nlayer> *> &p
                         K_global[K_pointer[pj->id] + 2 * pj->cell.dim * (pj->nconn_largeq) + pj->cell.dim * num2 - 3 + k] = 0;
                     }
                 }
+                residual[(pi->cell.dim) * (pi->id) + k] = 0.0;
             }
-            residual[(pi->cell.dim) * (pi->id) + k] = 0.0;
         }
     }
 }

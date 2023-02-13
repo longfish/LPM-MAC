@@ -37,6 +37,7 @@ public:
     void createConnections();
 
     void updateForceState(); // update bond force and particle forces
+    void writeDump(const char *dataName, int step, char flag, double box[]);
 };
 
 template <int nlayer>
@@ -127,6 +128,38 @@ void Assembly<nlayer>::createConnections()
         auto curr = std::find(p1->conns.begin(), p1->conns.end(), p1);
         p1->nconn_largeq = (int)std::distance(curr, p1->conns.end());
     }
+}
+
+template <int nlayer>
+void Assembly<nlayer>::writeDump(const char *dataName, int step, char flag, double box[])
+{
+    FILE *fpt;
+    if (flag == 's')
+        fpt = fopen(dataName, "w+");
+    else
+        fpt = fopen(dataName, "a+");
+
+    fprintf(fpt, "ITEM: TIMESTEP\n");
+    fprintf(fpt, "%d\n", step);
+    fprintf(fpt, "ITEM: NUMBER OF ATOMS\n");
+    fprintf(fpt, "%d\n", nparticle);
+    fprintf(fpt, "ITEM: BOX BOUNDS pp pp pp\n");
+    fprintf(fpt, "%8.8f %8.8f\n", box[0], box[1]);
+    fprintf(fpt, "%8.8f %8.8f\n", box[2], box[3]);
+    fprintf(fpt, "%8.8f %8.8f\n", box[4], box[5]);
+
+    fprintf(fpt, "ITEM: ATOMS id type x y z dx dy dz s11 s22 s33 s23 s13 s12 damage\n");
+    for (auto pt : pt_sys)
+    {
+        fprintf(fpt, "%d %d %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e\n",
+                pt->id, pt->type,
+                pt->xyz[0], pt->xyz[1], pt->xyz[2],
+                pt->xyz[0] - pt->xyz_initial[0], pt->xyz[1] - pt->xyz_initial[1], pt->xyz[2] - pt->xyz_initial[2],
+                pt->stress[0], pt->stress[1], pt->stress[2], pt->stress[3], pt->stress[4], pt->stress[5],
+                pt->damage_visual);
+    }
+
+    fclose(fpt);
 }
 
 #endif

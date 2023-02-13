@@ -110,27 +110,4 @@ enum class BondType : char
     ElasticPlaneStress
 };
 
-/* Declaration of global variables */
-/* int */
-extern int nparticle;
-
-extern MKL_INT *IK, *JK;
-extern int *type, *dispBC_index, *fix_index, *pl_flag;
-extern int *nb, *nb_initial, *nb_conn;
-extern int **neighbors, **neighbors1, **neighbors2;
-extern int **K_pointer, **conn, **nsign;
-
-/* double precision float */
-extern double *K_global, *residual, *Pin, *Pex, *Pex_temp, *disp;
-extern double *reaction_force, *damage_visual;
-
-extern double **xyz, **xyz_initial, **xyz_temp, **distance, **distance_initial, **F, **csx, **csy, **csz;
-extern double **dL_total, **TdL_total, **csx_initial, **csy_initial, **csz_initial, **Ce;
-extern double **stress_tensor;
-extern double **strain_tensor, **ddL_total, **TddL_total, **F_temp;
-extern double **dL, **ddL, **bond_stress, **damage_broken, **damage_w;
-
-extern double **Kn, **Tv;
-extern double ***damage_D;
-
 #endif
