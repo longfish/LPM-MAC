@@ -19,11 +19,11 @@ class Solver
     const int max_iter = 50;      /* maximum global iteration number */
     const double tol_iter = 1e-6; /* newton iteration tolerance */
 
-    SolverMode sol_mode;
-
     int problem_size;
     double *disp;
+    std::string dumpFile;
     std::vector<double> reaction_force;
+    SolverMode sol_mode;
 
 public:
     Stiffness<nlayer> stiffness;
@@ -36,11 +36,12 @@ public:
 
     int NewtonIteration(Assembly<nlayer> &ass); // return number of Newton iterations
 
-    Solver(Assembly<nlayer> &ass, StiffnessMode p_stiff_mode, SolverMode p_sol_mode)
-        : sol_mode{p_sol_mode}, stiffness(ass.pt_sys, p_stiff_mode)
+    Solver(Assembly<nlayer> &ass, const StiffnessMode &p_stiff_mode, const SolverMode &p_sol_mode, const std::string &p_dumpFile)
+        : sol_mode{p_sol_mode}, stiffness(ass.pt_sys, p_stiff_mode), dumpFile(p_dumpFile)
     { // stiff_mode = 0 means finite difference; 1 means analytical
         problem_size = (ass.pt_sys[0]->cell.dim) * ass.pt_sys.size();
         disp = new double[problem_size];
+        dumpFile = p_dumpFile;
     }
 
     ~Solver()
@@ -75,6 +76,8 @@ void Solver<nlayer>::solveStepwise(Assembly<nlayer> &ass)
 template <int nlayer>
 void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep> &load)
 {
+    ass.writeDump(dumpFile, 0);
+
     for (int i = 0; i < load.size(); i++)
     {
         printf("Loading step-%d: ", i + 1);
@@ -89,7 +92,11 @@ void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep> &
 
         updateDisplacementBC(ass, load[i]);
         updateForceBC(ass, load[i]);
+        ass.updateForceState();
+        updateRR(ass);
+
         int ni = NewtonIteration(ass);
+        //ass.writeDump(dumpFile, i);
 
         printf("Loading step %d has finished in %d iterations\n\nData output ...\n", i + 1, ni);
     }
@@ -98,9 +105,6 @@ void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep> &
 template <int nlayer>
 int Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
 {
-    ass.updateForceState();
-    updateRR(ass);
-
     // compute the Euclidean norm (L2 norm)
     double norm_residual = cblas_dnrm2(problem_size, stiffness.residual, 1);
     double norm_reaction_force = cblas_dnrm2(reaction_force.size(), reaction_force.data(), 1);
