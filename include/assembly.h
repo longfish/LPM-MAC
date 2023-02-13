@@ -29,21 +29,34 @@ public:
     BondType btype;                         // bond type
     int nparticle;                          // number of particles
     std::vector<Particle<nlayer> *> pt_sys; // system of particles
+    std::array<double, 2 * NDIM> box;       // simulation box
 
-    Assembly(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, BondType p_btype); // Construct a particle system
+    Assembly(std::vector<std::array<double, NDIM>> &p_xyz, std::array<double, 2 * NDIM> &p_box, UnitCell &p_cell, const BondType &p_btype); // Construct a particle system from scratch
+    Assembly(const std::string &dumpFile, UnitCell &p_cell, const BondType &p_btype);                                                       // Assemble the particle system from the dump file
 
     void createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
     void createBonds();
     void createConnections();
-
     void updateForceState(); // update bond force and particle forces
-    void writeDump(const char *dataName, int step, char flag, double box[]);
+
+    void readDump(const std::string &dumpFile, UnitCell &cell);
+    void writeDump(std::string &dumpFile, int step);
 };
 
 template <int nlayer>
-Assembly<nlayer>::Assembly(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell, BondType p_btype)
+Assembly<nlayer>::Assembly(const std::string &dumpFile, UnitCell &p_cell, const BondType &p_btype)
 {
     btype = p_btype;
+    readDump(dumpFile, p_cell); // extract the particle system
+    createBonds();
+    createConnections();
+}
+
+template <int nlayer>
+Assembly<nlayer>::Assembly(std::vector<std::array<double, NDIM>> &p_xyz, std::array<double, 2 * NDIM> &p_box, UnitCell &p_cell, const BondType &p_btype)
+{
+    btype = p_btype;
+    box = p_box;
     createParticles(p_xyz, p_cell);
     createBonds();
     createConnections();
@@ -131,13 +144,9 @@ void Assembly<nlayer>::createConnections()
 }
 
 template <int nlayer>
-void Assembly<nlayer>::writeDump(const char *dataName, int step, char flag, double box[])
+void Assembly<nlayer>::writeDump(std::string &dumpFile, int step)
 {
-    FILE *fpt;
-    if (flag == 's')
-        fpt = fopen(dataName, "w+");
-    else
-        fpt = fopen(dataName, "a+");
+    FILE *fpt = fopen(dumpFile.c_str(), "a+");
 
     fprintf(fpt, "ITEM: TIMESTEP\n");
     fprintf(fpt, "%d\n", step);
@@ -148,15 +157,62 @@ void Assembly<nlayer>::writeDump(const char *dataName, int step, char flag, doub
     fprintf(fpt, "%8.8f %8.8f\n", box[2], box[3]);
     fprintf(fpt, "%8.8f %8.8f\n", box[4], box[5]);
 
+    // fprintf(fpt, "ITEM: ATOMS id type x y z \n");
     fprintf(fpt, "ITEM: ATOMS id type x y z dx dy dz s11 s22 s33 s23 s13 s12 damage\n");
     for (auto pt : pt_sys)
     {
+        // fprintf(fpt, "%d %d %.4e %.4e %.4e \n",
+        //         pt->id, pt->type,
+        //         pt->xyz[0], pt->xyz[1], pt->xyz[2]);
+
         fprintf(fpt, "%d %d %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e\n",
                 pt->id, pt->type,
                 pt->xyz[0], pt->xyz[1], pt->xyz[2],
                 pt->xyz[0] - pt->xyz_initial[0], pt->xyz[1] - pt->xyz_initial[1], pt->xyz[2] - pt->xyz_initial[2],
                 pt->stress[0], pt->stress[1], pt->stress[2], pt->stress[3], pt->stress[4], pt->stress[5],
                 pt->damage_visual);
+    }
+
+    fclose(fpt);
+}
+
+template <int nlayer>
+void Assembly<nlayer>::readDump(const std::string &dumpFile, UnitCell &cell)
+{
+    // Read particle id, type, and coordinates
+
+    FILE *fpt;
+    fpt = fopen(dumpFile.c_str(), "r+"); /* read-only */
+
+    if (fpt == NULL)
+    {
+        printf("\'%s\' does not exist!\n", dumpFile.c_str());
+        exit(1);
+    }
+
+    int SKIP = 3, nonsense;    // number of lines that need to skip
+    const int MAXLENGTH = 500; /* maximum length of a line */
+    char *tmp;
+    char line[MAXLENGTH]; /* stores lines as they are read in */
+
+    for (int n = 0; n < SKIP; n++) /* skip beginning lines and get total particle number */
+        tmp = fgets(line, MAXLENGTH, fpt);
+
+    nonsense = fscanf(fpt, "%d\n", &(nparticle));
+    tmp = fgets(line, MAXLENGTH, fpt);
+
+    nonsense = fscanf(fpt, "%lf %lf\n", &(box[0]), &(box[1]));
+    nonsense = fscanf(fpt, "%lf %lf\n", &(box[2]), &(box[3]));
+    nonsense = fscanf(fpt, "%lf %lf\n", &(box[4]), &(box[5]));
+    tmp = fgets(line, MAXLENGTH, fpt);
+    
+    /* store into position variable xyz */
+    int type;
+    double xyz[NDIM];
+    while (fscanf(fpt, "%*d %d %lf %lf %lf", &(type), &(xyz[0]), &(xyz[1]), &(xyz[2])) == 4)
+    {
+        Particle<nlayer> *pt = new Particle<nlayer>(xyz[0], xyz[1], xyz[2], cell, type);
+        pt_sys.push_back(pt);
     }
 
     fclose(fpt);
