@@ -16,7 +16,6 @@ template <int nlayer>
 class ElasticBond : public Bond<nlayer>
 {
 public:
-    double E{0}, mu{0};   // Youngs modulus and Poisson ratio
     int nbreak{0};        // limit the broken number of bonds in a single iteration, should be an even number
     double cr_bstrain{0}; // critical bond strain value at which bond will break
 
@@ -25,6 +24,7 @@ public:
 
     void updatebForce();
     void setBondProperty(double p_E, double p_mu, double p_cr_bstrain, int p_nbreak);
+    void setBondProperty(double p_C11, double p_C12, double p_C44, double p_cr_bstrain, int p_nbreak);
 };
 
 template <int nlayer>
@@ -38,14 +38,12 @@ void ElasticBond<nlayer>::updatebForce()
 template <int nlayer>
 void ElasticBond<nlayer>::setBondProperty(double p_E, double p_mu, double p_cr_bstrain, int p_nbreak)
 {
-    E = p_E;
-    mu = p_mu;
     nbreak = p_nbreak;
     cr_bstrain = p_cr_bstrain;
 
-    double Ce[NDIM]{E * (1.0 - mu) / (1.0 + mu) / (1.0 - 2.0 * mu),
-                    E * mu / (1.0 + mu) / (1.0 - 2.0 * mu),
-                    E / 2.0 / (1.0 + mu)}; // C11, C12, C44
+    double Ce[NDIM]{p_E * (1.0 - p_mu) / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
+                    p_E * p_mu / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
+                    p_E / 2.0 / (1.0 + p_mu)}; // C11, C12, C44
     double KnTv[NDIM]{0};
 
     if (this->p1->cell.dim == 2)
@@ -64,4 +62,31 @@ void ElasticBond<nlayer>::setBondProperty(double p_E, double p_mu, double p_cr_b
         this->Tv = KnTv[2];
     }
 }
+
+template <int nlayer>
+void ElasticBond<nlayer>::setBondProperty(double p_C11, double p_C12, double p_C44, double p_cr_bstrain, int p_nbreak)
+{
+    nbreak = p_nbreak;
+    cr_bstrain = p_cr_bstrain;
+
+    double Ce[NDIM]{p_C11, p_C12, p_C44}; // C11, C12, C44
+    double KnTv[NDIM]{0};
+
+    if (this->p1->cell.dim == 2)
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, 1.0, this->p1->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
+    else
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, this->p1->cell.radius, this->p1->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
+
+    if (this->p1->cell.lattice == LatticeType::Hexagon2D)
+    {
+        this->Kn = KnTv[0];
+        this->Tv = KnTv[1];
+    }
+    else
+    {
+        this->Kn = KnTv[this->layer]; // layer is 0 or 1
+        this->Tv = KnTv[2];
+    }
+}
+
 #endif

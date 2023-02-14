@@ -31,7 +31,7 @@ A multi-threaded implementation of a nonlocal lattice particle method (LPM) usin
 The results will be in the build folder.
 
 ### Examples
-There are some example codes in the `./examples` folder that contains additional numerical cases in [1, 2]. They define the main() functions of the project. Please change the example file name to "lpmcpp.cpp" and replace it with the file in `./src` directory then run the code. In case if a new bond type is needed, one needs to add it to `assembly.h` as well.
+There are some example codes in the `./examples` folder that contains additional numerical cases in [1, 2]. They define the `run()` functions of the project. Please change/add the example file and `src/lmpcpp.cpp` to run the code. In case if a new bond type is needed, one needs to add it to `assembly.h` as well.
 
 ### Default numerical example
 A 3D simple cubic lattice example for elastic material is provided by default in `./src` directory.
