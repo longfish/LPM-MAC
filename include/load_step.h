@@ -7,14 +7,15 @@
 #include <algorithm>
 #include <string>
 
-#include "lpm.h"
+#include "boundary.h"
 
+template <int nlayer>
 class LoadStep
 {
 public:
     int lind; // load indicator
-    std::vector<DispBC> dispBCs;
-    std::vector<ForceBC> forceBCs;
+    std::vector<DispBC<nlayer>> dispBCs;
+    std::vector<ForceBC<nlayer>> forceBCs;
 
     LoadStep(int p_lind)
         : lind{p_lind} {}

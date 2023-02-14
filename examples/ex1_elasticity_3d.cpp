@@ -25,9 +25,9 @@ void run()
     // xmin; xmax; ymin; ymax; zmin; zmax
     std::array<double, 2 * NDIM> box{-0.2, 10.2, -0.2, 10.2, -0.2, 10.2};
 
-    // std::vector<std::array<double, NDIM>> fcc_xyz = createCuboidFCC3D(box, cell, R_matrix);
-    // Assembly<n_layer> pt_ass{fcc_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
-    Assembly<n_layer> pt_ass{"../geometry/test.dump", cell, BondType::Elastic}; // read coordinate from dump file
+    std::vector<std::array<double, NDIM>> fcc_xyz = createCuboidFCC3D(box, cell, R_matrix);
+    Assembly<n_layer> pt_ass{fcc_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
+    // Assembly<n_layer> pt_ass{"../geometry/test.dump", cell, BondType::Elastic}; // read coordinate from dump file
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
@@ -36,15 +36,16 @@ void run()
     double critical_bstrain = 1.0e-2; // critical bond strain value at which bond will break
     int nbreak = 20;                  // limit the broken number of bonds in a single iteration, should be an even number
 
+    std::vector<Particle<n_layer> *> top_group, bottom_group, internal_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
         // assign boundary and internal particles
         if (p1->xyz[2] > 10.0 - 1.2 * radius)
-            p1->type = 1; // top
+            top_group.push_back(p1); // top
         if (p1->xyz[2] < 1.2 * radius)
-            p1->type = 2; // bottom
+            bottom_group.push_back(p1); // bottom
         if (p1->nb == cell.nneighbors)
-            p1->type = 3; // particles with full neighbor list
+            internal_group.push_back(p1); // particles with full neighbor list
 
         // assign material properties
         for (int i = 0; i < n_layer; ++i)
@@ -62,16 +63,16 @@ void run()
     int n_steps = 1;            // number of loading steps
     double step_size = -2000.0; // step size for force or displacement loading
 
-    std::vector<LoadStep> load; // load settings for multiple steps
+    std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
     {
-        LoadStep step{1}; // 1 means tension loading, -1 means compression loading
+        LoadStep<n_layer> step{1}; // 1 means tension loading, -1 means compression loading
 
         // boundary conditions
-        step.dispBCs.push_back(DispBC(1, 'x', 0.0));
-        step.dispBCs.push_back(DispBC(1, 'y', 0.0));
-        step.dispBCs.push_back(DispBC(1, 'z', 0.0));
-        step.forceBCs.push_back(ForceBC(2, 0.0, 0.0, step_size));
+        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
+        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', 0.0));
+        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'z', 0.0));
+        step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, 0.0, step_size));
         load.push_back(step);
     }
 

@@ -29,15 +29,24 @@ void run()
     double critical_bstrain = 1.0e-2;          // critical bond strain value at which bond will break
     int nbreak = 20;                           // limit the broken number of bonds in a single iteration, should be an even number
 
+    std::vector<Particle<n_layer> *> top, bottom, left, right, front, back, internal;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
         // assign boundary and internal particles
-        if (p1->xyz[2] > 1.0 - 1.2 * radius)
-            p1->type = 102; // top
-        if (p1->xyz[2] < 1.2 * radius)
-            p1->type = 103; // bottom
-        // if (p1->nb == cell.nneighbors)
-        //     p1->type = 3; // particles with full neighbor list
+        if (p1->xyz[2] > 1 - 2 * radius)
+            top.push_back(p1);
+        if (p1->xyz[2] < 2 * radius)
+            bottom.push_back(p1);
+        if (p1->xyz[1] > 1 - 2 * radius)
+            back.push_back(p1);
+        if (p1->xyz[1] < 2 * radius)
+            front.push_back(p1);
+        if (p1->xyz[0] > 1 - 2 * radius)
+            right.push_back(p1);
+        if (p1->xyz[0] < 2 * radius)
+            left.push_back(p1);
+        if (p1->nb == cell.nneighbors)
+            internal.push_back(p1); // particles with full neighbor list
 
         // assign material properties
         for (int i = 0; i < n_layer; ++i)
@@ -52,19 +61,24 @@ void run()
     }
 
     // simulation settings
-    int n_steps = 1;            // number of loading steps
-    double step_size = -2000.0; // step size for force or displacement loading
-
-    std::vector<LoadStep> load; // load settings for multiple steps
+    int n_steps = 1;                                    // number of loading steps
+    double U_stepx{1e-3}, U_stepy{1e-3}, U_stepz{1e-3}; // step size
+    std::vector<LoadStep<n_layer>> load;                // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
     {
-        LoadStep step{1}; // 1 means tension loading, -1 means compression loading
+        LoadStep<n_layer> step{1}; // 1 means tension loading, -1 means compression loading
 
         // boundary conditions
-        step.dispBCs.push_back(DispBC(102, 'x', 0.0));
-        step.dispBCs.push_back(DispBC(102, 'y', 0.0));
-        step.dispBCs.push_back(DispBC(102, 'z', 0.0));
-        step.forceBCs.push_back(ForceBC(103, 0.0, 0.0, step_size));
+        // left: U_stepx; right: -U_stepx
+        // front: U_stepy; back: -U_stepy
+        // top: U_stepz; bottom: -U_stepz
+
+        step.dispBCs.push_back(DispBC<n_layer>(left, 'x', -U_stepx));
+        step.dispBCs.push_back(DispBC<n_layer>(right, 'x', U_stepx));
+        step.dispBCs.push_back(DispBC<n_layer>(front, 'y', -U_stepy));
+        step.dispBCs.push_back(DispBC<n_layer>(back, 'y', U_stepy));
+        step.dispBCs.push_back(DispBC<n_layer>(top, 'z', U_stepz));
+        step.dispBCs.push_back(DispBC<n_layer>(bottom, 'z', -U_stepz));
         load.push_back(step);
     }
 

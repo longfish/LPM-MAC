@@ -28,8 +28,8 @@ class Solver
 public:
     Stiffness<nlayer> stiffness;
 
-    void updateDisplacementBC(Assembly<nlayer> &ass, LoadStep &load_step);
-    void updateForceBC(Assembly<nlayer> &ass, LoadStep &load_step);
+    void updateDisplacementBC(Assembly<nlayer> &ass, LoadStep<nlayer> &load_step);
+    void updateForceBC(Assembly<nlayer> &ass, LoadStep<nlayer> &load_step);
     void updateRR(Assembly<nlayer> &ass); // update residual force and reaction force
     void LPM_PARDISO();
     void LPM_CG();
@@ -49,7 +49,7 @@ public:
         delete[] disp;
     }
 
-    void solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep> &load);
+    void solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep<nlayer>> &load);
     void solveStepwise(Assembly<nlayer> &ass);
 };
 
@@ -74,7 +74,7 @@ void Solver<nlayer>::solveStepwise(Assembly<nlayer> &ass)
 }
 
 template <int nlayer>
-void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep> &load)
+void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep<nlayer>> &load)
 {
     ass.writeDump(dumpFile, 0);
 
@@ -96,7 +96,7 @@ void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep> &
         updateRR(ass);
 
         int ni = NewtonIteration(ass);
-        //ass.writeDump(dumpFile, i);
+        ass.writeDump(dumpFile, i);
 
         printf("Loading step %d has finished in %d iterations\n\nData output ...\n", i + 1, ni);
     }
@@ -149,57 +149,45 @@ void Solver<nlayer>::updateRR(Assembly<nlayer> &ass)
 }
 
 template <int nlayer>
-void Solver<nlayer>::updateDisplacementBC(Assembly<nlayer> &ass, LoadStep &load_step)
+void Solver<nlayer>::updateDisplacementBC(Assembly<nlayer> &ass, LoadStep<nlayer> &load_step)
 {
-    for (Particle<nlayer> *pt : ass.pt_sys)
+    for (DispBC<nlayer> bc : load_step.dispBCs)
     {
-        for (DispBC bc : load_step.dispBCs)
+        for (Particle<nlayer> *pt : bc.group)
         {
-            if (pt->type == bc.type)
+            if (bc.flag == 'x')
             {
-                if (bc.flag == 'x')
-                {
-                    std::array<double, NDIM> dxyz{bc.step, 0, 0};
-                    pt->moveBy(dxyz);
-                    pt->disp_constraint[0] = 1;
-                }
-                if (bc.flag == 'y')
-                {
-                    std::array<double, NDIM> dxyz{0, bc.step, 0};
-                    pt->moveBy(dxyz);
-                    pt->disp_constraint[1] = 1;
-                }
-                if (bc.flag == 'z')
-                {
-                    std::array<double, NDIM> dxyz{0, 0, bc.step};
-                    pt->moveBy(dxyz);
-                    pt->disp_constraint[2] = 1;
-                }
+                std::array<double, NDIM> dxyz{bc.step, 0, 0};
+                pt->moveBy(dxyz);
+                pt->disp_constraint[0] = 1;
+            }
+            if (bc.flag == 'y')
+            {
+                std::array<double, NDIM> dxyz{0, bc.step, 0};
+                pt->moveBy(dxyz);
+                pt->disp_constraint[1] = 1;
+            }
+            if (bc.flag == 'z')
+            {
+                std::array<double, NDIM> dxyz{0, 0, bc.step};
+                pt->moveBy(dxyz);
+                pt->disp_constraint[2] = 1;
             }
         }
     }
 }
 
 template <int nlayer>
-void Solver<nlayer>::updateForceBC(Assembly<nlayer> &ass, LoadStep &load_step)
+void Solver<nlayer>::updateForceBC(Assembly<nlayer> &ass, LoadStep<nlayer> &load_step)
 {
-
-    for (ForceBC bc : load_step.forceBCs)
+    for (ForceBC<nlayer> bc : load_step.forceBCs)
     {
-        int num_forceBC{0};
-        for (Particle<nlayer> *pt : ass.pt_sys)
+        int num_forceBC = (int)bc.group.size();
+        for (Particle<nlayer> *pt : bc.group)
         {
-            if (pt->type == bc.type)
-                num_forceBC++;
-        }
-        for (Particle<nlayer> *pt : ass.pt_sys)
-        {
-            if (pt->type == bc.type)
-            {
-                pt->Pex[0] += bc.fx / num_forceBC;
-                pt->Pex[1] += bc.fy / num_forceBC;
-                pt->Pex[2] += bc.fz / num_forceBC;
-            }
+            pt->Pex[0] += bc.fx / num_forceBC;
+            pt->Pex[1] += bc.fy / num_forceBC;
+            pt->Pex[2] += bc.fz / num_forceBC;
         }
     }
 }

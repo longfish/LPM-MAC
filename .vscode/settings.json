@@ -63,6 +63,8 @@
         "numbers": "cpp",
         "cfenv": "cpp",
         "cinttypes": "cpp",
-        "fstream": "cpp"
-    }
+        "fstream": "cpp",
+        "iomanip": "cpp"
+    },
+    "fortran.fortls.disabled": true
 }
