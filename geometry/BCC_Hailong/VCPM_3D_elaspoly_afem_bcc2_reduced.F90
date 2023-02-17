@@ -24,13 +24,13 @@ offset = 1.5*Radius
 threshold = 1.3*Radius
 
 !Number of neighbors
-nneighbors = 16 !14
-nneighbors1 = 10 !8
-nneighbors2 = 10 !6
+nneighbors = 18 !16 !14
+nneighbors1 = 12 !10 !8
+nneighbors2 = 12 !10 !6
 !Number of AFEM neighbors
-nneighbors_afem = 46 !40
-nneighbors_afem1 = 44 !34
-nneighbors_afem2 = 40 !24
+nneighbors_afem = 52 !46 !40
+nneighbors_afem1 = 50 !44 !34
+nneighbors_afem2 = 46 !40 !24
 !Read in the Voronoi Cell seeds data
 OPEN(UNIT=13, FILE="../Vonoroi/0.1_10seeds.dat", STATUS='old', ACTION='read')
 READ(13,*) ngrain

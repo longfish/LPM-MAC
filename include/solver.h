@@ -16,8 +16,8 @@
 template <int nlayer>
 class Solver
 {
-    const int max_iter = 50;      /* maximum global iteration number */
-    const double tol_iter = 1e-6; /* newton iteration tolerance */
+    const int max_iter = 20;      /* maximum global iteration number */
+    const double tol_iter = 1e-9; /* newton iteration tolerance */
 
     int problem_size;
     double *disp;
@@ -120,6 +120,14 @@ int Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
     while (norm_residual > tol_iter * tol_multiplier && ni < max_iter)
     {
         printf("    Iteration-%d: ", ++ni);
+        // double t1 = omp_get_wtime();
+        // if (ass.pt_sys[0]->cell.dim == 2)
+        //     stiffness.initializeStiffness2D(ass.pt_sys);
+        // else
+        //     stiffness.initializeStiffness3D(ass.pt_sys);
+        // double t2 = omp_get_wtime();
+        // printf("Stiffness matrix calculation costs %f seconds\n", t2 - t1);
+
         stiffness.updateStiffnessDispBC(ass.pt_sys);
         solveStepwise(ass); // solve for the incremental displacement
         ass.updateForceState();
