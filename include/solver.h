@@ -17,7 +17,7 @@ template <int nlayer>
 class Solver
 {
     const int max_iter = 20;      /* maximum global iteration number */
-    const double tol_iter = 1e-9; /* newton iteration tolerance */
+    const double tol_iter = 1e-5; /* newton iteration tolerance */
 
     int problem_size;
     double *disp;

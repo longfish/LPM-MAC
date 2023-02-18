@@ -14,6 +14,7 @@
 
 //#include "ex1_elasticity_3d.cpp"
 #include "ex2_polycrystal_3d_bcc.cpp"
+//#include "ex3_singlecrystal_3d_fcc.cpp"
 
 /************************************************************************/
 /****************************** Main procedure **************************/

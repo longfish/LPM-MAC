@@ -11,8 +11,8 @@ void run()
     double start = omp_get_wtime(); // record the CPU time, begin
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 0.4;   // 1.15; // particle radius
-    UnitCell cell(LatticeType::FCC3D, radius);
+    double radius = 0.25;   // 1.15; // particle radius
+    UnitCell cell(LatticeType::SimpleCubic3D, radius);
 
     // Euler angles setting for system rotation
     // flag is 0 ~ 2 for different conventions, (0: direct rotation; 1: Kocks convention; 2: Bunge convention)
@@ -23,16 +23,16 @@ void run()
 
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
-    std::array<double, 2 * NDIM> box{-0.2, 10.2, -0.2, 10.2, -0.2, 10.2};
+    std::array<double, 2 * NDIM> box{-0.0, 10.0, -0.4, 10.0, -0.4, 30.0};
 
-    std::vector<std::array<double, NDIM>> fcc_xyz = createCuboidFCC3D(box, cell, R_matrix);
-    Assembly<n_layer> pt_ass{fcc_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
+    std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
+    Assembly<n_layer> pt_ass{sc_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
     // Assembly<n_layer> pt_ass{"../geometry/test.dump", cell, BondType::Elastic}; // read coordinate from dump file
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
-    double E0 = 146e3, mu0 = 0.3;     // Young's modulus and Poisson's ratio
+    double E0 = 69e3, mu0 = 0.3;      // Young's modulus and Poisson's ratio
     double critical_bstrain = 1.0e-2; // critical bond strain value at which bond will break
     int nbreak = 20;                  // limit the broken number of bonds in a single iteration, should be an even number
 
@@ -40,9 +40,9 @@ void run()
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
         // assign boundary and internal particles
-        if (p1->xyz[2] > 10.0 - 1.2 * radius)
+        if (p1->xyz[2] > box[5] - 1.5 * radius)
             top_group.push_back(p1); // top
-        if (p1->xyz[2] < 1.2 * radius)
+        if (p1->xyz[2] < box[4] + 1.5 * radius)
             bottom_group.push_back(p1); // bottom
         if (p1->nb == cell.nneighbors)
             internal_group.push_back(p1); // particles with full neighbor list
@@ -61,7 +61,7 @@ void run()
 
     // simulation settings
     int n_steps = 1;            // number of loading steps
-    double step_size = -2000.0; // step size for force or displacement loading
+    double step_size = -1e-3;   // step size for force or displacement loading
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
@@ -72,7 +72,7 @@ void run()
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'z', 0.0));
-        step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, 0.0, step_size));
+        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'z', step_size));
         load.push_back(step);
     }
 
