@@ -24,15 +24,15 @@ offset = 1.5*Radius
 threshold = 1.3*Radius
 
 !Number of neighbors
-nneighbors = 18 !16 !14
-nneighbors1 = 12 !10 !8
-nneighbors2 = 12 !10 !6
+nneighbors = 16 !14
+nneighbors1 = 10 !8
+nneighbors2 = 10 !6
 !Number of AFEM neighbors
-nneighbors_afem = 52 !46 !40
-nneighbors_afem1 = 50 !44 !34
-nneighbors_afem2 = 46 !40 !24
+nneighbors_afem = 46 !40
+nneighbors_afem1 = 44 !34
+nneighbors_afem2 = 40 !24
 !Read in the Voronoi Cell seeds data
-OPEN(UNIT=13, FILE="../Vonoroi/0.1_10seeds.dat", STATUS='old', ACTION='read')
+OPEN(UNIT=13, FILE="../Vonoroi/0.1_2seeds.dat", STATUS='old', ACTION='read')
 READ(13,*) ngrain
 ALLOCATE(VCseeds(ngrain, ndim))
 DO i = 1, ngrain
@@ -48,7 +48,7 @@ Sneighbor = 0
 !The lattice rotation angles, thess rotation angles are counter clockwise, thus should have minus sign in rotation matrix.
 ! Rotation sequence: around x, y, z, respectively
 ALLOCATE(Ori(ngrain + 1, ndim))
-OPEN(UNIT=13, FILE="../Vonoroi/0.1_10ori.dat", STATUS='old', ACTION='read')
+OPEN(UNIT=13, FILE="../Vonoroi/0.1_2ori.dat", STATUS='old', ACTION='read')
 DO i = 1, ngrain + 1
     READ(13,*) Ori(i,1), Ori(i,2), Ori(i,3)
 ENDDO
@@ -78,18 +78,18 @@ Tv = Radius*KnTv(3)
 !Save the initial positions to file
 !----------------------------------------------------------------------------------------------------------
 initialP = Positions
-OPEN(UNIT = 13, FILE = 'initialP.dump', ACTION = 'WRITE', STATUS = 'REPLACE', POSITION = 'APPEND')
+OPEN(UNIT = 13, FILE = 'BCC_2grains_finalP.dump', ACTION = 'WRITE', STATUS = 'REPLACE', POSITION = 'APPEND')
 WRITE(13, '(A)') 'ITEM: TIMESTEP'
 WRITE(13, '(I0)') 0
 WRITE(13, '(A)') 'ITEM: NUMBER OF ATOMS'
 WRITE(13, '(I0)') nparticle
 WRITE(13, '(A)') 'ITEM: BOX BOUNDS pp pp pp'
-WRITE(13, '(2F4.1)') 100*Box(1, 1), 100*Box(1, 2)
-WRITE(13, '(2F4.1)') 100*Box(2, 1), 100*Box(2, 2)
-WRITE(13, '(2F4.1)') 100*Box(3, 1), 100*Box(3, 2)
-WRITE(13, '(A)') 'ITEM: ATOMS id type x y z '
+WRITE(13, '(2F4.1)') 1000*Box(1, 1), 1000*Box(1, 2)
+WRITE(13, '(2F4.1)') 1000*Box(2, 1), 1000*Box(2, 2)
+WRITE(13, '(2F4.1)') 1000*Box(3, 1), 1000*Box(3, 2)
+WRITE(13, '(A)') 'ITEM: ATOMS id type x y z dx dy dz'
 DO t = 1, nparticle
-    WRITE(13, '(I0, I6, 3F8.4)') t, grainsign(t), 100*Positions(t, 1), 100*Positions(t, 2), 100*Positions(t, 3)
+    WRITE(13, '(I0, I6, 3F8.4, 3F8.4)') t, grainsign(t), 1000*Positions(t, 1), 1000*Positions(t, 2), 1000*Positions(t, 3), 0, 0, 0
 ENDDO
 CLOSE(UNIT = 13)
 
@@ -110,18 +110,31 @@ CALL PARDISOsolver
 
 CALL Output
 
-OPEN(UNIT=13, FILE="finalP.dump", ACTION="write", STATUS="replace", POSITION='append')
+OPEN(UNIT=13, FILE="BCC_2grains_finalP.dump", ACTION="write", POSITION='append')
 WRITE(13,"(A)") "ITEM: TIMESTEP"
 WRITE(13,"(I0)") 1
 WRITE(13,"(A)") "ITEM: NUMBER OF ATOMS"
 WRITE(13,"(I0)") nparticle
 WRITE(13,"(A)") "ITEM: BOX BOUNDS pp pp pp"
-WRITE(13,"(2F8.4)") 100*Box(1,1), 100*Box(1,2)
-WRITE(13,"(2F8.4)") 100*Box(2,1), 100*Box(2,2)
-WRITE(13,"(2F8.4)") 100*Box(3,1), 100*Box(3,2)
+WRITE(13,"(2F8.4)") 1000*Box(1,1), 1000*Box(1,2)
+WRITE(13,"(2F8.4)") 1000*Box(2,1), 1000*Box(2,2)
+WRITE(13,"(2F8.4)") 1000*Box(3,1), 1000*Box(3,2)
 WRITE(13,"(A)") "ITEM: ATOMS id type x y z dx dy dz"
 DO i = 1, nparticle
-    WRITE(13,"(I0, I6, 3F12.4, 3E12.4E2)") i, grainsign(i), 100*Positions(i,1), 100*Positions(i,2), 100*Positions(i,3), 100*(Positions(i,1)-initialP(i,1)), 100*(Positions(i,2)-initialP(i,2)), 100*(Positions(i,3)-initialP(i,3))
+    ! IF(ANY(Top .EQ. i))THEN
+    !     grainsign(i) = 11
+    ! ELSEIF(ANY(Bottom .EQ. i))THEN
+    !     grainsign(i) = 12
+    ! ELSEIF(ANY(Left .EQ. i))THEN
+    !     grainsign(i) = 13
+    ! ELSEIF(ANY(Right .EQ. i))THEN
+    !     grainsign(i) = 14
+    ! ELSEIF(ANY(Front .EQ. i))THEN
+    !     grainsign(i) = 15
+    ! ELSEIF(ANY(Back .EQ. i))THEN
+    !     grainsign(i) = 16
+    ! ENDIF
+    WRITE(13,"(I0, I6, 3F12.4, 3E12.4E2)") i, grainsign(i), 1000*Positions(i,1), 1000*Positions(i,2), 1000*Positions(i,3), 1000*(Positions(i,1)-initialP(i,1)), 1000*(Positions(i,2)-initialP(i,2)), 1000*(Positions(i,3)-initialP(i,3))
 ENDDO
 CLOSE(UNIT=13)
 
@@ -818,244 +831,273 @@ IK(ndim*nparticle + 1) = K_pointer(nparticle + 1, 2)
 !---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 !------------------------------------------------------------------------------ESSENTIAL BOUDARY CONDITION------------------------------------------------------------------------------------
 !---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-!enforcing the applied displacement boundary conditions: Left Negative x
-num1 = SIZE(Left)
-DO i = 1, num1
-    nb = COUNT(Conn(Left(i),:) .NE. 0)
-    num3 = 0
-    DO j = 1, nb
-        IF(Conn(Left(i),j) .EQ. Left(i))THEN
-            !modify the force vector
-            P(ndim*Left(i) - 2) =  - U_stepx
-            P(ndim*Left(i) - 1) = P(ndim*Left(i) - 1) + U_stepx*K_global(K_pointer(Left(i),2) + 1)
-            P(ndim*Left(i)) = P(ndim*Left(i)) + U_stepx*K_global(K_pointer(Left(i),2) + 2)
-            !zero out the columns corresponding to the x component
-            K_global(K_pointer(Left(i),2)) = 1.D0
-            K_global(K_pointer(Left(i),2) + 1) = 0.D0
-            K_global(K_pointer(Left(i),2) + 2) = 0.D0
-        ELSEIF(Conn(Left(i),j) .LT. Left(i))THEN
-            m = COUNT(Conn(Conn(Left(i),j),:) .NE. 0)
-            n = COUNT(Conn(Conn(Left(i),j),:) .GT. Conn(Left(i),j))
-            num2 = 0
-            DO k = m - n + 1, m
-                num2 = num2 + 1
-                IF(Conn(Conn(Left(i),j),k) .EQ. Left(i))THEN
-                    !modify the force vector
-                    P(ndim*Conn(Left(i),j) - 2) = P(ndim*Conn(Left(i),j) - 2) + U_stepx*K_global(K_pointer(Conn(Left(i),j),2) + ndim*num2)
-                    P(ndim*Conn(Left(i),j) - 1) = P(ndim*Conn(Left(i),j) - 1) + U_stepx*K_global(K_pointer(Conn(Left(i),j),2) + ndim*K_pointer(Conn(Left(i),j),1) + ndim*num2 - 1)
-                    P(ndim*Conn(Left(i),j)) = P(ndim*Conn(Left(i),j)) + U_stepx*K_global(K_pointer(Conn(Left(i),j),2) + 2*ndim*K_pointer(Conn(Left(i),j),1) + ndim*num2 - 3)
-                    !zero out the columns corresponding to the x component
-                    K_global(K_pointer(Conn(Left(i),j),2) + ndim*num2) = 0.D0
-                    K_global(K_pointer(Conn(Left(i),j),2) + ndim*K_pointer(Conn(Left(i),j),1) + ndim*num2 - 1) = 0.D0
-                    K_global(K_pointer(Conn(Left(i),j),2) + 2*ndim*K_pointer(Conn(Left(i),j),1) + ndim*num2 - 3) = 0.D0
-                ENDIF
-            ENDDO
-        ELSEIF(Conn(Left(i),j) .GT. Left(i))THEN
-            !modify the force vector
-            P(ndim*Conn(Left(i),j) - 2) = P(ndim*Conn(Left(i),j) - 2) + U_stepx*K_global(K_pointer(Left(i),2) + ndim*num3 + 3)
-            P(ndim*Conn(Left(i),j) - 1) = P(ndim*Conn(Left(i),j) - 1) + U_stepx*K_global(K_pointer(Left(i),2)  + ndim*num3 + 4)
-            P(ndim*Conn(Left(i),j)) = P(ndim*Conn(Left(i),j)) + U_stepx*K_global(K_pointer(Left(i),2) + ndim*num3 + 5)
-            ! zero out the row components correspoding to the x component
-            K_global(K_pointer(Left(i),2) + ndim*num3 + 3) = 0.D0
-            K_global(K_pointer(Left(i),2) + ndim*num3 + 4) = 0.D0
-            K_global(K_pointer(Left(i),2) + ndim*num3 + 5) = 0.D0
-            
-            num3 = num3 + 1
-        ENDIF
-    ENDDO
-ENDDO
-
-!-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-!enforcing the applied displacement boundary conditions: Right Positive x
-num1 = SIZE(Right)
-DO i = 1, num1
-    nb = COUNT(Conn(Right(i),:) .NE. 0)
-    num3 = 0
-    DO j = 1, nb
-        IF(Conn(Right(i),j) .EQ. Right(i))THEN
-            !modify the force vector
-            P(ndim*Right(i) - 2) = U_stepx
-            P(ndim*Right(i) - 1) = P(ndim*Right(i) - 1) - U_stepx*K_global(K_pointer(Right(i),2) + 1)
-            P(ndim*Right(i)) = P(ndim*Right(i)) - U_stepx*K_global(K_pointer(Right(i),2) + 2)
-            !zero out the columns corresponding to the x component
-            K_global(K_pointer(Right(i),2)) = 1.D0
-            K_global(K_pointer(Right(i),2) + 1) = 0.D0
-            K_global(K_pointer(Right(i),2) + 2) = 0.D0
-        ELSEIF(Conn(Right(i),j) .LT. Right(i))THEN
-            m = COUNT(Conn(Conn(Right(i),j),:) .NE. 0)
-            n = COUNT(Conn(Conn(Right(i),j),:) .GT. Conn(Right(i),j))
-            num2 = 0
-            DO k = m - n + 1, m
-                num2 = num2 + 1
-                IF(Conn(Conn(Right(i),j),k) .EQ. Right(i))THEN
-                    !modify the force vector
-                    P(ndim*Conn(Right(i),j) - 2) = P(ndim*Conn(Right(i),j) - 2) - U_stepx*K_global(K_pointer(Conn(Right(i),j),2) + ndim*num2)
-                    P(ndim*Conn(Right(i),j) - 1) = P(ndim*Conn(Right(i),j) - 1) - U_stepx*K_global(K_pointer(Conn(Right(i),j),2) + ndim*K_pointer(Conn(Right(i),j),1) + ndim*num2 - 1)
-                    P(ndim*Conn(Right(i),j)) = P(ndim*Conn(Right(i),j)) - U_stepx*K_global(K_pointer(Conn(Right(i),j),2) + 2*ndim*K_pointer(Conn(Right(i),j),1) + ndim*num2 - 3)
-                    !zero out the columns corresponding to the x component
-                    K_global(K_pointer(Conn(Right(i),j),2) + ndim*num2) = 0.D0
-                    K_global(K_pointer(Conn(Right(i),j),2) + ndim*K_pointer(Conn(Right(i),j),1) + ndim*num2 - 1) = 0.D0
-                    K_global(K_pointer(Conn(Right(i),j),2) + 2*ndim*K_pointer(Conn(Right(i),j),1) + ndim*num2 - 3) = 0.D0
-                ENDIF
-            ENDDO
-        ELSEIF(Conn(Right(i),j) .GT. Right(i))THEN
-            !modify the force vector
-            P(ndim*Conn(Right(i),j) - 2) = P(ndim*Conn(Right(i),j) - 2) - U_stepx*K_global(K_pointer(Right(i),2) + ndim*num3 + 3)
-            P(ndim*Conn(Right(i),j) - 1) = P(ndim*Conn(Right(i),j) - 1) - U_stepx*K_global(K_pointer(Right(i),2) + ndim*num3 + 4)
-            P(ndim*Conn(Right(i),j)) = P(ndim*Conn(Right(i),j)) - U_stepx*K_global(K_pointer(Right(i),2) + ndim*num3 + 5)
-            ! zero out the row components correspoding to the x component
-            K_global(K_pointer(Right(i),2) + ndim*num3 + 3) = 0.D0
-            K_global(K_pointer(Right(i),2) + ndim*num3 + 4) = 0.D0
-            K_global(K_pointer(Right(i),2) + ndim*num3 + 5) = 0.D0
-            
-            num3 = num3 + 1
-        ENDIF
-    ENDDO
-ENDDO
-
-!-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-!enforcing the applied displacement boundary conditions: Front Negative y
-num1 = SIZE(Front)
-DO i = 1, num1
-    nb = COUNT(Conn(Front(i),:) .NE. 0)
-    num3 = 0
-    DO j = 1, nb
-        IF(Conn(Front(i),j) .EQ. Front(i))THEN
-            !modify the force vector
-            P(ndim*Front(i) - 2) = P(ndim*Front(i) - 2) + U_stepy*K_global(K_pointer(Front(i),2) + 1)
-            P(ndim*Front(i) - 1) = - U_stepy
-            P(ndim*Front(i)) = P(ndim*Front(i)) + U_stepy*K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + 1)
-            !zero out the columns corresponding to the y component
-            K_global(K_pointer(Front(i),2) + 1) = 0.D0
-            K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1)) = 1.D0
-            K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + 1) = 0.D0
-        ELSEIF(Conn(Front(i),j) .LT. Front(i))THEN
-            m = COUNT(Conn(Conn(Front(i),j),:) .NE. 0)
-            n = COUNT(Conn(Conn(Front(i),j),:) .GT. Conn(Front(i),j))
-            num2 = 0
-            DO k = m - n + 1, m
-                num2 = num2 + 1
-                IF(Conn(Conn(Front(i),j),k) .EQ. Front(i))THEN
-                    !modify the force vector
-                    P(ndim*Conn(Front(i),j) - 2) = P(ndim*Conn(Front(i),j) - 2) + U_stepy*K_global(K_pointer(Conn(Front(i),j),2) + ndim*num2 + 1)
-                    P(ndim*Conn(Front(i),j) - 1) = P(ndim*Conn(Front(i),j) - 1) + U_stepy*K_global(K_pointer(Conn(Front(i),j),2) + ndim*K_pointer(Conn(Front(i),j),1) + ndim*num2)
-                    P(ndim*Conn(Front(i),j)) = P(ndim*Conn(Front(i),j)) + U_stepy*K_global(K_pointer(Conn(Front(i),j),2) + 2*ndim*K_pointer(Conn(Front(i),j),1) + ndim*num2 - 2)
-                    !zero out the columns corresponding to the y component
-                    K_global(K_pointer(Conn(Front(i),j),2) + ndim*num2 + 1) = 0.D0
-                    K_global(K_pointer(Conn(Front(i),j),2) + ndim*K_pointer(Conn(Front(i),j),1) + ndim*num2) = 0.D0
-                    K_global(K_pointer(Conn(Front(i),j),2) + 2*ndim*K_pointer(Conn(Front(i),j),1) + ndim*num2 - 2) = 0.D0
-                ENDIF
-            ENDDO
-        ELSEIF(Conn(Front(i),j) .GT. Front(i))THEN
-            !modify the force vector
-            P(ndim*Conn(Front(i),j) - 2) = P(ndim*Conn(Front(i),j) - 2) + U_stepy*K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + ndim*num3 + 2)
-            P(ndim*Conn(Front(i),j) - 1) = P(ndim*Conn(Front(i),j) - 1) + U_stepy*K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + ndim*num3 + 3)
-            P(ndim*Conn(Front(i),j)) = P(ndim*Conn(Front(i),j)) + U_stepy*K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + ndim*num3 + 4)
-            ! zero out the row components correspoding to the y component
-            K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + ndim*num3 + 2) = 0.D0
-            K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + ndim*num3 + 3) = 0.D0
-            K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + ndim*num3 + 4) = 0.D0
-            
-            num3 = num3 + 1
-        ENDIF
-    ENDDO
-ENDDO
-
-!-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-!enforcing the applied displacement boundary conditions: Back Positive y
-num1 = SIZE(Back)
-DO i = 1, num1
-    nb = COUNT(Conn(Back(i),:) .NE. 0)
-    num3 = 0
-    DO j = 1, nb
-        IF(Conn(Back(i),j) .EQ. Back(i))THEN
-            !modify the force vector
-            P(ndim*Back(i) - 2) = P(ndim*Back(i) - 2) - U_stepy*K_global(K_pointer(Back(i),2) + 1)
-            P(ndim*Back(i) - 1) = U_stepy
-            P(ndim*Back(i)) = P(ndim*Back(i)) - U_stepy*K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + 1)
-            !zero out the columns corresponding to the y component
-            K_global(K_pointer(Back(i),2) + 1) = 0.D0
-            K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1)) = 1.D0
-            K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + 1) = 0.D0
-        ELSEIF(Conn(Back(i),j) .LT. Back(i))THEN
-            m = COUNT(Conn(conn(Back(i),j),:) .NE. 0)
-            n = COUNT(Conn(conn(Back(i),j),:) .GT. Conn(Back(i),j))
-            num2 = 0
-            DO k = m - n + 1, m
-                num2 = num2 + 1
-                IF(Conn(Conn(Back(i),j),k) .EQ. Back(i))THEN
-                    !modify the force vector
-                    P(ndim*Conn(Back(i),j) - 2) = P(ndim*Conn(Back(i),j) - 2) - U_stepy*K_global(K_pointer(Conn(Back(i),j),2) + ndim*num2 + 1)
-                    P(ndim*Conn(Back(i),j) - 1) = P(ndim*Conn(Back(i),j) - 1) - U_stepy*K_global(K_pointer(Conn(Back(i),j),2) + ndim*K_pointer(Conn(Back(i),j),1) + ndim*num2)
-                    P(ndim*Conn(Back(i),j)) = P(ndim*Conn(Back(i),j)) - U_stepy*K_global(K_pointer(Conn(Back(i),j),2) + 2*ndim*K_pointer(Conn(Back(i),j),1) + ndim*num2 - 2)
-                    !zero out the columns corresponding to the y component
-                    K_global(K_pointer(Conn(Back(i),j),2) + ndim*num2 + 1) = 0.D0
-                    K_global(K_pointer(Conn(Back(i),j),2) + ndim*K_pointer(Conn(Back(i),j),1) + ndim*num2) = 0.D0
-                    K_global(K_pointer(Conn(Back(i),j),2) + 2*ndim*K_pointer(Conn(Back(i),j),1) + ndim*num2 - 2) = 0.D0
-                ENDIF
-            ENDDO
-        ELSEIF(Conn(Back(i),j) .GT. Back(i))THEN
-            !modify the force vector
-            P(ndim*Conn(Back(i),j) - 2) = P(ndim*Conn(Back(i),j) - 2) - U_stepy*K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + ndim*num3 + 2)
-            P(ndim*Conn(Back(i),j) - 1) = P(ndim*Conn(Back(i),j) - 1) - U_stepy*K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + ndim*num3 + 3)
-            P(ndim*Conn(Back(i),j)) = P(ndim*Conn(Back(i),j)) - U_stepy*K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + ndim*num3 + 4)
-            ! zero out the row components correspoding to the y component
-            K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + ndim*num3 + 2) = 0.D0
-            K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + ndim*num3 + 3) = 0.D0
-            K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + ndim*num3 + 4) = 0.D0
-            
-            num3 = num3 + 1
-        ENDIF
-    ENDDO
-ENDDO
-
-!-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-!enforcing the applied displacement boundary conditions: Top Positive z
+!enforcing the fixed boundary conditions
 num1 = SIZE(Top)
 DO i = 1, num1
-    nb = COUNT(Conn(Top(i),:) .NE. 0)
-    num3 = 0
+    nb = COUNT((conn(Top(i),:) .LE. Top(i)) .AND. (conn(Top(i),:) .NE. 0))
     DO j = 1, nb
-        IF(Conn(Top(i),j) .EQ. Top(i))THEN
-            !modify the force vector
-            P(ndim*Top(i) - 2) = P(ndim*Top(i) - 2) - U_stepz*K_global(K_pointer(Top(i),2) + 2)
-            P(ndim*Top(i) - 1) = P(ndim*Top(i) - 1) - U_stepz*K_global(K_pointer(Top(i),2) + ndim*K_pointer(Top(i),1) + 1)
-            P(ndim*Top(i)) = U_stepz
-            !zero out the columns corresponding to the z component
-            K_global(K_pointer(Top(i),2) + 2) = 0.D0
-            K_global(K_pointer(Top(i),2) + ndim*K_pointer(Top(i),1) + 1) = 0.D0
+        IF(conn(Top(i),j) .EQ. Top(i))THEN
+            K_global(K_pointer(Top(i),2) : K_pointer(Top(i)+1,2) - 1) = 0.D0 ! zero out the entire row
+            K_global(K_pointer(Top(i),2)) = 1.D0
+            K_global(K_pointer(Top(i),2) + ndim*K_pointer(Top(i),1)) = 1.D0
             K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) - 1) = 1.D0
-        ELSEIF(Conn(Top(i),j) .LT. Top(i))THEN
-            m = COUNT(Conn(Conn(Top(i),j),:) .NE. 0)
-            n = COUNT(Conn(Conn(Top(i),j),:) .GT. Conn(Top(i),j))
+        ELSE
+            m = COUNT(conn(conn(Top(i),j),:) .NE. 0)
+            n = COUNT(conn(conn(Top(i),j),:) .GT. conn(Top(i),j))
             num2 = 0
-            DO k = m - n + 1, m
+            DO k = m-n+1, m
                 num2 = num2 + 1
-                IF(Conn(Conn(Top(i),j),k) .EQ. Top(i))THEN
-                    !modify the force vector
-                    P(ndim*Conn(Top(i),j) - 2) = P(ndim*Conn(Top(i),j) - 2) - U_stepz*K_global(K_pointer(Conn(Top(i),j),2) + ndim*num2 + 2)
-                    P(ndim*Conn(Top(i),j) - 1) = P(ndim*Conn(Top(i),j) - 1) - U_stepz*K_global(K_pointer(Conn(Top(i),j),2) + ndim*K_pointer(Conn(Top(i),j),1) + ndim*num2 + 1)
-                    P(ndim*Conn(Top(i),j)) = P(ndim*Conn(Top(i),j)) - U_stepz*K_global(K_pointer(Conn(Top(i),j),2) + 2*ndim*K_pointer(Conn(Top(i),j),1) + ndim*num2 - 1)
-                    !zero out the columns corresponding to the z component
-                    K_global(K_pointer(Conn(Top(i),j),2) + ndim*num2 + 2) = 0.D0
-                    K_global(K_pointer(Conn(Top(i),j),2) + ndim*K_pointer(Conn(Top(i),j),1) + ndim*num2 + 1) = 0.D0
-                    K_global(K_pointer(Conn(Top(i),j),2) + 2*ndim*K_pointer(Conn(Top(i),j),1) + ndim*num2 - 1) = 0.D0
+                IF(conn(conn(Top(i),j),k) .EQ. Top(i))THEN
+                    K_global(K_pointer(conn(Top(i),j),2) + ndim*num2:K_pointer(conn(Top(i),j),2) + ndim*num2+2) = 0.D0
+                    K_global(K_pointer(conn(Top(i),j),2) + ndim*K_pointer(conn(Top(i),j),1) + ndim*num2 - 1 : K_pointer(conn(Top(i),j),2) + ndim*K_pointer(conn(Top(i),j),1) + ndim*num2 + 1) = 0.D0
+                    K_global(K_pointer(conn(Top(i),j),2) + 2*ndim*K_pointer(conn(Top(i),j),1) + ndim*num2 - 3 : K_pointer(conn(Top(i),j),2) + 2*ndim*K_pointer(conn(Top(i),j),1) + ndim*num2 - 1) = 0.D0
                 ENDIF
             ENDDO
-        ELSEIF(Conn(Top(i),j) .GT. Top(i))THEN
-            !modify the force vector
-            P(ndim*Conn(Top(i),j) - 2) = P(ndim*Conn(Top(i),j) - 2) - U_stepz*K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) + ndim*num3)
-            P(ndim*Conn(Top(i),j) - 1) = P(ndim*Conn(Top(i),j) - 1) - U_stepz*K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) + ndim*num3 + 1)
-            P(ndim*Conn(Top(i),j)) = P(ndim*Conn(Top(i),j)) - U_stepz*K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) + ndim*num3 + 2)
-            ! zero out the row components correspoding to the z component
-            K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) + ndim*num3) = 0.D0
-            K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) + ndim*num3 + 1) = 0.D0
-            K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) + ndim*num3 + 2) = 0.D0
-            
-            num3 = num3 + 1
         ENDIF
     ENDDO
+    P(ndim*Top(i) - 2) = 0.D0
+    P(ndim*Top(i) - 1) = 0.D0
+    P(ndim*Top(i) ) = 0.D0
 ENDDO
+
+! !enforcing the applied displacement boundary conditions: Left Negative x
+! num1 = SIZE(Left)
+! DO i = 1, num1
+!     nb = COUNT(Conn(Left(i),:) .NE. 0)
+!     num3 = 0
+!     DO j = 1, nb
+!         IF(Conn(Left(i),j) .EQ. Left(i))THEN
+!             !modify the force vector
+!             P(ndim*Left(i) - 2) =  - U_stepx
+!             P(ndim*Left(i) - 1) = P(ndim*Left(i) - 1) + U_stepx*K_global(K_pointer(Left(i),2) + 1)
+!             P(ndim*Left(i)) = P(ndim*Left(i)) + U_stepx*K_global(K_pointer(Left(i),2) + 2)
+!             !zero out the columns corresponding to the x component
+!             K_global(K_pointer(Left(i),2)) = 1.D0
+!             K_global(K_pointer(Left(i),2) + 1) = 0.D0
+!             K_global(K_pointer(Left(i),2) + 2) = 0.D0
+!         ELSEIF(Conn(Left(i),j) .LT. Left(i))THEN
+!             m = COUNT(Conn(Conn(Left(i),j),:) .NE. 0)
+!             n = COUNT(Conn(Conn(Left(i),j),:) .GT. Conn(Left(i),j))
+!             num2 = 0
+!             DO k = m - n + 1, m
+!                 num2 = num2 + 1
+!                 IF(Conn(Conn(Left(i),j),k) .EQ. Left(i))THEN
+!                     !modify the force vector
+!                     P(ndim*Conn(Left(i),j) - 2) = P(ndim*Conn(Left(i),j) - 2) + U_stepx*K_global(K_pointer(Conn(Left(i),j),2) + ndim*num2)
+!                     P(ndim*Conn(Left(i),j) - 1) = P(ndim*Conn(Left(i),j) - 1) + U_stepx*K_global(K_pointer(Conn(Left(i),j),2) + ndim*K_pointer(Conn(Left(i),j),1) + ndim*num2 - 1)
+!                     P(ndim*Conn(Left(i),j)) = P(ndim*Conn(Left(i),j)) + U_stepx*K_global(K_pointer(Conn(Left(i),j),2) + 2*ndim*K_pointer(Conn(Left(i),j),1) + ndim*num2 - 3)
+!                     !zero out the columns corresponding to the x component
+!                     K_global(K_pointer(Conn(Left(i),j),2) + ndim*num2) = 0.D0
+!                     K_global(K_pointer(Conn(Left(i),j),2) + ndim*K_pointer(Conn(Left(i),j),1) + ndim*num2 - 1) = 0.D0
+!                     K_global(K_pointer(Conn(Left(i),j),2) + 2*ndim*K_pointer(Conn(Left(i),j),1) + ndim*num2 - 3) = 0.D0
+!                 ENDIF
+!             ENDDO
+!         ELSEIF(Conn(Left(i),j) .GT. Left(i))THEN
+!             !modify the force vector
+!             P(ndim*Conn(Left(i),j) - 2) = P(ndim*Conn(Left(i),j) - 2) + U_stepx*K_global(K_pointer(Left(i),2) + ndim*num3 + 3)
+!             P(ndim*Conn(Left(i),j) - 1) = P(ndim*Conn(Left(i),j) - 1) + U_stepx*K_global(K_pointer(Left(i),2)  + ndim*num3 + 4)
+!             P(ndim*Conn(Left(i),j)) = P(ndim*Conn(Left(i),j)) + U_stepx*K_global(K_pointer(Left(i),2) + ndim*num3 + 5)
+!             ! zero out the row components correspoding to the x component
+!             K_global(K_pointer(Left(i),2) + ndim*num3 + 3) = 0.D0
+!             K_global(K_pointer(Left(i),2) + ndim*num3 + 4) = 0.D0
+!             K_global(K_pointer(Left(i),2) + ndim*num3 + 5) = 0.D0
+            
+!             num3 = num3 + 1
+!         ENDIF
+!     ENDDO
+! ENDDO
+
+! !-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+! !enforcing the applied displacement boundary conditions: Right Positive x
+! num1 = SIZE(Right)
+! DO i = 1, num1
+!     nb = COUNT(Conn(Right(i),:) .NE. 0)
+!     num3 = 0
+!     DO j = 1, nb
+!         IF(Conn(Right(i),j) .EQ. Right(i))THEN
+!             !modify the force vector
+!             P(ndim*Right(i) - 2) = U_stepx
+!             P(ndim*Right(i) - 1) = P(ndim*Right(i) - 1) - U_stepx*K_global(K_pointer(Right(i),2) + 1)
+!             P(ndim*Right(i)) = P(ndim*Right(i)) - U_stepx*K_global(K_pointer(Right(i),2) + 2)
+!             !zero out the columns corresponding to the x component
+!             K_global(K_pointer(Right(i),2)) = 1.D0
+!             K_global(K_pointer(Right(i),2) + 1) = 0.D0
+!             K_global(K_pointer(Right(i),2) + 2) = 0.D0
+!         ELSEIF(Conn(Right(i),j) .LT. Right(i))THEN
+!             m = COUNT(Conn(Conn(Right(i),j),:) .NE. 0)
+!             n = COUNT(Conn(Conn(Right(i),j),:) .GT. Conn(Right(i),j))
+!             num2 = 0
+!             DO k = m - n + 1, m
+!                 num2 = num2 + 1
+!                 IF(Conn(Conn(Right(i),j),k) .EQ. Right(i))THEN
+!                     !modify the force vector
+!                     P(ndim*Conn(Right(i),j) - 2) = P(ndim*Conn(Right(i),j) - 2) - U_stepx*K_global(K_pointer(Conn(Right(i),j),2) + ndim*num2)
+!                     P(ndim*Conn(Right(i),j) - 1) = P(ndim*Conn(Right(i),j) - 1) - U_stepx*K_global(K_pointer(Conn(Right(i),j),2) + ndim*K_pointer(Conn(Right(i),j),1) + ndim*num2 - 1)
+!                     P(ndim*Conn(Right(i),j)) = P(ndim*Conn(Right(i),j)) - U_stepx*K_global(K_pointer(Conn(Right(i),j),2) + 2*ndim*K_pointer(Conn(Right(i),j),1) + ndim*num2 - 3)
+!                     !zero out the columns corresponding to the x component
+!                     K_global(K_pointer(Conn(Right(i),j),2) + ndim*num2) = 0.D0
+!                     K_global(K_pointer(Conn(Right(i),j),2) + ndim*K_pointer(Conn(Right(i),j),1) + ndim*num2 - 1) = 0.D0
+!                     K_global(K_pointer(Conn(Right(i),j),2) + 2*ndim*K_pointer(Conn(Right(i),j),1) + ndim*num2 - 3) = 0.D0
+!                 ENDIF
+!             ENDDO
+!         ELSEIF(Conn(Right(i),j) .GT. Right(i))THEN
+!             !modify the force vector
+!             P(ndim*Conn(Right(i),j) - 2) = P(ndim*Conn(Right(i),j) - 2) - U_stepx*K_global(K_pointer(Right(i),2) + ndim*num3 + 3)
+!             P(ndim*Conn(Right(i),j) - 1) = P(ndim*Conn(Right(i),j) - 1) - U_stepx*K_global(K_pointer(Right(i),2) + ndim*num3 + 4)
+!             P(ndim*Conn(Right(i),j)) = P(ndim*Conn(Right(i),j)) - U_stepx*K_global(K_pointer(Right(i),2) + ndim*num3 + 5)
+!             ! zero out the row components correspoding to the x component
+!             K_global(K_pointer(Right(i),2) + ndim*num3 + 3) = 0.D0
+!             K_global(K_pointer(Right(i),2) + ndim*num3 + 4) = 0.D0
+!             K_global(K_pointer(Right(i),2) + ndim*num3 + 5) = 0.D0
+            
+!             num3 = num3 + 1
+!         ENDIF
+!     ENDDO
+! ENDDO
+
+! !-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+! !enforcing the applied displacement boundary conditions: Front Negative y
+! num1 = SIZE(Front)
+! DO i = 1, num1
+!     nb = COUNT(Conn(Front(i),:) .NE. 0)
+!     num3 = 0
+!     DO j = 1, nb
+!         IF(Conn(Front(i),j) .EQ. Front(i))THEN
+!             !modify the force vector
+!             P(ndim*Front(i) - 2) = P(ndim*Front(i) - 2) + U_stepy*K_global(K_pointer(Front(i),2) + 1)
+!             P(ndim*Front(i) - 1) = - U_stepy
+!             P(ndim*Front(i)) = P(ndim*Front(i)) + U_stepy*K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + 1)
+!             !zero out the columns corresponding to the y component
+!             K_global(K_pointer(Front(i),2) + 1) = 0.D0
+!             K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1)) = 1.D0
+!             K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + 1) = 0.D0
+!         ELSEIF(Conn(Front(i),j) .LT. Front(i))THEN
+!             m = COUNT(Conn(Conn(Front(i),j),:) .NE. 0)
+!             n = COUNT(Conn(Conn(Front(i),j),:) .GT. Conn(Front(i),j))
+!             num2 = 0
+!             DO k = m - n + 1, m
+!                 num2 = num2 + 1
+!                 IF(Conn(Conn(Front(i),j),k) .EQ. Front(i))THEN
+!                     !modify the force vector
+!                     P(ndim*Conn(Front(i),j) - 2) = P(ndim*Conn(Front(i),j) - 2) + U_stepy*K_global(K_pointer(Conn(Front(i),j),2) + ndim*num2 + 1)
+!                     P(ndim*Conn(Front(i),j) - 1) = P(ndim*Conn(Front(i),j) - 1) + U_stepy*K_global(K_pointer(Conn(Front(i),j),2) + ndim*K_pointer(Conn(Front(i),j),1) + ndim*num2)
+!                     P(ndim*Conn(Front(i),j)) = P(ndim*Conn(Front(i),j)) + U_stepy*K_global(K_pointer(Conn(Front(i),j),2) + 2*ndim*K_pointer(Conn(Front(i),j),1) + ndim*num2 - 2)
+!                     !zero out the columns corresponding to the y component
+!                     K_global(K_pointer(Conn(Front(i),j),2) + ndim*num2 + 1) = 0.D0
+!                     K_global(K_pointer(Conn(Front(i),j),2) + ndim*K_pointer(Conn(Front(i),j),1) + ndim*num2) = 0.D0
+!                     K_global(K_pointer(Conn(Front(i),j),2) + 2*ndim*K_pointer(Conn(Front(i),j),1) + ndim*num2 - 2) = 0.D0
+!                 ENDIF
+!             ENDDO
+!         ELSEIF(Conn(Front(i),j) .GT. Front(i))THEN
+!             !modify the force vector
+!             P(ndim*Conn(Front(i),j) - 2) = P(ndim*Conn(Front(i),j) - 2) + U_stepy*K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + ndim*num3 + 2)
+!             P(ndim*Conn(Front(i),j) - 1) = P(ndim*Conn(Front(i),j) - 1) + U_stepy*K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + ndim*num3 + 3)
+!             P(ndim*Conn(Front(i),j)) = P(ndim*Conn(Front(i),j)) + U_stepy*K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + ndim*num3 + 4)
+!             ! zero out the row components correspoding to the y component
+!             K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + ndim*num3 + 2) = 0.D0
+!             K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + ndim*num3 + 3) = 0.D0
+!             K_global(K_pointer(Front(i),2) + ndim*K_pointer(Front(i),1) + ndim*num3 + 4) = 0.D0
+            
+!             num3 = num3 + 1
+!         ENDIF
+!     ENDDO
+! ENDDO
+
+! !-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+! !enforcing the applied displacement boundary conditions: Back Positive y
+! num1 = SIZE(Back)
+! DO i = 1, num1
+!     nb = COUNT(Conn(Back(i),:) .NE. 0)
+!     num3 = 0
+!     DO j = 1, nb
+!         IF(Conn(Back(i),j) .EQ. Back(i))THEN
+!             !modify the force vector
+!             P(ndim*Back(i) - 2) = P(ndim*Back(i) - 2) - U_stepy*K_global(K_pointer(Back(i),2) + 1)
+!             P(ndim*Back(i) - 1) = U_stepy
+!             P(ndim*Back(i)) = P(ndim*Back(i)) - U_stepy*K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + 1)
+!             !zero out the columns corresponding to the y component
+!             K_global(K_pointer(Back(i),2) + 1) = 0.D0
+!             K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1)) = 1.D0
+!             K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + 1) = 0.D0
+!         ELSEIF(Conn(Back(i),j) .LT. Back(i))THEN
+!             m = COUNT(Conn(conn(Back(i),j),:) .NE. 0)
+!             n = COUNT(Conn(conn(Back(i),j),:) .GT. Conn(Back(i),j))
+!             num2 = 0
+!             DO k = m - n + 1, m
+!                 num2 = num2 + 1
+!                 IF(Conn(Conn(Back(i),j),k) .EQ. Back(i))THEN
+!                     !modify the force vector
+!                     P(ndim*Conn(Back(i),j) - 2) = P(ndim*Conn(Back(i),j) - 2) - U_stepy*K_global(K_pointer(Conn(Back(i),j),2) + ndim*num2 + 1)
+!                     P(ndim*Conn(Back(i),j) - 1) = P(ndim*Conn(Back(i),j) - 1) - U_stepy*K_global(K_pointer(Conn(Back(i),j),2) + ndim*K_pointer(Conn(Back(i),j),1) + ndim*num2)
+!                     P(ndim*Conn(Back(i),j)) = P(ndim*Conn(Back(i),j)) - U_stepy*K_global(K_pointer(Conn(Back(i),j),2) + 2*ndim*K_pointer(Conn(Back(i),j),1) + ndim*num2 - 2)
+!                     !zero out the columns corresponding to the y component
+!                     K_global(K_pointer(Conn(Back(i),j),2) + ndim*num2 + 1) = 0.D0
+!                     K_global(K_pointer(Conn(Back(i),j),2) + ndim*K_pointer(Conn(Back(i),j),1) + ndim*num2) = 0.D0
+!                     K_global(K_pointer(Conn(Back(i),j),2) + 2*ndim*K_pointer(Conn(Back(i),j),1) + ndim*num2 - 2) = 0.D0
+!                 ENDIF
+!             ENDDO
+!         ELSEIF(Conn(Back(i),j) .GT. Back(i))THEN
+!             !modify the force vector
+!             P(ndim*Conn(Back(i),j) - 2) = P(ndim*Conn(Back(i),j) - 2) - U_stepy*K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + ndim*num3 + 2)
+!             P(ndim*Conn(Back(i),j) - 1) = P(ndim*Conn(Back(i),j) - 1) - U_stepy*K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + ndim*num3 + 3)
+!             P(ndim*Conn(Back(i),j)) = P(ndim*Conn(Back(i),j)) - U_stepy*K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + ndim*num3 + 4)
+!             ! zero out the row components correspoding to the y component
+!             K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + ndim*num3 + 2) = 0.D0
+!             K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + ndim*num3 + 3) = 0.D0
+!             K_global(K_pointer(Back(i),2) + ndim*K_pointer(Back(i),1) + ndim*num3 + 4) = 0.D0
+            
+!             num3 = num3 + 1
+!         ENDIF
+!     ENDDO
+! ENDDO
+
+! !-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+! !enforcing the applied displacement boundary conditions: Top Positive z
+! num1 = SIZE(Top)
+! DO i = 1, num1
+!     nb = COUNT(Conn(Top(i),:) .NE. 0)
+!     num3 = 0
+!     DO j = 1, nb
+!         IF(Conn(Top(i),j) .EQ. Top(i))THEN
+!             !modify the force vector
+!             P(ndim*Top(i) - 2) = P(ndim*Top(i) - 2) - U_stepz*K_global(K_pointer(Top(i),2) + 2)
+!             P(ndim*Top(i) - 1) = P(ndim*Top(i) - 1) - U_stepz*K_global(K_pointer(Top(i),2) + ndim*K_pointer(Top(i),1) + 1)
+!             P(ndim*Top(i)) = U_stepz
+!             !zero out the columns corresponding to the z component
+!             K_global(K_pointer(Top(i),2) + 2) = 0.D0
+!             K_global(K_pointer(Top(i),2) + ndim*K_pointer(Top(i),1) + 1) = 0.D0
+!             K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) - 1) = 1.D0
+!         ELSEIF(Conn(Top(i),j) .LT. Top(i))THEN
+!             m = COUNT(Conn(Conn(Top(i),j),:) .NE. 0)
+!             n = COUNT(Conn(Conn(Top(i),j),:) .GT. Conn(Top(i),j))
+!             num2 = 0
+!             DO k = m - n + 1, m
+!                 num2 = num2 + 1
+!                 IF(Conn(Conn(Top(i),j),k) .EQ. Top(i))THEN
+!                     !modify the force vector
+!                     P(ndim*Conn(Top(i),j) - 2) = P(ndim*Conn(Top(i),j) - 2) - U_stepz*K_global(K_pointer(Conn(Top(i),j),2) + ndim*num2 + 2)
+!                     P(ndim*Conn(Top(i),j) - 1) = P(ndim*Conn(Top(i),j) - 1) - U_stepz*K_global(K_pointer(Conn(Top(i),j),2) + ndim*K_pointer(Conn(Top(i),j),1) + ndim*num2 + 1)
+!                     P(ndim*Conn(Top(i),j)) = P(ndim*Conn(Top(i),j)) - U_stepz*K_global(K_pointer(Conn(Top(i),j),2) + 2*ndim*K_pointer(Conn(Top(i),j),1) + ndim*num2 - 1)
+!                     !zero out the columns corresponding to the z component
+!                     K_global(K_pointer(Conn(Top(i),j),2) + ndim*num2 + 2) = 0.D0
+!                     K_global(K_pointer(Conn(Top(i),j),2) + ndim*K_pointer(Conn(Top(i),j),1) + ndim*num2 + 1) = 0.D0
+!                     K_global(K_pointer(Conn(Top(i),j),2) + 2*ndim*K_pointer(Conn(Top(i),j),1) + ndim*num2 - 1) = 0.D0
+!                 ENDIF
+!             ENDDO
+!         ELSEIF(Conn(Top(i),j) .GT. Top(i))THEN
+!             !modify the force vector
+!             P(ndim*Conn(Top(i),j) - 2) = P(ndim*Conn(Top(i),j) - 2) - U_stepz*K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) + ndim*num3)
+!             P(ndim*Conn(Top(i),j) - 1) = P(ndim*Conn(Top(i),j) - 1) - U_stepz*K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) + ndim*num3 + 1)
+!             P(ndim*Conn(Top(i),j)) = P(ndim*Conn(Top(i),j)) - U_stepz*K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) + ndim*num3 + 2)
+!             ! zero out the row components correspoding to the z component
+!             K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) + ndim*num3) = 0.D0
+!             K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) + ndim*num3 + 1) = 0.D0
+!             K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) + ndim*num3 + 2) = 0.D0
+            
+!             num3 = num3 + 1
+!         ENDIF
+!     ENDDO
+! ENDDO
 
 !-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 !enforcing the applied displacement boundary conditions: Bottom negative z
