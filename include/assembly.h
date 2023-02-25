@@ -6,6 +6,7 @@
 #include <array>
 #include <algorithm>
 #include <string>
+#include <map>
 
 #include "lpm.h"
 #include "unit_cell.h"
@@ -33,22 +34,38 @@ public:
 
     Assembly(std::vector<std::array<double, NDIM>> &p_xyz, std::array<double, 2 * NDIM> &p_box, UnitCell &p_cell, const BondType &p_btype); // Construct a particle system from scratch
     Assembly(const std::string &dumpFile, UnitCell &p_cell, const BondType &p_btype);                                                       // Assemble the particle system from the dump file
+    Assembly(const std::string &dumpFile, const std::string &bondFile, UnitCell &p_cell, const BondType &p_btype);                          // Assemble the particle system from the dump file
 
     void createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
     void createBonds();
     void createConnections();
     void updateForceState(); // update bond force and particle forces
 
+    std::map<int, Particle<nlayer> *> toMap();
+    void readBond(const std::string &bondFile);
+    void writeBond(const std::string &bondFile);
     void readDump(const std::string &dumpFile, UnitCell &cell);
-    void writeDump(std::string &dumpFile, int step);
+    void writeDump(const std::string &dumpFile, int step);
+    void writeConfigurationDump(const std::string &dumpFile);
 };
 
 template <int nlayer>
 Assembly<nlayer>::Assembly(const std::string &dumpFile, UnitCell &p_cell, const BondType &p_btype)
 {
     btype = p_btype;
+    printf("Reading data ...\n");
     readDump(dumpFile, p_cell); // extract the particle system
     createBonds();
+    createConnections();
+}
+
+template <int nlayer>
+Assembly<nlayer>::Assembly(const std::string &dumpFile, const std::string &bondFile, UnitCell &p_cell, const BondType &p_btype)
+{
+    btype = p_btype;
+    printf("Reading data ...\n");
+    readDump(dumpFile, p_cell);
+    readBond(bondFile);
     createConnections();
 }
 
@@ -61,6 +78,15 @@ Assembly<nlayer>::Assembly(std::vector<std::array<double, NDIM>> &p_xyz, std::ar
     createBonds();
     createConnections();
     nparticle = pt_sys.size();
+}
+
+template <int nlayer>
+std::map<int, Particle<nlayer> *> Assembly<nlayer>::toMap()
+{
+    std::map<int, Particle<nlayer> *> map;
+    for (Particle<nlayer> *pt : pt_sys)
+        map[pt->id] = pt;
+    return map;
 }
 
 template <int nlayer>
@@ -95,7 +121,7 @@ void Assembly<nlayer>::createBonds()
     {
         for (Particle<nlayer> *p2 : pt_sys)
         {
-            double distance = p1->distanceTo(*p2);
+            double distance = p1->distanceTo(p2);
             if ((distance < 1.01 * p1->cell.neighbor2_cutoff) && (p1->id != p2->id))
             {
                 int layer = 1;
@@ -144,7 +170,48 @@ void Assembly<nlayer>::createConnections()
 }
 
 template <int nlayer>
-void Assembly<nlayer>::writeDump(std::string &dumpFile, int step)
+void Assembly<nlayer>::writeBond(const std::string &bondFile)
+{
+    // please note that the bond has directionality, i.e., bond_12 != bond_21
+
+    FILE *fpt = fopen(bondFile.c_str(), "w+");
+    for (Particle<nlayer> *pt : pt_sys)
+    {
+        for (int i = 0; i < nlayer; ++i)
+        {
+            for (Bond<nlayer> *bd : pt->bond_layers[i])
+                fprintf(fpt, "%d %d %d %d\n", bd->id, bd->layer, bd->p1->id, bd->p2->id);
+        }
+    }
+}
+
+template <int nlayer>
+void Assembly<nlayer>::writeConfigurationDump(const std::string &dumpFile)
+{
+    FILE *fpt = fopen(dumpFile.c_str(), "w+");
+
+    fprintf(fpt, "ITEM: TIMESTEP\n");
+    fprintf(fpt, "%d\n", 0);
+    fprintf(fpt, "ITEM: NUMBER OF ATOMS\n");
+    fprintf(fpt, "%d\n", nparticle);
+    fprintf(fpt, "ITEM: BOX BOUNDS pp pp pp\n");
+    fprintf(fpt, "%8.8f %8.8f\n", box[0], box[1]);
+    fprintf(fpt, "%8.8f %8.8f\n", box[2], box[3]);
+    fprintf(fpt, "%8.8f %8.8f\n", box[4], box[5]);
+
+    fprintf(fpt, "ITEM: ATOMS id type x y z\n");
+    for (auto pt : pt_sys)
+    {
+        fprintf(fpt, "%d %d %.4e %.4e %.4e \n",
+                pt->id, pt->type,
+                pt->xyz[0], pt->xyz[1], pt->xyz[2]);
+    }
+
+    fclose(fpt);
+}
+
+template <int nlayer>
+void Assembly<nlayer>::writeDump(const std::string &dumpFile, int step)
 {
     FILE *fpt = fopen(dumpFile.c_str(), "a+");
 
@@ -157,14 +224,9 @@ void Assembly<nlayer>::writeDump(std::string &dumpFile, int step)
     fprintf(fpt, "%8.8f %8.8f\n", box[2], box[3]);
     fprintf(fpt, "%8.8f %8.8f\n", box[4], box[5]);
 
-    // fprintf(fpt, "ITEM: ATOMS id type x y z \n");
     fprintf(fpt, "ITEM: ATOMS id type x y z dx dy dz s11 s22 s33 s23 s13 s12 damage\n");
     for (auto pt : pt_sys)
     {
-        // fprintf(fpt, "%d %d %.4e %.4e %.4e \n",
-        //         pt->id, pt->type,
-        //         pt->xyz[0], pt->xyz[1], pt->xyz[2]);
-
         fprintf(fpt, "%d %d %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e\n",
                 pt->id, pt->type,
                 pt->xyz[0], pt->xyz[1], pt->xyz[2],
@@ -179,7 +241,8 @@ void Assembly<nlayer>::writeDump(std::string &dumpFile, int step)
 template <int nlayer>
 void Assembly<nlayer>::readDump(const std::string &dumpFile, UnitCell &cell)
 {
-    // Read particle id, type, and coordinates
+    // Only support dump data type: particle id, type, x, y, z
+    // Please note that the particle id needs to start from 0
 
     FILE *fpt;
     fpt = fopen(dumpFile.c_str(), "r+"); /* read-only */
@@ -205,14 +268,54 @@ void Assembly<nlayer>::readDump(const std::string &dumpFile, UnitCell &cell)
     nonsense = fscanf(fpt, "%lf %lf\n", &(box[2]), &(box[3]));
     nonsense = fscanf(fpt, "%lf %lf\n", &(box[4]), &(box[5]));
     tmp = fgets(line, MAXLENGTH, fpt);
-    
+
     /* store into position variable xyz */
-    int type;
+    int id, type;
     double xyz[NDIM];
-    while (fscanf(fpt, "%*d %d %lf %lf %lf", &(type), &(xyz[0]), &(xyz[1]), &(xyz[2])) == 4)
+    while (fscanf(fpt, "%d %d %lf %lf %lf", &(id), &(type), &(xyz[0]), &(xyz[1]), &(xyz[2])) > 0)
     {
         Particle<nlayer> *pt = new Particle<nlayer>(xyz[0], xyz[1], xyz[2], cell, type);
+        pt->id = id;
         pt_sys.push_back(pt);
+    }
+
+    fclose(fpt);
+}
+
+template <int nlayer>
+void Assembly<nlayer>::readBond(const std::string &bondFile)
+{
+    FILE *fpt;
+    fpt = fopen(bondFile.c_str(), "r+"); /* read-only */
+
+    if (fpt == NULL)
+    {
+        printf("\'%s\' does not exist!\n", bondFile.c_str());
+        exit(1);
+    }
+
+    std::map<int, Particle<nlayer> *> pt_map = toMap();
+
+    int id, layer, p1id, p2id;
+    while (fscanf(fpt, "%d %d %d %d", &(id), &(layer), &(p1id), &(p2id)) == 4)
+    {
+        // find the two particles
+        auto p1 = pt_map[p1id];
+        auto p2 = pt_map[p2id];
+
+        // auto p1 = std::find_if(pt_set.begin(), pt_set.end(), [&](const Particle<nlayer> *p)
+        //                        { return p->id == p1id; });
+        // auto p2 = std::find_if(pt_set.begin(), pt_set.end(), [&](const Particle<nlayer> *p)
+        //                        { return p->id == p2id; });
+
+        double distance = p1->distanceTo(p2);
+
+        Bond<nlayer> *bd = nullptr; // create bonds
+        if (btype == BondType::Elastic)
+            bd = new ElasticBond<nlayer>(p1, p2, layer, distance);
+
+        p1->bond_layers[layer].push_back(bd);
+        p1->neighbors.push_back(p2);
     }
 
     fclose(fpt);

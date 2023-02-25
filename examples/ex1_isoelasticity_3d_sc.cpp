@@ -11,7 +11,7 @@ void run()
     double start = omp_get_wtime(); // record the CPU time, begin
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 0.25;   // 1.15; // particle radius
+    double radius = 0.25;    // particle radius
     UnitCell cell(LatticeType::SimpleCubic3D, radius);
 
     // Euler angles setting for system rotation
@@ -25,9 +25,12 @@ void run()
     // xmin; xmax; ymin; ymax; zmin; zmax
     std::array<double, 2 * NDIM> box{-0.0, 10.0, -0.4, 10.0, -0.4, 30.0};
 
-    std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
-    Assembly<n_layer> pt_ass{sc_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
-    // Assembly<n_layer> pt_ass{"../geometry/test.dump", cell, BondType::Elastic}; // read coordinate from dump file
+    // std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
+    // Assembly<n_layer> pt_ass{sc_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
+    // pt_ass.writeBond("../geometry/test.bond");
+    // pt_ass.writeConfigurationDump("../geometry/test.dump");
+    //Assembly<n_layer> pt_ass{"../geometry/test.dump", "../geometry/test.bond", cell, BondType::Elastic}; // read coordinate from local files
+    Assembly<n_layer> pt_ass{"../geometry/test.dump", cell, BondType::Elastic}; // read coordinate from local files
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 

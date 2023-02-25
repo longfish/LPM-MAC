@@ -20,7 +20,7 @@ void run()
 
     // std::vector<std::array<double, NDIM>> fcc_xyz = createCuboidFCC3D(box, cell, R_matrix);
     // Assembly<n_layer> pt_ass{fcc_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
-    Assembly<n_layer> pt_ass{"../geometry/BCC_Hailong/BCC_2grains.dump", cell, BondType::Elastic}; // read coordinate from dump file
+    Assembly<n_layer> pt_ass{"../geometry/BCC_Hailong/BCC_5grains.dump", cell, BondType::Elastic}; // read coordinate from dump file
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
@@ -40,7 +40,7 @@ void run()
         }
         if (p1->xyz[2] < box[4] + 2 * radius)
         {
-            p1->type = 12;
+            //p1->type = 12;
             bottom.push_back(p1);
         }
         if (p1->xyz[1] > box[3] - 2 * radius)

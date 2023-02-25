@@ -287,8 +287,6 @@ void Stiffness<nlayer>::updateStiffnessDispBC(std::vector<Particle<nlayer> *> &p
     double norm_diag = cblas_dnrm2(pt_sys[0]->cell.dim * pt_sys.size(), diag, 1); /* Euclidean norm (L2 norm) */
     delete[] diag;
 
-    // printf("class: %f\n", norm_diag);
-
     /* update the stiffness matrix */
     for (Particle<nlayer> *pi : pt_sys)
     {
@@ -341,5 +339,7 @@ void Stiffness<nlayer>::updateStiffnessDispBC(std::vector<Particle<nlayer> *> &p
             }
         }
     }
+
 }
+
 #endif

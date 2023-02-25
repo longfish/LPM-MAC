@@ -35,6 +35,7 @@ public:
     std::vector<Particle<nlayer> *> conns;                                              // all connections of the particle (include self)
     std::array<double, NDIM * NDIM> stress{0}, strain{0};                               // stress and strain tensor
 
+    Particle(const int &p_id) : cell{LatticeType::SimpleCubic3D, 0} { id = p_id; };
     Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type);
     Particle(const double &p_x, const double &p_y, const double &p_z, const LatticeType &p_lattice, const double &p_radius);
     Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell);
@@ -49,7 +50,7 @@ public:
     void updateBondsGeometry();
     void updateBondsForce();
     void resumeParticle();
-    double distanceTo(const Particle<nlayer> &A);
+    double distanceTo(Particle<nlayer> *A);
     bool operator==(const Particle<nlayer> &other);
 };
 
@@ -196,9 +197,9 @@ void Particle<nlayer>::updateParticleForce()
 }
 
 template <int nlayer>
-double Particle<nlayer>::distanceTo(const Particle<nlayer> &A)
+double Particle<nlayer>::distanceTo(Particle<nlayer> *A)
 {
-    return sqrt(pow((xyz[0] - A.xyz[0]), 2) + pow((xyz[1] - A.xyz[1]), 2) + pow((xyz[2] - A.xyz[2]), 2));
+    return sqrt(pow((xyz[0] - A->xyz[0]), 2) + pow((xyz[1] - A->xyz[1]), 2) + pow((xyz[2] - A->xyz[2]), 2));
 }
 
 #endif

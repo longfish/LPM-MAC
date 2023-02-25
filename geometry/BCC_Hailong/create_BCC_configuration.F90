@@ -32,7 +32,7 @@ nneighbors_afem = 46 !40
 nneighbors_afem1 = 44 !34
 nneighbors_afem2 = 40 !24
 !Read in the Voronoi Cell seeds data
-OPEN(UNIT=13, FILE="../Vonoroi/0.1_10seeds.dat", STATUS='old', ACTION='read')
+OPEN(UNIT=13, FILE="../Vonoroi/0.1_5seeds.dat", STATUS='old', ACTION='read')
 READ(13,*) ngrain
 ALLOCATE(VCseeds(ngrain, ndim))
 DO i = 1, ngrain
@@ -48,7 +48,7 @@ Sneighbor = 0
 !The lattice rotation angles, thess rotation angles are counter clockwise, thus should have minus sign in rotation matrix.
 ! Rotation sequence: around x, y, z, respectively
 ALLOCATE(Ori(ngrain + 1, ndim))
-OPEN(UNIT=13, FILE="../Vonoroi/0.1_10ori.dat", STATUS='old', ACTION='read')
+OPEN(UNIT=13, FILE="../Vonoroi/0.1_5ori.dat", STATUS='old', ACTION='read')
 DO i = 1, ngrain + 1
     READ(13,*) Ori(i,1), Ori(i,2), Ori(i,3)
 ENDDO
@@ -74,18 +74,18 @@ CALL  Initialization
 !Save the initial positions to file
 !----------------------------------------------------------------------------------------------------------
 
-OPEN(UNIT = 13, FILE = 'BCC_10grains.dump', ACTION = 'WRITE', STATUS = 'REPLACE', POSITION = 'APPEND')
+OPEN(UNIT = 13, FILE = 'BCC_5grains.dump', ACTION = 'WRITE', STATUS = 'REPLACE', POSITION = 'APPEND')
 WRITE(13, '(A)') 'ITEM: TIMESTEP'
-WRITE(13, '(I0)') 1
+WRITE(13, '(I0)') 0
 WRITE(13, '(A)') 'ITEM: NUMBER OF ATOMS'
 WRITE(13, '(I0)') nparticle
 WRITE(13, '(A)') 'ITEM: BOX BOUNDS pp pp pp'
-WRITE(13, '(2F4.1)') 100*Box(1, 1), 100*Box(1, 2)
-WRITE(13, '(2F4.1)') 100*Box(2, 1), 100*Box(2, 2)
-WRITE(13, '(2F4.1)') 100*Box(3, 1), 100*Box(3, 2)
+WRITE(13, '(2F8.1)') 1000*Box(1, 1), 1000*Box(1, 2) ! unit is mm
+WRITE(13, '(2F8.1)') 1000*Box(2, 1), 1000*Box(2, 2)
+WRITE(13, '(2F8.1)') 1000*Box(3, 1), 1000*Box(3, 2)
 WRITE(13, '(A)') 'ITEM: ATOMS id type x y z '
 DO t = 1, nparticle
-    WRITE(13, '(I0, I6, 3F8.4)') t, grainsign(t), 100*Positions(t, 1), 100*Positions(t, 2), 100*Positions(t, 3)
+    WRITE(13, '(I0, I6, 3F12.8)') t-1, grainsign(t)-1, 1000*Positions(t, 1), 1000*Positions(t, 2), 1000*Positions(t, 3)
 ENDDO
 CLOSE(UNIT = 13)
 
@@ -124,70 +124,6 @@ DO i = 1, ngrain
 ENDDO
 
 WRITE(*,*) 'Number of particles:', nparticle
-
-!specify the boundary particles with applied boundary conditions
-!---------------------------------------------------------------------------------------------------------
-j = 0
-k = 0
-m = 0
-mm = 0
-n = 0
-nn = 0
-DO i = 1, nparticle
-    IF(Positions(i,3) .LE. Box(3,1) + 2.*Radius)THEN
-        j = j + 1
-    ENDIF
-    IF(Positions(i,3) .GE. Box(3,2) - 2.*Radius)THEN
-        k = k + 1
-    ENDIF
-    IF(Positions(i,1) .LE. Box(1,1) + 2.*Radius)THEN
-        m = m + 1
-    ENDIF
-    IF(Positions(i,1) .GE. Box(1,2) - 2.*Radius)THEN
-        mm = mm + 1
-    ENDIF
-    IF(Positions(i,2) .LE. Box(2,1) + 2.*Radius)THEN
-        n = n + 1
-    ENDIF
-    IF(Positions(i,2) .GE. Box(2,2) - 2.*Radius)THEN
-        nn = nn + 1
-    ENDIF
-ENDDO
-
-ALLOCATE(Bottom(j), Top(k), Left(m), Right(mm), Front(n), Back(nn))
-
-j = 0
-k = 0
-m = 0
-mm = 0
-n = 0
-nn = 0
-DO i = 1, nparticle
-    IF(Positions(i,3) .LE. Box(3,1) + 2.*Radius)THEN
-        j = j + 1
-        Bottom(j) = i
-    ENDIF
-    IF(Positions(i,3) .GE. Box(3,2) - 2.*Radius)THEN
-        k = k + 1
-        Top(k) = i
-    ENDIF
-    IF(Positions(i,1) .LE. Box(1,1) + 2.*Radius)THEN
-        m = m + 1
-        Left(m) = i
-    ENDIF
-    IF(Positions(i,1) .GE. Box(1,2) - 2.*Radius)THEN
-        mm = mm + 1
-        Right(mm) = i
-    ENDIF
-    IF(Positions(i,2) .LE. Box(2,1) + 2.*Radius)THEN
-        n = n + 1
-        Front(n) = i
-    ENDIF
-    IF(Positions(i,2) .GE. Box(2,2) - 2.*Radius)THEN
-        nn = nn + 1
-        Back(nn) = i
-    ENDIF
-ENDDO
 
 !allocate memory for the global matrices
 !----------------------------------------------------------------------------
@@ -397,43 +333,6 @@ RETURN
 END SUBROUTINE Mbuilder
 
 !================================================END Mbuilder=========================================================
-
-!==============================================SUBROUTINE Output=======================================================
-
-SUBROUTINE Output
-IMPLICIT NONE
-
-INTEGER:: i, j, nb, num1, num2
-DOUBLE PRECISION:: Energy
-
-!Calculate the strain energy of the system
-Energy = 0.
-
-DO i = 1, nparticle
-    num1 = 0
-    num2 = 0
-    nb = COUNT(neighbors(i,:) .NE. 0)
-    DO j = 1, nb
-        IF(nsign(i,j) .EQ. 1)THEN
-            num1 = num1 + 1
-            distance(i,num1,1)  = SQRT((Positions(i,1) - Positions(neighbors1(i,num1),1))**2 + (Positions(i,2) - Positions(neighbors1(i,num1),2))**2 + (Positions(i,3) - Positions(neighbors1(i,num1),3))**2)
-            dL(i,num1,1) =  distance(i,num1,1) - origindistance(i,num1,1)
-	        Energy = Energy + 2.*Kn1*(dL(i,num1,1)/2.)**2
-        ELSEIF(nsign(i,j) .EQ. 2)THEN
-            num2 = num2 + 1
-            distance(i,num2,2)  = SQRT((Positions(i,1) - Positions(neighbors2(i,num2),1))**2 + (Positions(i,2) - Positions(neighbors2(i,num2),2))**2 + (Positions(i,3) - Positions(neighbors2(i,num2),3))**2)
-            dL(i,num2,2) =  distance(i,num2,2) - origindistance(i,num2,2)
-	        Energy = Energy + 2.*Kn2*(dL(i,num2,2)/2.)**2
-        ENDIF
-    ENDDO
-        Energy = Energy + 2.*Tv*SUM(dL(i,:,1)/2.)**2 + 2.*Tv*SUM(dL(i,:,2)/2.)**2
-ENDDO
-
-WRITE(*,*) "Starin energy of the system is(J): ", Energy
-
-END SUBROUTINE Output
-
-!==============================================END Output=======================================================
 
 
 END PROGRAM Main

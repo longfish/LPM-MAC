@@ -56,12 +56,11 @@ public:
 template <int nlayer>
 void Solver<nlayer>::solveStepwise(Assembly<nlayer> &ass)
 {
-    // 0 is direct solver, 1 is iterative solver
     if (sol_mode == SolverMode::PARDISO)
         LPM_PARDISO();
     else
         LPM_CG();
-
+    
     /* update the position */
     for (auto pt : ass.pt_sys)
     {
@@ -129,6 +128,7 @@ int Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
         // printf("Stiffness matrix calculation costs %f seconds\n", t2 - t1);
 
         stiffness.updateStiffnessDispBC(ass.pt_sys);
+        printf("force\n");
         solveStepwise(ass); // solve for the incremental displacement
         ass.updateForceState();
         updateRR(ass); /* update the RHS risidual force vector */

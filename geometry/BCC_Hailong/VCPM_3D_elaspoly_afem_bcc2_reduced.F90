@@ -9,9 +9,9 @@ INTEGER:: ndim, i, t, nparticle, nneighbors, nneighbors1, nneighbors2, nneighbor
 INTEGER, ALLOCATABLE, DIMENSION(:,:):: K_pointer, nsign, neighbors, neighbors1, neighbors2, Conn, neighbors_afem, neighbors_afem1, neighbors_afem2, Sneighbor
 INTEGER, ALLOCATABLE, DIMENSION(:):: IK, JK, Front, Back, Left, Right, Top, Bottom, grainsign
 DOUBLE PRECISION:: Box(3,2), C(3), Mapping(3,3), KnTv(3), U_stepx, U_stepy, U_stepz, Kn1, Kn2, Tv, start, finish, offset, threshold, SRadius
-DOUBLE PRECISION, PARAMETER :: PI = 3.1415926D0, Radius = 2.0D-4
+DOUBLE PRECISION, PARAMETER :: PI = 3.1415926D0, Radius = 1.0D-4
 DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:,:,:):: distance, origindistance, dL, csx, csy, csz
-DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:,:):: Positions, initialP, VCseeds, Ori
+DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:,:):: Positions, VCseeds, Ori
 DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:):: K_global, P
 
 !Dimensionality of the problem, 3D
@@ -32,7 +32,7 @@ nneighbors_afem = 46 !40
 nneighbors_afem1 = 44 !34
 nneighbors_afem2 = 40 !24
 !Read in the Voronoi Cell seeds data
-OPEN(UNIT=13, FILE="../Vonoroi/0.1_5seeds.dat", STATUS='old', ACTION='read')
+OPEN(UNIT=13, FILE="E:\Vonoroi\0.1_100seeds.dat", STATUS='old', ACTION='read')
 READ(13,*) ngrain
 ALLOCATE(VCseeds(ngrain, ndim))
 DO i = 1, ngrain
@@ -48,7 +48,7 @@ Sneighbor = 0
 !The lattice rotation angles, thess rotation angles are counter clockwise, thus should have minus sign in rotation matrix.
 ! Rotation sequence: around x, y, z, respectively
 ALLOCATE(Ori(ngrain + 1, ndim))
-OPEN(UNIT=13, FILE="../Vonoroi/0.1_5ori.dat", STATUS='old', ACTION='read')
+OPEN(UNIT=13, FILE="E:\Vonoroi\0.1_100ori_1.dat", STATUS='old', ACTION='read')
 DO i = 1, ngrain + 1
     READ(13,*) Ori(i,1), Ori(i,2), Ori(i,3)
 ENDDO
@@ -77,21 +77,11 @@ Tv = Radius*KnTv(3)
 !----------------------------------------------------------------------------------------------------------
 !Save the initial positions to file
 !----------------------------------------------------------------------------------------------------------
-initialP = Positions
-OPEN(UNIT = 13, FILE = 'BCC_5grains_finalP.dump', ACTION = 'WRITE', STATUS = 'REPLACE', POSITION = 'APPEND')
-WRITE(13, '(A)') 'ITEM: TIMESTEP'
-WRITE(13, '(I0)') 0
-WRITE(13, '(A)') 'ITEM: NUMBER OF ATOMS'
-WRITE(13, '(I0)') nparticle
-WRITE(13, '(A)') 'ITEM: BOX BOUNDS pp pp pp'
-WRITE(13, '(2F4.1)') 1000*Box(1, 1), 1000*Box(1, 2)
-WRITE(13, '(2F4.1)') 1000*Box(2, 1), 1000*Box(2, 2)
-WRITE(13, '(2F4.1)') 1000*Box(3, 1), 1000*Box(3, 2)
-WRITE(13, '(A)') 'ITEM: ATOMS id type x y z dx dy dz'
-DO t = 1, nparticle
-    WRITE(13, '(I0, I6, 3F8.4, 3F8.4)') t, grainsign(t), 1000*Positions(t, 1), 1000*Positions(t, 2), 1000*Positions(t, 3), 0, 0, 0
-ENDDO
-CLOSE(UNIT = 13)
+!OPEN(UNIT=13, FILE="E:\initialP.dat", ACTION="write", STATUS="replace", POSITION='append')
+!DO i = 1, nparticle
+!    WRITE(13,"(I0, I6, 3F8.4)") i, grainsign(i), Positions(i,1)*100, Positions(i,2)*100, Positions(i,3)*100
+!ENDDO
+!CLOSE(UNIT=13)
 
 !----------------------------------------------------------------------------------------------------------
 !Search the neighbors for each particle at the initial configuration
@@ -109,34 +99,6 @@ CALL Get_K_P
 CALL PARDISOsolver
 
 CALL Output
-
-OPEN(UNIT=13, FILE="BCC_5grains_finalP.dump", ACTION="write", POSITION='append')
-WRITE(13,"(A)") "ITEM: TIMESTEP"
-WRITE(13,"(I0)") 1
-WRITE(13,"(A)") "ITEM: NUMBER OF ATOMS"
-WRITE(13,"(I0)") nparticle
-WRITE(13,"(A)") "ITEM: BOX BOUNDS pp pp pp"
-WRITE(13,"(2F8.4)") 1000*Box(1,1), 1000*Box(1,2)
-WRITE(13,"(2F8.4)") 1000*Box(2,1), 1000*Box(2,2)
-WRITE(13,"(2F8.4)") 1000*Box(3,1), 1000*Box(3,2)
-WRITE(13,"(A)") "ITEM: ATOMS id type x y z dx dy dz"
-DO i = 1, nparticle
-    ! IF(ANY(Top .EQ. i))THEN
-    !     grainsign(i) = 11
-    ! ELSEIF(ANY(Bottom .EQ. i))THEN
-    !     grainsign(i) = 12
-    ! ELSEIF(ANY(Left .EQ. i))THEN
-    !     grainsign(i) = 13
-    ! ELSEIF(ANY(Right .EQ. i))THEN
-    !     grainsign(i) = 14
-    ! ELSEIF(ANY(Front .EQ. i))THEN
-    !     grainsign(i) = 15
-    ! ELSEIF(ANY(Back .EQ. i))THEN
-    !     grainsign(i) = 16
-    ! ENDIF
-    WRITE(13,"(I0, I6, 3F12.4, 3E12.4E2)") i, grainsign(i), 1000*Positions(i,1), 1000*Positions(i,2), 1000*Positions(i,3), 1000*(Positions(i,1)-initialP(i,1)), 1000*(Positions(i,2)-initialP(i,2)), 1000*(Positions(i,3)-initialP(i,3))
-ENDDO
-CLOSE(UNIT=13)
 
 CALL MKL_FREE_BUFFERS
 
@@ -240,8 +202,6 @@ ENDDO
 
 !allocate memory for the global matrices
 !----------------------------------------------------------------------------
-ALLOCATE(initialP( nparticle,ndim))
-initialP = 0.
 ALLOCATE(distance(nparticle,nneighbors1,2))
 distance = 0.D0
 ALLOCATE(origindistance(nparticle,nneighbors1,2))
@@ -831,35 +791,6 @@ IK(ndim*nparticle + 1) = K_pointer(nparticle + 1, 2)
 !---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 !------------------------------------------------------------------------------ESSENTIAL BOUDARY CONDITION------------------------------------------------------------------------------------
 !---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-! !enforcing the fixed boundary conditions
-! num1 = SIZE(Top)
-! DO i = 1, num1
-!     nb = COUNT((conn(Top(i),:) .LE. Top(i)) .AND. (conn(Top(i),:) .NE. 0))
-!     DO j = 1, nb
-!         IF(conn(Top(i),j) .EQ. Top(i))THEN
-!             K_global(K_pointer(Top(i),2) : K_pointer(Top(i)+1,2) - 1) = 0.D0 ! zero out the entire row
-!             K_global(K_pointer(Top(i),2)) = 1.D0
-!             K_global(K_pointer(Top(i),2) + ndim*K_pointer(Top(i),1)) = 1.D0
-!             K_global(K_pointer(Top(i),2) + 2*ndim*K_pointer(Top(i),1) - 1) = 1.D0
-!         ELSE
-!             m = COUNT(conn(conn(Top(i),j),:) .NE. 0)
-!             n = COUNT(conn(conn(Top(i),j),:) .GT. conn(Top(i),j))
-!             num2 = 0
-!             DO k = m-n+1, m
-!                 num2 = num2 + 1
-!                 IF(conn(conn(Top(i),j),k) .EQ. Top(i))THEN
-!                     K_global(K_pointer(conn(Top(i),j),2) + ndim*num2:K_pointer(conn(Top(i),j),2) + ndim*num2+2) = 0.D0
-!                     K_global(K_pointer(conn(Top(i),j),2) + ndim*K_pointer(conn(Top(i),j),1) + ndim*num2 - 1 : K_pointer(conn(Top(i),j),2) + ndim*K_pointer(conn(Top(i),j),1) + ndim*num2 + 1) = 0.D0
-!                     K_global(K_pointer(conn(Top(i),j),2) + 2*ndim*K_pointer(conn(Top(i),j),1) + ndim*num2 - 3 : K_pointer(conn(Top(i),j),2) + 2*ndim*K_pointer(conn(Top(i),j),1) + ndim*num2 - 1) = 0.D0
-!                 ENDIF
-!             ENDDO
-!         ENDIF
-!     ENDDO
-!     P(ndim*Top(i) - 2) = 0.D0
-!     P(ndim*Top(i) - 1) = 0.D0
-!     P(ndim*Top(i) ) = 0.D0
-! ENDDO
-
 !enforcing the applied displacement boundary conditions: Left Negative x
 num1 = SIZE(Left)
 DO i = 1, num1

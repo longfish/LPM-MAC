@@ -14,19 +14,26 @@ void run()
     double radius = 0.244948964611159; // 1.15; // particle radius
     UnitCell cell(LatticeType::FCC3D, radius);
 
+    // Euler angles setting for system rotation
+    // flag is 0 ~ 2 for different conventions, (0: direct rotation; 1: Kocks convention; 2: Bunge convention)
+    // angle1, angle2 and an angle3 are Euler angles in degree, double
+    int eulerflag = 0; // direct rotation
+    double angles[] = {PI / 180.0 * 0.0, PI / 180.0 * 0.0, PI / 180.0 * 0.0};
+    double *R_matrix = createRMatrix(eulerflag, angles);
+
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
     std::array<double, 2 * NDIM> box{0, 10, 0, 10, 0, 10};
 
-    // std::vector<std::array<double, NDIM>> fcc_xyz = createCuboidFCC3D(box, cell, R_matrix);
-    // Assembly<n_layer> pt_ass{fcc_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
-    Assembly<n_layer> pt_ass{"../geometry/FCC_Hailong/FCC_single.dump", cell, BondType::Elastic}; // read coordinate from dump file
+    std::vector<std::array<double, NDIM>> fcc_xyz = createCuboidFCC3D(box, cell, R_matrix);
+    Assembly<n_layer> pt_ass{fcc_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
+    // Assembly<n_layer> pt_ass{"../geometry/FCC_Hailong/FCC_single.dump", cell, BondType::Elastic}; // read coordinate from dump file
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
     double C11{108e3}, C12{61e3}, C44{29e3}; // Elastic constants
-    //double E0 = 64e3, mu0 = 0.36;      // Young's modulus and Poisson's ratio
+    // double E0 = 64e3, mu0 = 0.36;      // Young's modulus and Poisson's ratio
     double critical_bstrain = 1.0e-2; // critical bond strain value at which bond will break
     int nbreak = 20;                  // limit the broken number of bonds in a single iteration, should be an even number
 
@@ -72,14 +79,14 @@ void run()
                 // cast to elastic bond (or other type of bonds)
                 ElasticBond<n_layer> *elbd = dynamic_cast<ElasticBond<n_layer> *>(bd);
                 elbd->setBondProperty(C11, C12, C44, critical_bstrain, nbreak);
-                //elbd->setBondProperty(E0, mu0, critical_bstrain, nbreak);
+                // elbd->setBondProperty(E0, mu0, critical_bstrain, nbreak);
             }
         }
     }
 
     // simulation settings
-    int n_steps = 1;       // number of loading steps
-    //double U_stepz{-1e-3}; // step size
+    int n_steps = 1; // number of loading steps
+    // double U_stepz{-1e-3}; // step size
     double F_stepz{-100};
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
@@ -94,7 +101,7 @@ void run()
         step.dispBCs.push_back(DispBC<n_layer>(top, 'z', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(back, 'y', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(left, 'x', 0.0));
-        //step.dispBCs.push_back(DispBC<n_layer>(bottom, 'z', U_stepz));
+        // step.dispBCs.push_back(DispBC<n_layer>(bottom, 'z', U_stepz));
         step.forceBCs.push_back(ForceBC<n_layer>(bottom, 0.0, 0.0, F_stepz));
         load.push_back(step);
     }
