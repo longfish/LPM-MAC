@@ -9,7 +9,7 @@ INTEGER:: ndim, i, t, nparticle, nneighbors, nneighbors1, nneighbors2, nneighbor
 INTEGER, ALLOCATABLE, DIMENSION(:,:):: K_pointer, nsign, neighbors, neighbors1, neighbors2, Conn, neighbors_afem, neighbors_afem1, neighbors_afem2, Sneighbor
 INTEGER, ALLOCATABLE, DIMENSION(:):: IK, JK, Front, Back, Left, Right, Top, Bottom, grainsign
 DOUBLE PRECISION:: Box(3,2), C(3), Mapping(3,3), KnTv(3), U_stepx, U_stepy, U_stepz, Kn1, Kn2, Tv, start, finish, offset, threshold, SRadius
-DOUBLE PRECISION, PARAMETER :: PI = 3.1415926D0, Radius = 2.0D-4
+DOUBLE PRECISION, PARAMETER :: PI = 3.1415926D0, Radius = 1.5D-4
 DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:,:,:):: distance, origindistance, dL, csx, csy, csz
 DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:,:):: Positions, VCseeds, Ori
 DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:):: K_global, P
@@ -20,7 +20,7 @@ ndim = 3
 !3D: [Xmin, Ymin, Zmin, Xmax, Ymax, Zmax]
 Box = RESHAPE((/ 0.D0, 0.D0, 0.D0, 0.01D0, 0.01D0, 0.01D0 /), (/ 3, 2 /))
 !model configuration parameters
-offset = 1.5*Radius
+offset = 1.3*Radius
 threshold = 1.3*Radius
 
 !Number of neighbors
