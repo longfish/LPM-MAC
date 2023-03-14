@@ -13,8 +13,9 @@
  ******************************************************************************/
 
 //#include "ex1_isoelasticity_3d_sc.cpp"
-#include "ex2_polycrystal_3d_bcc.cpp"
+//#include "ex2_polycrystal_3d_bcc.cpp"
 //#include "ex3_singlecrystal_3d_fcc.cpp"
+#include "create_CT_configuration.cpp"
 
 /************************************************************************/
 /****************************** Main procedure **************************/

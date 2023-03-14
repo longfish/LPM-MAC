@@ -5,6 +5,13 @@
 #include "unit_cell.h"
 #include "lpm.h"
 
+/* Global variables: settings for matrix-vector product, BLAS */
+CBLAS_LAYOUT layout = CblasRowMajor;
+CBLAS_TRANSPOSE trans = CblasNoTrans;
+
+int lda = 3, incx = 1, incy = 1;
+double blasAlpha = 1.0, blasBeta = 0.0;
+
 double *createRMatrix(int eulerflag, double angles[])
 {
     /* Below notations are referred to wiki: https://en.wikipedia.org/wiki/Euler_angles */
@@ -83,14 +90,94 @@ double *createRMatrix(int eulerflag, double angles[])
     return R_matrix;
 }
 
+std::vector<std::array<double, NDIM>> createPlateSQ2D(std::array<double, 2 * NDIM> box, UnitCell cell, double R_matrix[])
+{
+    /* 2D square lattice (double layer neighbor) */
+    double a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2));
+    double box_t[6] = {-a, a, -a, a, -a, a};
+
+    /* model parameters */
+    double hx = 2 * cell.radius;
+    double hy = hx;
+    int particles_first_row = floor((box_t[1] - box_t[0]) / hx);
+    int rows = floor((box_t[3] - box_t[2]) / hy);
+
+    std::vector<std::array<double, NDIM>> xyz_t; /* Coordinate vector */
+    double p[NDIM] = {0}, p_new[NDIM] = {0};
+    for (int j = 1; j <= rows; j++)
+    {
+        p[1] = box_t[2] + hy * (j - 1) + cell.radius;
+        for (int i = 1; i <= particles_first_row; i++)
+        {
+            p[0] = box_t[0] + hx * (i - 1) + cell.radius;
+            cblas_dgemv(layout, trans, NDIM, NDIM, blasAlpha, R_matrix, lda, p, incx, blasBeta, p_new, incy);
+
+            if (p_new[0] >= box[0] && p_new[0] <= box[1] &&
+                p_new[1] >= box[2] && p_new[1] <= box[3])
+            {
+                std::array<double, NDIM> p_arr{p_new[0], p_new[1], 0};
+                xyz_t.push_back(p_arr);
+            }
+        }
+    }
+
+    return xyz_t;
+}
+
+std::vector<std::array<double, NDIM>> createPlateHEX2D(std::array<double, 2 * NDIM> box, UnitCell cell, double R_matrix[])
+{
+    /* 2D hexagon lattice (double layer neighbor) */
+    double a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2));
+    double box_t[6] = {-a, a, -a, a, -a, a};
+    /* model parameters */
+    double hx = 2 * cell.radius;
+    double hy = hx * sqrt(3.0) / 2.0;
+    int particles_first_row = 1 + floor((box_t[1] - box_t[0]) / hx);
+    int rows = 1 + floor((box_t[3] - box_t[2]) / hy);
+
+    std::vector<std::array<double, NDIM>> xyz_t; /* Coordinate vector */
+    double p[NDIM] = {0}, p_new[NDIM] = {0};
+    std::vector<std::array<double, NDIM>> xyz;
+    for (int j = 1; j <= rows; j++)
+    {
+        p[1] = box_t[2] + hy * (j - 1);
+        if (j % 2 == 1)
+            for (int i = 1; i <= particles_first_row; i++)
+            {
+                p[0] = box_t[0] + hx * (i - 1);
+                xyz.push_back(std::array<double, NDIM>{p[0], p[1], 0});
+            }
+        else
+            for (int i = 1; i <= particles_first_row - 1; i++)
+            {
+                p[0] = box_t[0] + hx * (2 * i - 1) / 2.0;
+                xyz.push_back(std::array<double, NDIM>{p[0], p[1], 0});
+            }
+    }
+
+    /* rotate the system */
+    for (std::array<double, NDIM> pt : xyz)
+    {
+        p[0] = pt[0];
+        p[1] = pt[1];
+        p[2] = pt[2];
+
+        cblas_dgemv(layout, trans, NDIM, NDIM, blasAlpha, R_matrix, lda, p, incx, blasBeta, p_new, incy);
+
+        /* test if the rotated system is within the specified domain */
+        if (p_new[0] >= box[0] && p_new[0] <= box[1] &&
+            p_new[1] >= box[2] && p_new[1] <= box[3])
+        {
+            std::array<double, NDIM> p_arr{p_new[0], p_new[1], p_new[2]};
+            xyz_t.push_back(p_arr);
+        }
+    }
+
+    return xyz_t;
+}
+
 std::vector<std::array<double, NDIM>> createCuboidSC3D(std::array<double, 2 * NDIM> box, UnitCell cell, double R_matrix[])
 {
-    /* settings for matrix-vector product, BLAS */
-    CBLAS_LAYOUT layout = CblasRowMajor;
-    CBLAS_TRANSPOSE trans = CblasNoTrans;
-
-    int lda = 3, incx = 1, incy = 1;
-    double blasAlpha = 1.0, blasBeta = 0.0;
 
     /* initialize the particle xyz_t (a larger system) */
     double a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2) + pow(box[5] - box[4], 2));
@@ -134,13 +221,6 @@ std::vector<std::array<double, NDIM>> createCuboidSC3D(std::array<double, 2 * ND
 
 std::vector<std::array<double, NDIM>> createCuboidFCC3D(std::array<double, 2 * NDIM> box, UnitCell cell, double R_matrix[])
 {
-    /* settings for matrix-vector product, BLAS */
-    CBLAS_LAYOUT layout = CblasRowMajor;
-    CBLAS_TRANSPOSE trans = CblasNoTrans;
-
-    int lda = 3, incx = 1, incy = 1;
-    double blasAlpha = 1.0, blasBeta = 0.0;
-
     /* initialize the particle xyz_t (a larger system) */
     double a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2) + pow(box[5] - box[4], 2));
     double box_t[6] = {-a, a, -a, a, -a, a};

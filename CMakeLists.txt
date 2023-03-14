@@ -17,6 +17,7 @@ find_package(OpenMP)
 
 include_directories(include)
 include_directories(examples)
+include_directories(geometry)
 include_directories( ${BOOST_INCLUDE_DIRS} )
 file(GLOB SOURCES "src/*.cpp")
 add_executable(${OBJ} ${SOURCES})
