@@ -2,6 +2,7 @@
 #ifndef LPM3D_H
 #define LPM3D_H
 
+#include <iostream>
 #include <vector>
 #include <array>
 #include <string>

@@ -41,6 +41,41 @@ void writeBond(const std::string &bondFile, std::vector<std::vector<int>> &bonds
     fclose(fpt);
 }
 
+/* test if the point is inside the circle (ignore z direction) */
+bool inCircle(const std::array<double, NDIM> &pt, const std::array<double, NDIM> &circ_ct, const double r)
+{
+    double dist_sq = pow(pt[0] - circ_ct[0], 2.0) + pow(pt[1] - circ_ct[1], 2.0);
+    return dist_sq <= r * r;
+}
+
+/* test if the point is inside the notch (ignore z direction) */
+bool inNotch(const std::array<double, NDIM> &pt, const std::array<double, NDIM> &tip, const double hf_width)
+{
+    // first ensure the point is inside the vertical range
+    if (abs(pt[1] - tip[1]) <= hf_width)
+    {
+        // then the slope should be between [-1,1]
+        if ((pt[1] - tip[1]) >= (tip[0] - pt[0]) && (pt[1] - tip[1]) <= (-tip[0] + pt[0]))
+            return true;
+    }
+    return false;
+}
+
+/* test if the point is valid or not */
+bool isValid(const std::array<double, NDIM> &pt)
+{
+    if (inCircle(pt, {40.0 - 10.5, 9.2, 0.0}, 9.5 / 2.0))
+        return false; // top circle
+    if (inCircle(pt, {40.0 - 10.5, 40.0 - 9.2, 0.0}, 9.5 / 2.0))
+        return false; // bottom circle
+    if (inCircle(pt, {23.0 - 8.3, 20.0 + 8.1, 0.0}, 3.5))
+        return false; // random circle (CT-1, refer to Zhang's PD validation paper)
+    if (inNotch(pt, {23.0, 20.0, 0.0}, 3.0 / 2.0))
+        return false; // notch
+
+    return true;
+}
+
 /* search the neighbor for the particle system, without a crack */
 std::vector<std::vector<int>> searchNeighbor(std::vector<std::array<double, NDIM>> &xyz, struct UnitCell cell)
 {
@@ -58,13 +93,17 @@ std::vector<std::vector<int>> searchNeighbor(std::vector<std::array<double, NDIM
 
             if ((dis < 1.01 * cell.neighbor2_cutoff) && (j != i)) /* The first nearest neighbors */
             {
-
-                int layer = 1;
-                if (dis < 1.01 * cell.neighbor1_cutoff)
-                    layer = 0;
-                neighbors[i][index] = j;
-                neighbors_layer[i][index] = layer;
-                index++;
+                // test if the bond is valid
+                std::array<double, NDIM> mid{(xyz[j][0] - xyz[i][0]) / 2.0, (xyz[j][1] - xyz[i][1]) / 2.0, 0.0};
+                if (isValid(mid))
+                {
+                    int layer = 1;
+                    if (dis < 1.01 * cell.neighbor1_cutoff)
+                        layer = 0;
+                    neighbors[i][index] = j;
+                    neighbors_layer[i][index] = layer;
+                    index++;
+                }
             }
         }
     }
@@ -82,263 +121,12 @@ std::vector<std::vector<int>> searchNeighbor(std::vector<std::array<double, NDIM
     return bonds;
 }
 
-// /* remove particles inside the circle through c (x, y or z) direction */
-// void inCircle(double *pc, double ra, char c)
-// {
-//     double **xyz_t = allocDouble2D(nparticle, 3, 0.);
-
-//     int nparticle_t = 0;
-//     for (int i = 0; i < nparticle; i++)
-//     {
-//         double dis2 = 0.0;
-//         if (c == 'x')
-//             dis2 = pow(xyz[i][1] - pc[1], 2.0) + pow(xyz[i][2] - pc[2], 2.0);
-//         else if (c == 'y')
-//             dis2 = pow(xyz[i][0] - pc[0], 2.0) + pow(xyz[i][2] - pc[2], 2.0);
-//         else if (c == 'z')
-//             dis2 = pow(xyz[i][0] - pc[0], 2.0) + pow(xyz[i][1] - pc[1], 2.0);
-//         if (dis2 > ra * ra)
-//         {
-//             for (int j = 0; j < 3; j++)
-//                 xyz_t[nparticle_t][j] = xyz[i][j];
-
-//             nparticle_t++;
-//         }
-//     }
-
-//     freeDouble2D(xyz, nparticle);
-//     xyz = allocDouble2D(nparticle_t, 3, 0.);
-
-//     /* transfer to new position array */
-//     for (int i = 0; i < nparticle_t; i++)
-//     {
-//         for (int j = 0; j < 3; j++)
-//             xyz[i][j] = xyz_t[i][j];
-//     }
-
-//     freeDouble2D(xyz_t, nparticle);
-
-//     nparticle = nparticle_t;
-// }
-
-// /* remove particles inside the circle part through z direction, theta1 < theta2 */
-// /* theta1 and theta2 should be both positive or both negative */
-// void removeCirclePartZ(double *pc, double ra, double theta1, double theta2)
-// {
-//     double **xyz_t = allocDouble2D(nparticle, 3, 0.);
-
-//     int nparticle_t = 0;
-//     for (int i = 0; i < nparticle; i++)
-//     {
-//         double dx = 0, dy = 0;
-//         dx = xyz[i][0] - pc[0];
-//         dy = xyz[i][1] - pc[1];
-//         if (fabs(dx) < EPS && fabs(dy) < EPS)
-//             continue;
-//         else
-//         {
-//             double theta = atan2(dy, dx);
-//             double dis2 = pow(xyz[i][0] - pc[0], 2.0) + pow(xyz[i][1] - pc[1], 2.0);
-//             if (dis2 > ra * ra || (theta >= theta1 && theta <= theta2))
-//             {
-//                 for (int j = 0; j < 3; j++)
-//                     xyz_t[nparticle_t][j] = xyz[i][j];
-
-//                 nparticle_t++;
-//             }
-//         }
-//     }
-
-//     freeDouble2D(xyz, nparticle);
-//     xyz = allocDouble2D(nparticle_t, 3, 0.);
-
-//     /* transfer to new position array */
-//     for (int i = 0; i < nparticle_t; i++)
-//     {
-//         for (int j = 0; j < 3; j++)
-//             xyz[i][j] = xyz_t[i][j];
-//     }
-
-//     freeDouble2D(xyz_t, nparticle);
-
-//     nparticle = nparticle_t;
-// }
-
-// // remove a block with size: xlo=r0, xhi=r1, ylo=r2, yhi=r3, zlo=r4, zhi=r5
-// void removeBlock(double r0, double r1, double r2, double r3, double r4, double r5)
-// {
-//     double **xyz_t = allocDouble2D(nparticle, 3, 0.);
-
-//     int nparticle_t = 0;
-//     for (int i = 0; i < nparticle; i++)
-//     {
-//         if (xyz[i][0] < r0 || xyz[i][0] > r1 || xyz[i][1] < r2 || xyz[i][1] > r3 || xyz[i][2] < r4 || xyz[i][2] > r5)
-//         {
-//             for (int j = 0; j < 3; j++)
-//                 xyz_t[nparticle_t][j] = xyz[i][j];
-
-//             nparticle_t++;
-//         }
-//     }
-
-//     freeDouble2D(xyz, nparticle);
-//     xyz = allocDouble2D(nparticle_t, 3, 0.);
-
-//     /* transfer to new position array */
-//     for (int i = 0; i < nparticle_t; i++)
-//     {
-//         for (int j = 0; j < 3; j++)
-//             xyz[i][j] = xyz_t[i][j];
-//     }
-
-//     freeDouble2D(xyz_t, nparticle);
-
-//     nparticle = nparticle_t;
-// }
-
-// // create a cylinder from the original cuboid configuration
-// void createCylinderz(double *pc, double ra)
-// {
-//     double **xyz_t = allocDouble2D(nparticle, 3, 0.);
-
-//     int nparticle_t = 0;
-//     for (int i = 0; i < nparticle; i++)
-//     {
-//         if (pow(xyz[i][0] - pc[0], 2.0) + pow(xyz[i][1] - pc[1], 2.0) < ra * ra)
-//         {
-//             for (int j = 0; j < 3; j++)
-//                 xyz_t[nparticle_t][j] = xyz[i][j];
-
-//             nparticle_t++;
-//         }
-//     }
-
-//     freeDouble2D(xyz, nparticle);
-//     xyz = allocDouble2D(nparticle_t, 3, 0.);
-
-//     /* transfer to new position array */
-//     for (int i = 0; i < nparticle_t; i++)
-//     {
-//         for (int j = 0; j < 3; j++)
-//             xyz[i][j] = xyz_t[i][j];
-//     }
-
-//     freeDouble2D(xyz_t, nparticle);
-
-//     nparticle = nparticle_t;
-// }
-
-// // remove a ring from the initial configuration, normal direction of the ring is along z direction
-// void removeRingz(double *pc, double R, double r)
-// {
-//     double **xyz_t = allocDouble2D(nparticle, 3, 0.);
-
-//     int nparticle_t = 0;
-//     for (int i = 0; i < nparticle; i++)
-//     {
-//         double h = xyz[i][2] - pc[2];
-//         if (fabs(h) < r)
-//         {
-//             if (pow(xyz[i][0] - pc[0], 2.0) + pow(xyz[i][1] - pc[1], 2.0) < pow(R - sqrt(r * r - h * h), 2.0))
-//             {
-//                 for (int j = 0; j < 3; j++)
-//                     xyz_t[nparticle_t][j] = xyz[i][j];
-
-//                 nparticle_t++;
-//             }
-//         }
-//         else
-//         {
-//             for (int j = 0; j < 3; j++)
-//                 xyz_t[nparticle_t][j] = xyz[i][j];
-
-//             nparticle_t++;
-//         }
-//     }
-
-//     freeDouble2D(xyz, nparticle);
-//     xyz = allocDouble2D(nparticle_t, 3, 0.);
-
-//     /* transfer to new position array */
-//     for (int i = 0; i < nparticle_t; i++)
-//     {
-//         for (int j = 0; j < 3; j++)
-//             xyz[i][j] = xyz_t[i][j];
-//     }
-
-//     freeDouble2D(xyz_t, nparticle);
-
-//     nparticle = nparticle_t;
-// }
-
-// /* Create an initial crack which starts at edge, with length a, width 2w and height h, (perpendicular to xOy plane) */
-// void createCrack(double a1, double a2, double w, double h)
-// {
-//     double **xyz_t = allocDouble2D(nparticle, 3, 0.);
-
-//     int nparticle_t = 0;
-//     for (int i = 0; i < nparticle; i++)
-//     {
-//         if (xyz[i][0] < a1 || xyz[i][0] > a2 || xyz[i][1] > h + w || xyz[i][1] < h - w)
-//         {
-//             // for (int j = 0; j < 3; j++)
-//             //     xyz_t[nparticle_t][j] = xyz[i][j];
-
-//             // nparticle_t++;
-
-//             // with cycle
-//             double dis2 = pow(xyz[i][0] - a2, 2.0) + pow(xyz[i][1] - h, 2.0);
-//             if (dis2 > w * w)
-//             {
-//                 for (int j = 0; j < 3; j++)
-//                     xyz_t[nparticle_t][j] = xyz[i][j];
-
-//                 nparticle_t++;
-//             }
-//         }
-//     }
-//     freeDouble2D(xyz, nparticle);
-//     xyz = allocDouble2D(nparticle_t, 3, 0.);
-
-//     /* transfer to new position array */
-//     for (int i = 0; i < nparticle_t; i++)
-//     {
-//         for (int j = 0; j < 3; j++)
-//             xyz[i][j] = xyz_t[i][j];
-//     }
-//     freeDouble2D(xyz_t, nparticle);
-//     nparticle = nparticle_t;
-// }
-
-// /* define the initial crack, length=|a1-a2|, height=h */
-// void defineCrack(double a1, double a2, double h)
-// {
-//     for (int i = 0; i < nparticle; i++)
-//     {
-//         damage_visual[i] = 0.0;
-//         for (int j = 0; j < nb_initial[i]; j++)
-//         {
-//             if ((xyz[neighbors[i][j]][1] - h) * (xyz[i][1] - h) < 0 && xyz[i][0] > a1 && xyz[i][0] < a2 &&
-//                 xyz[neighbors[i][j]][0] > a1 && xyz[neighbors[i][j]][0] < a2)
-//             {
-//                 damage_D[i][j][0] = 1.0;
-//                 damage_D[i][j][1] = 1.0;
-//                 damage_broken[i][j] = 0.0;
-//                 damage_w[i][j] = 0.0;
-//                 nb[i] -= 1;
-//             }
-//             damage_visual[i] += damage_broken[i][j];
-//         }
-//         damage_visual[i] = 1 - damage_visual[i] / nb_initial[i];
-//     }
-// }
-
 void run()
 {
     printf("\nCreating a CT model ...\n");
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 0.25;  // particle radius
+    double radius = 0.2;   // particle radius
     UnitCell cell(LatticeType::Square2D, radius);
 
     // Euler angles setting for system rotation
@@ -347,10 +135,15 @@ void run()
     double *R_matrix = createRMatrix(eulerflag, angles);
 
     std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0}; // thickness is used for force calculation
-    std::vector<std::array<double, NDIM>> sq_xyz = createPlateSQ2D(box, cell, R_matrix);
-    writeDump("CT_2DSquare.dump", sq_xyz, box);
+    std::vector<std::array<double, NDIM>> sq_xyz = createPlateSQ2D(box, cell, R_matrix), sq_CT;
+    for (std::array<double, NDIM> &pt : sq_xyz)
+        if (isValid(pt))
+            sq_CT.push_back(pt);
 
-    std::vector<std::vector<int>> sq_bonds = searchNeighbor(sq_xyz, cell);
+    std::cout << "\nTotal particle number is: " << sq_CT.size() << std::endl;
+    writeDump("CT_2DSquare.dump", sq_CT, box);
+
+    std::vector<std::vector<int>> sq_bonds = searchNeighbor(sq_CT, cell);
     writeBond("CT_2DSquare.bond", sq_bonds);
 
     printf("\nDone.\n");
