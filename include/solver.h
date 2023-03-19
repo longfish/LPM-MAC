@@ -128,7 +128,6 @@ int Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
         // printf("Stiffness matrix calculation costs %f seconds\n", t2 - t1);
 
         stiffness.updateStiffnessDispBC(ass.pt_sys);
-        printf("force\n");
         solveStepwise(ass); // solve for the incremental displacement
         ass.updateForceState();
         updateRR(ass); /* update the RHS risidual force vector */
@@ -321,7 +320,7 @@ void Solver<nlayer>::LPM_CG()
     ipar[8] = 1; /* default value is 0, does not perform the residual stopping test; otherwise, perform the test */
     ipar[9] = 0; /* default value is 1, perform user defined stopping test; otherwise, does not perform the test */
     // ipar[10] = 1; /* use the preconditioned version of the CG method */
-    dpar[0] = 1e-8;  /* specifies the relative tolerance, the default value is 1e-6 */
+    dpar[0] = 1e-12;  /* specifies the relative tolerance, the default value is 1e-6 */
     dpar[1] = 1e-12; /* specifies the absolute tolerance, the default value is 0.0 */
 
     /* check the correctness and consistency of the newly set parameters */

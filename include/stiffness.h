@@ -129,8 +129,8 @@ std::array<std::array<double, NDIM>, NDIM> Stiffness<nlayer>::localStiffnessFD(P
     std::array<double, NDIM> xyz_temp = pj->xyz;
 
     // common conns particles
-    std::vector<Particle<nlayer> *> common_conns;
-    set_intersection(pi->conns.begin(), pi->conns.end(), pj->conns.begin(), pj->conns.end(), back_inserter(common_conns));
+    // std::vector<Particle<nlayer> *> common_conns;
+    // set_intersection(pi->conns.begin(), pi->conns.end(), pj->conns.begin(), pj->conns.end(), back_inserter(common_conns));
 
     pi->updateParticleForce(); // update pi particle internal forces
 
@@ -143,7 +143,7 @@ std::array<std::array<double, NDIM>, NDIM> Stiffness<nlayer>::localStiffnessFD(P
         pj->moveTo(xyz_temp);                 // move to a new position
 
         // update bforce of all common conns
-        for (Particle<nlayer> *pjj : common_conns) // pj->conns)
+        for (Particle<nlayer> *pjj : pj->conns) // pj->conns or common_conns
         {
             pjj->updateBondsGeometry(); // update all bond information, e.g., dL, ddL
             pjj->updateBondsForce();    // update all bond forces
@@ -161,14 +161,14 @@ std::array<std::array<double, NDIM>, NDIM> Stiffness<nlayer>::localStiffnessFD(P
 
         xyz_temp[r] -= eps * pj->cell.radius; // move back the particle position
         pj->moveTo(xyz_temp);
-        for (Particle<nlayer> *pjj : common_conns) // pj->conns)
+        for (Particle<nlayer> *pjj : pj->conns) // pj->conns or common_conns
             pjj->resumeParticle();
     } // K_ij has finished
 
-    std::array<std::array<double, NDIM>, NDIM> K_local;
-    for (int r = 0; r < NDIM; r++)
-        for (int s = 0; s < NDIM; s++)
-            K_local[r][s] = K_ij[NDIM * s + r];
+    std::array<std::array<double, NDIM>, NDIM> K_local{0};
+    for (int r = 0; r < pi->cell.dim; r++)
+        for (int s = 0; s < pi->cell.dim; s++)
+            K_local[r][s] = K_ij[pi->cell.dim * s + r];
     return K_local;
 }
 
@@ -267,6 +267,71 @@ void Stiffness<nlayer>::initializeStiffness3D(std::vector<Particle<nlayer> *> &p
 template <int nlayer>
 void Stiffness<nlayer>::initializeStiffness2D(std::vector<Particle<nlayer> *> &pt_sys)
 {
+#pragma omp parallel for if (mode == StiffnessMode::Analytical)
+    for (const auto &pi_iterator : pt_sys | indexed(0))
+    {
+        Particle<nlayer> *pi = pi_iterator.value();
+
+        for (const auto &pj_iterator : pi->conns | indexed(0))
+        {
+            int idx_j = (int)pj_iterator.index();
+            Particle<nlayer> *pj = pj_iterator.value();
+            std::array<std::array<double, NDIM>, NDIM> K_local = localStiffness(pi, pj);
+
+            // if (pi->id == 0)
+            // {
+            //     printf("j: %d, %f, %f, %f\n%f, %f, %f\n%f, %f, %f\n\n", pj->id, K_local[0][0], K_local[0][1], K_local[0][2],
+            //            K_local[1][0], K_local[1][1], K_local[1][2],
+            //            K_local[2][0], K_local[2][1], K_local[2][2]);
+            // }
+
+            if (pi->id == pj->id)
+            {
+                K_global[K_pointer[pi->id]] += K_local[0][0];
+                K_global[K_pointer[pi->id] + 1] += K_local[0][1];
+                K_global[K_pointer[pi->id] + pi->cell.dim * (pi->nconn_largeq)] += K_local[1][1];
+
+                JK[K_pointer[pi->id]] = pi->cell.dim * (pj->id + 1) - 1;
+                JK[K_pointer[pi->id] + 1] = pi->cell.dim * (pj->id + 1);
+                JK[K_pointer[pi->id] + pi->cell.dim * (pi->nconn_largeq)] = pi->cell.dim * (pj->id + 1);
+            }
+            else if (pj->id > pi->id)
+            {
+                int num1 = pi->nconn_largeq - (pi->nconn - idx_j); // index difference between i and j, in i's conn list
+                // if (pi->id == 30)
+                //     printf("%d, ", num1);
+                K_global[K_pointer[pi->id] + pi->cell.dim * num1] += 0.5 * K_local[0][0];
+                K_global[K_pointer[pi->id] + pi->cell.dim * num1 + 1] += 0.5 * K_local[0][1];
+                K_global[K_pointer[pi->id] + pi->cell.dim * (pi->nconn_largeq) + pi->cell.dim * num1 - 1] += 0.5 * K_local[1][0];
+                K_global[K_pointer[pi->id] + pi->cell.dim * (pi->nconn_largeq) + pi->cell.dim * num1] += 0.5 * K_local[1][1];
+
+                JK[K_pointer[pi->id] + pi->cell.dim * num1] = pi->cell.dim * (pj->id + 1) - 1;
+                JK[K_pointer[pi->id] + pi->cell.dim * num1 + 1] = pi->cell.dim * (pj->id + 1);
+                JK[K_pointer[pi->id] + pi->cell.dim * (pi->nconn_largeq) + pi->cell.dim * num1 - 1] = pi->cell.dim * (pj->id + 1) - 1;
+                JK[K_pointer[pi->id] + pi->cell.dim * (pi->nconn_largeq) + pi->cell.dim * num1] = pi->cell.dim * (pj->id + 1);
+            }
+            else
+            {
+                auto pt_i = std::find(pj->conns.begin(), pj->conns.end(), pi);
+                int num2 = pj->nconn_largeq - (int)std::distance(pt_i, pj->conns.end());
+                // if (pi->id == 40)
+                //      printf("%d, ", num2);
+                K_global[K_pointer[pj->id] + pi->cell.dim * num2] += 0.5 * K_local[0][0];
+                K_global[K_pointer[pj->id] + pi->cell.dim * num2 + 1] += 0.5 * K_local[1][0];
+                K_global[K_pointer[pj->id] + pi->cell.dim * (pj->nconn_largeq) + pi->cell.dim * num2 - 1] += 0.5 * K_local[0][1];
+                K_global[K_pointer[pj->id] + pi->cell.dim * (pj->nconn_largeq) + pi->cell.dim * num2] += 0.5 * K_local[1][1];
+            }
+
+            // if (pi->id == 40)
+            //     printf("%f, ", K_global[K_pointer[pj->id] + pi->cell.dim * 1 + 1]);
+        }
+
+        IK[pi->cell.dim * pi->id] = K_pointer[pi->id] + 1;
+        IK[pi->cell.dim * pi->id + 1] = K_pointer[pi->id] + pi->cell.dim * (pi->nconn_largeq) + 1;
+        // if (pi->id == 40)
+        //     printf("%d, ", IK[pi->cell.dim * pi->id]);
+    }
+    IK[pt_sys[0]->cell.dim * pt_sys.size()] = K_pointer[pt_sys.size()] + 1;
 }
 
 template <int nlayer>
@@ -306,14 +371,17 @@ void Stiffness<nlayer>::updateStiffnessDispBC(std::vector<Particle<nlayer> *> &p
                     {
                         if (k == 0)
                         {
-                            for (int kk = K_pointer[pi->id] + 1; kk <= K_pointer[pi->id] + (pi->cell.dim) * (pi->nconn_largeq) - 1; kk++)
+                            int start_idx = (pi->cell.dim == 2) ? K_pointer[pi->id] : (K_pointer[pi->id] + 1);
+                            for (int kk = start_idx; kk <= K_pointer[pi->id] + (pi->cell.dim) * (pi->nconn_largeq) - 1; kk++)
                                 K_global[kk] = 0.0;
                             K_global[K_pointer[pi->id]] = norm_diag;
                         }
                         else if (k == 1)
                         {
                             K_global[K_pointer[pi->id] + 1] = 0.0;
-                            for (int kk = K_pointer[pi->id] + (pi->cell.dim) * (pi->nconn_largeq) + 1; kk <= K_pointer[pi->id] + 2 * (pi->cell.dim) * (pi->nconn_largeq) - 2; kk++)
+                            int start_idx = (pi->cell.dim == 2) ? (K_pointer[pi->id] + (pi->cell.dim) * (pi->nconn_largeq)) : (K_pointer[pi->id] + (pi->cell.dim) * (pi->nconn_largeq) + 1);
+                            int end_idx = (pi->cell.dim == 2) ? (K_pointer[(pi->id) + 1] - 1) : K_pointer[pi->id] + 2 * (pi->cell.dim) * (pi->nconn_largeq) - 2;
+                            for (int kk = start_idx; kk <= end_idx; kk++)
                                 K_global[kk] = 0.0;
                             K_global[K_pointer[pi->id] + (pi->cell.dim) * (pi->nconn_largeq)] = norm_diag;
                         }
@@ -326,20 +394,20 @@ void Stiffness<nlayer>::updateStiffnessDispBC(std::vector<Particle<nlayer> *> &p
                             K_global[K_pointer[pi->id] + 2 * (pi->cell.dim) * (pi->nconn_largeq) - 1] = norm_diag;
                         }
                     }
-                    else
+                    else // pj->id < pi->id
                     {
                         auto pt_i = std::find(pj->conns.begin(), pj->conns.end(), pi);
                         int num2 = pj->nconn_largeq - (int)std::distance(pt_i, pj->conns.end());
                         K_global[K_pointer[pj->id] + pj->cell.dim * num2 + k] = 0;
                         K_global[K_pointer[pj->id] + pj->cell.dim * (pj->nconn_largeq) + pj->cell.dim * num2 - 1 + k] = 0;
-                        K_global[K_pointer[pj->id] + 2 * pj->cell.dim * (pj->nconn_largeq) + pj->cell.dim * num2 - 3 + k] = 0;
+                        if (pi->cell.dim == 3)
+                            K_global[K_pointer[pj->id] + 2 * pj->cell.dim * (pj->nconn_largeq) + pj->cell.dim * num2 - 3 + k] = 0;
                     }
                 }
                 residual[(pi->cell.dim) * (pi->id) + k] = 0.0;
             }
         }
     }
-
 }
 
 #endif

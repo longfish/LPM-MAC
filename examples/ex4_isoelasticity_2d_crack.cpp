@@ -6,13 +6,25 @@
 #include "load_step.h"
 #include "solver.h"
 
+void writeK_global(const char *dataName,double *K_global, int l)
+{
+    FILE *fpt;
+    fpt = fopen(dataName, "w+");
+    for (int i = 0; i < l; i++)
+    {
+        fprintf(fpt, " %8.3f\n", K_global[i]);
+    }
+
+    fclose(fpt);
+}
+
 void run()
 {
     double start = omp_get_wtime(); // record the CPU time, begin
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 0.25;  // particle radius
-    UnitCell cell(LatticeType::SimpleCubic3D, radius);
+    double radius = 1;   // particle radius
+    UnitCell cell(LatticeType::Square2D, radius);
 
     // Euler angles setting for system rotation
     // flag is 0 ~ 2 for different conventions, (0: direct rotation; 1: Kocks convention; 2: Bunge convention)
@@ -23,14 +35,10 @@ void run()
 
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
-    std::array<double, 2 * NDIM> box{-0.0, 10.0, -0.4, 10.0, -0.4, 30.0};
-
-    std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
-    Assembly<n_layer> pt_ass{sc_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
-    // pt_ass.writeBond("../geometry/test.bond");
-    // pt_ass.writeConfigurationDump("../geometry/test.dump");
-    // Assembly<n_layer> pt_ass{"../geometry/test.dump", "../geometry/test.bond", cell, BondType::Elastic}; // read coordinate from local files
-    // Assembly<n_layer> pt_ass{"../geometry/test.dump", cell, BondType::Elastic}; // read coordinate from local files
+    std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0};
+    // Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DSquare.dump", "../geometry/geo1_CT_2DSquare.bond", cell, BondType::Elastic}; // read coordinate from local files
+    std::vector<std::array<double, NDIM>> sq_xyz = createPlateSQ2D(box, cell, R_matrix);
+    Assembly<n_layer> pt_ass{sq_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
@@ -43,10 +51,16 @@ void run()
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
         // assign boundary and internal particles
-        if (p1->xyz[2] > box[5] - 1.5 * radius)
+        if (p1->xyz[1] > box[3] - 2 * radius)
+        {
             top_group.push_back(p1); // top
-        if (p1->xyz[2] < box[4] + 1.5 * radius)
+            p1->type = 1;
+        }
+        if (p1->xyz[1] < box[2] + 2 * radius)
+        {
             bottom_group.push_back(p1); // bottom
+            p1->type = 2;
+        }
         if (p1->nb == cell.nneighbors)
             internal_group.push_back(p1); // particles with full neighbor list
 
@@ -74,8 +88,8 @@ void run()
         // boundary conditions
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'z', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'z', step_size));
+        //step.dispBCs.push_back(DispBC<n_layer>(top_group, 'z', 0.0));
+        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'y', step_size));
         load.push_back(step);
     }
 
@@ -84,8 +98,11 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    Solver<n_layer> solv{pt_ass, StiffnessMode::FiniteDifference, SolverMode::CG, "result_position.dump"}; // stiffness mode and solution mode
+    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "CT_2DSquare_position.dump"}; // stiffness mode and solution mode
     solv.solveProblem(pt_ass, load);
+
+    char KFile[] = "result_K.txt";
+    writeK_global(KFile, solv.stiffness.K_global, 12600);
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);

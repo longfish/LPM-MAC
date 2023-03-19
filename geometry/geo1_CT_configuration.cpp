@@ -141,10 +141,10 @@ void run()
             sq_CT.push_back(pt);
 
     std::cout << "\nTotal particle number is: " << sq_CT.size() << std::endl;
-    writeDump("CT_2DSquare.dump", sq_CT, box);
+    writeDump("../geometry/geo1_CT_2DSquare.dump", sq_CT, box);
 
     std::vector<std::vector<int>> sq_bonds = searchNeighbor(sq_CT, cell);
-    writeBond("CT_2DSquare.bond", sq_bonds);
+    writeBond("../geometry/geo1_CT_2DSquare.bond", sq_bonds);
 
     printf("\nDone.\n");
 }
