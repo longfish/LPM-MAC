@@ -11,14 +11,14 @@
 #include "lpm.h"
 #include "unit_cell.h"
 #include "bond.h"
-#include "elastic_bond.h"
-#include "elastic_planestress_bond.h"
+#include "bond_elastic.h"
+#include "bond_elastic_planestress.h"
 
 template <int nlayer>
 class Bond;
 
 template <int nlayer>
-class ElasticBond;
+class BondElastic;
 
 template <int nlayer>
 class Particle;
@@ -130,7 +130,7 @@ void Assembly<nlayer>::createBonds()
 
                 Bond<nlayer> *bd = nullptr; // create bonds
                 if (btype == BondType::Elastic)
-                    bd = new ElasticBond<nlayer>(p1, p2, layer, distance);
+                    bd = new BondElastic<nlayer>(p1, p2, layer, distance);
 
                 p1->bond_layers[layer].push_back(bd);
                 p1->neighbors.push_back(p2);
@@ -312,7 +312,7 @@ void Assembly<nlayer>::readBond(const std::string &bondFile)
 
         Bond<nlayer> *bd = nullptr; // create bonds
         if (btype == BondType::Elastic)
-            bd = new ElasticBond<nlayer>(p1, p2, layer, distance);
+            bd = new BondElastic<nlayer>(p1, p2, layer, distance);
 
         p1->bond_layers[layer].push_back(bd);
         p1->neighbors.push_back(p2);

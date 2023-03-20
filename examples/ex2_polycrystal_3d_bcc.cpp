@@ -73,7 +73,7 @@ void run()
             for (auto bd : p1->bond_layers[i])
             {
                 // cast to elastic bond (or other type of bonds)
-                ElasticBond<n_layer> *elbd = dynamic_cast<ElasticBond<n_layer> *>(bd);
+                BondElastic<n_layer> *elbd = dynamic_cast<BondElastic<n_layer> *>(bd);
                 elbd->setBondProperty(C11, C12, C44, critical_bstrain, nbreak);
             }
         }

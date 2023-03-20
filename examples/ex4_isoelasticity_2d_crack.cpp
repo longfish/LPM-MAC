@@ -23,7 +23,7 @@ void run()
     double start = omp_get_wtime(); // record the CPU time, begin
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 1;   // particle radius
+    double radius = 0.2;   // particle radius
     UnitCell cell(LatticeType::Square2D, radius);
 
     // Euler angles setting for system rotation
@@ -36,9 +36,9 @@ void run()
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
     std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0};
-    // Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DSquare.dump", "../geometry/geo1_CT_2DSquare.bond", cell, BondType::Elastic}; // read coordinate from local files
-    std::vector<std::array<double, NDIM>> sq_xyz = createPlateSQ2D(box, cell, R_matrix);
-    Assembly<n_layer> pt_ass{sq_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
+    Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DSquare.dump", "../geometry/geo1_CT_2DSquare.bond", cell, BondType::Elastic}; // read coordinate from local files
+    // std::vector<std::array<double, NDIM>> sq_xyz = createPlateSQ2D(box, cell, R_matrix);
+    // Assembly<n_layer> pt_ass{sq_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
@@ -70,7 +70,7 @@ void run()
             for (auto bd : p1->bond_layers[i])
             {
                 // cast to elastic bond (or other type of bonds)
-                ElasticBond<n_layer> *elbd = dynamic_cast<ElasticBond<n_layer> *>(bd);
+                BondElastic<n_layer> *elbd = dynamic_cast<BondElastic<n_layer> *>(bd);
                 elbd->setBondProperty(E0, mu0, critical_bstrain, nbreak);
             }
         }
@@ -87,7 +87,7 @@ void run()
 
         // boundary conditions
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', 0.0));
+        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', -step_size));
         //step.dispBCs.push_back(DispBC<n_layer>(top_group, 'z', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'y', step_size));
         load.push_back(step);
@@ -101,8 +101,8 @@ void run()
     Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "CT_2DSquare_position.dump"}; // stiffness mode and solution mode
     solv.solveProblem(pt_ass, load);
 
-    char KFile[] = "result_K.txt";
-    writeK_global(KFile, solv.stiffness.K_global, 12600);
+    // char KFile[] = "result_K.txt";
+    // writeK_global(KFile, solv.stiffness.K_global, 12600);
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);

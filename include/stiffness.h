@@ -24,11 +24,12 @@ class Stiffness
 public:
     MKL_INT *IK, *JK;
     int *K_pointer; // start index for each particle in the global stiffness matrix
-    double *K_global, *residual;
+    double  *residual;
+    std::vector<double> K_global;
 
     void initialize(std::vector<Particle<nlayer> *> &pt_sys);
-    void initializeStiffness3D(std::vector<Particle<nlayer> *> &pt_sys);
-    void initializeStiffness2D(std::vector<Particle<nlayer> *> &pt_sys);
+    void calcStiffness3D(std::vector<Particle<nlayer> *> &pt_sys);
+    void calcStiffness2D(std::vector<Particle<nlayer> *> &pt_sys);
     void updateStiffnessDispBC(std::vector<Particle<nlayer> *> &pt_sys);
 
     std::array<std::array<double, NDIM>, NDIM> localStiffness(Particle<nlayer> *pi, Particle<nlayer> *pj);
@@ -45,7 +46,7 @@ public:
     {
         delete[] IK;
         delete[] JK;
-        delete[] K_global;
+        delete[] residual;
         delete[] K_pointer;
     }
 };
@@ -65,8 +66,8 @@ void Stiffness<nlayer>::initialize(std::vector<Particle<nlayer> *> &pt_sys)
 
     JK = new MKL_INT[K_pointer[pt_sys.size()]];
     IK = new MKL_INT[pt_sys[0]->cell.dim * pt_sys.size() + 1];
-    K_global = new double[K_pointer[pt_sys.size()]];
     residual = new double[pt_sys[0]->cell.dim * pt_sys.size()];
+    K_global = std::vector<double>(K_pointer[pt_sys.size()]);
 }
 
 template <int nlayer>
@@ -173,8 +174,10 @@ std::array<std::array<double, NDIM>, NDIM> Stiffness<nlayer>::localStiffnessFD(P
 }
 
 template <int nlayer>
-void Stiffness<nlayer>::initializeStiffness3D(std::vector<Particle<nlayer> *> &pt_sys)
+void Stiffness<nlayer>::calcStiffness3D(std::vector<Particle<nlayer> *> &pt_sys)
 {
+    std::fill(K_global.begin(), K_global.end(), 0.0);
+
 #pragma omp parallel for if (mode == StiffnessMode::Analytical)
     for (const auto &pi_iterator : pt_sys | indexed(0))
     {
@@ -265,8 +268,10 @@ void Stiffness<nlayer>::initializeStiffness3D(std::vector<Particle<nlayer> *> &p
 }
 
 template <int nlayer>
-void Stiffness<nlayer>::initializeStiffness2D(std::vector<Particle<nlayer> *> &pt_sys)
+void Stiffness<nlayer>::calcStiffness2D(std::vector<Particle<nlayer> *> &pt_sys)
 {
+    std::fill(K_global.begin(), K_global.end(), 0.0);
+
 #pragma omp parallel for if (mode == StiffnessMode::Analytical)
     for (const auto &pi_iterator : pt_sys | indexed(0))
     {

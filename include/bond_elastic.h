@@ -13,14 +13,14 @@
 // elastic plane strain or 3D material
 
 template <int nlayer>
-class ElasticBond : public Bond<nlayer>
+class BondElastic : public Bond<nlayer>
 {
 public:
-    int nbreak{0};        // limit the broken number of bonds in a single iteration, should be an even number
+    int nbreak{0};        // limit the broken number of bonds in a single iteration
     double cr_bstrain{0}; // critical bond strain value at which bond will break
 
-    ElasticBond(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2) : Bond<nlayer>{p_p1, p_p2} {}
-    ElasticBond(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2, int p_layer, double p_dis) : Bond<nlayer>{p_p1, p_p2, p_layer, p_dis} {}
+    BondElastic(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2) : Bond<nlayer>{p_p1, p_p2} {}
+    BondElastic(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2, int p_layer, double p_dis) : Bond<nlayer>{p_p1, p_p2, p_layer, p_dis} {}
 
     void updatebForce();
     void setBondProperty(double p_E, double p_mu, double p_cr_bstrain, int p_nbreak);
@@ -28,7 +28,7 @@ public:
 };
 
 template <int nlayer>
-void ElasticBond<nlayer>::updatebForce()
+void BondElastic<nlayer>::updatebForce()
 {
     // for elastic bonds, a trial elastic calculation is enough
     this->bforce_last = this->bforce;
@@ -36,8 +36,10 @@ void ElasticBond<nlayer>::updatebForce()
 }
 
 template <int nlayer>
-void ElasticBond<nlayer>::setBondProperty(double p_E, double p_mu, double p_cr_bstrain, int p_nbreak)
+void BondElastic<nlayer>::setBondProperty(double p_E, double p_mu, double p_cr_bstrain, int p_nbreak)
 {
+    if (p_nbreak % 2 == 1)
+        p_nbreak++; // should be an even number
     nbreak = p_nbreak;
     cr_bstrain = p_cr_bstrain;
 
@@ -64,8 +66,11 @@ void ElasticBond<nlayer>::setBondProperty(double p_E, double p_mu, double p_cr_b
 }
 
 template <int nlayer>
-void ElasticBond<nlayer>::setBondProperty(double p_C11, double p_C12, double p_C44, double p_cr_bstrain, int p_nbreak)
+void BondElastic<nlayer>::setBondProperty(double p_C11, double p_C12, double p_C44, double p_cr_bstrain, int p_nbreak)
 {
+    if (p_nbreak % 2 == 1)
+        p_nbreak++; // should be an even number
+
     nbreak = p_nbreak;
     cr_bstrain = p_cr_bstrain;
 

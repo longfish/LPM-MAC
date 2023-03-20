@@ -83,9 +83,9 @@ void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep<nl
 
         double t1 = omp_get_wtime();
         if (ass.pt_sys[0]->cell.dim == 2)
-            stiffness.initializeStiffness2D(ass.pt_sys);
+            stiffness.calcStiffness2D(ass.pt_sys);
         else
-            stiffness.initializeStiffness3D(ass.pt_sys);
+            stiffness.calcStiffness3D(ass.pt_sys);
         double t2 = omp_get_wtime();
         printf("Stiffness matrix calculation costs %f seconds\n", t2 - t1);
 
@@ -121,9 +121,9 @@ int Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
         printf("    Iteration-%d: ", ++ni);
         // double t1 = omp_get_wtime();
         // if (ass.pt_sys[0]->cell.dim == 2)
-        //     stiffness.initializeStiffness2D(ass.pt_sys);
+        //     stiffness.calcStiffness2D(ass.pt_sys);
         // else
-        //     stiffness.initializeStiffness3D(ass.pt_sys);
+        //     stiffness.calcStiffness3D(ass.pt_sys);
         // double t2 = omp_get_wtime();
         // printf("Stiffness matrix calculation costs %f seconds\n", t2 - t1);
 
@@ -247,7 +247,7 @@ void Solver<nlayer>::LPM_PARDISO()
     /* Reordering and Symbolic Factorization. This step also allocates all memory that is  */
     /* necessary for the factorization */
     phase = 11;
-    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, stiffness.K_global, stiffness.IK, stiffness.JK, &idum, &nrhs, iparm, &msglvl, &ddum, &ddum, &error);
+    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, stiffness.K_global.data(), stiffness.IK, stiffness.JK, &idum, &nrhs, iparm, &msglvl, &ddum, &ddum, &error);
     if (error != 0)
     {
         printf("\nERROR during symbolic factorization: " IFORMAT, error);
@@ -258,7 +258,7 @@ void Solver<nlayer>::LPM_PARDISO()
 
     /* Numerical factorization */
     phase = 22;
-    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, stiffness.K_global, stiffness.IK, stiffness.JK, &idum, &nrhs, iparm, &msglvl, &ddum, &ddum, &error);
+    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, stiffness.K_global.data(), stiffness.IK, stiffness.JK, &idum, &nrhs, iparm, &msglvl, &ddum, &ddum, &error);
     if (error != 0)
     {
         printf("\nERROR during numerical factorization: " IFORMAT, error);
@@ -267,7 +267,7 @@ void Solver<nlayer>::LPM_PARDISO()
 
     /* Back substitution and iterative refinement */
     phase = 33;
-    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, stiffness.K_global, stiffness.IK, stiffness.JK, &idum, &nrhs, iparm, &msglvl, stiffness.residual, disp, &error);
+    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, stiffness.K_global.data(), stiffness.IK, stiffness.JK, &idum, &nrhs, iparm, &msglvl, stiffness.residual, disp, &error);
     if (error != 0)
     {
         printf("\nERROR during solution: " IFORMAT, error);
@@ -304,7 +304,7 @@ void Solver<nlayer>::LPM_CG()
     /* initial setting */
     n = problem_size; /* Data number */
     tmp = new double[4 * n];
-    mkl_sparse_d_create_csr(&csrA, SPARSE_INDEX_BASE_ONE, n, n, stiffness.IK, stiffness.IK + 1, stiffness.JK, stiffness.K_global);
+    mkl_sparse_d_create_csr(&csrA, SPARSE_INDEX_BASE_ONE, n, n, stiffness.IK, stiffness.IK + 1, stiffness.JK, stiffness.K_global.data());
 
     /* initial guess for the displacement vector */
     for (int i = 0; i < n; i++)

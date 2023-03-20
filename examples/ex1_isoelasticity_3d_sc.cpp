@@ -56,7 +56,7 @@ void run()
             for (auto bd : p1->bond_layers[i])
             {
                 // cast to elastic bond (or other type of bonds)
-                ElasticBond<n_layer> *elbd = dynamic_cast<ElasticBond<n_layer> *>(bd);
+                BondElastic<n_layer> *elbd = dynamic_cast<BondElastic<n_layer> *>(bd);
                 elbd->setBondProperty(E0, mu0, critical_bstrain, nbreak);
             }
         }
@@ -84,7 +84,7 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    Solver<n_layer> solv{pt_ass, StiffnessMode::FiniteDifference, SolverMode::CG, "result_position.dump"}; // stiffness mode and solution mode
+    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump"}; // stiffness mode and solution mode
     solv.solveProblem(pt_ass, load);
 
     double finish = omp_get_wtime();

@@ -13,15 +13,15 @@
 // elastic plane stress 2D material
 
 template <int nlayer>
-class ElasticPlaneStressBond : public Bond<nlayer>
+class BondElasticPlaneStress : public Bond<nlayer>
 {
 public:
     double E{0}, mu{0};         // Youngs modulus and Poisson ratio
     int nbreak{0};              // limit the broken number of bonds in a single iteration, should be an even number
     double cr_bstrain{0}; // critical bond strain value at which bond will break
 
-    ElasticPlaneStressBond(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2) : Bond<nlayer>{p_p1, p_p2} {}
-    ElasticPlaneStressBond(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2, int p_layer, double p_dis) : Bond<nlayer>{p_p1, p_p2, p_layer, p_dis} {}
+    BondElasticPlaneStress(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2) : Bond<nlayer>{p_p1, p_p2} {}
+    BondElasticPlaneStress(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2, int p_layer, double p_dis) : Bond<nlayer>{p_p1, p_p2, p_layer, p_dis} {}
 
     void setBondProperty(double p_E, double p_mu, double p_cr_bstrain, int p_nbreak)
     {
@@ -37,7 +37,7 @@ public:
         
         cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, 1.0, this->p1->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
         if (this->p1->cell.dim != 2)
-            printf("Warning: ElasticPlaneStressBond bond only work in 2D!\n");
+            printf("Warning: BondElasticPlaneStress bond only work in 2D!\n");
 
         if (this->p1->cell.lattice == LatticeType::Hexagon2D)
         {
