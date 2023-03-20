@@ -16,17 +16,19 @@ protected:
     static int _ID;
 
 public:
-    int id{0};                                  // identifier of the bond, id starts from 0
-    int layer{-1};                              // index of current bond layer
-    double dis_initial{0}, dis_last{0}, dis{0}; // initial, last, and current bond length
-    double ddL{0};                              // incremental change of particle distance
-    double dLe{0}, dLp{0}, dLp_last{0};         // elastic and plastic bond change
-    double Kn{0}, Tv{0};                        // LPM coefficient
-    double csx{0}, csy{0}, csz{0};              // direction cosine
-    double bforce_last{0}, bforce{0};           // bond-wise quantities
-    Particle<nlayer> *p1, *p2;                  // particles are not owned by the bond (only store the location)
+    int id{0};                                    // identifier of the bond, id starts from 0
+    int layer{-1};                                // index of current bond layer
+    double dis_initial{0}, dis_last{0}, dis{0};   // initial, last, and current bond length
+    double ddL{0};                                // incremental change of particle distance
+    double dLe{0}, dLp{0}, dLp_last{0};           // elastic and plastic bond change
+    double Kn{0}, Tv{0};                          // LPM coefficient
+    double csx{0}, csy{0}, csz{0};                // direction cosine
+    double bforce_last{0}, bforce{0}, bdamage{0}; // bond-wise quantities
+    bool damaged{false};                          // bond-wise damage status
+    Particle<nlayer> *p1, *p2;                    // particles are not owned by the bond (only store the location)
 
     virtual void updatebForce() { bforce = 0; }
+    virtual void updatebDamage() { damaged = false; }
 
     void updatebGeometry()
     {

@@ -47,6 +47,7 @@ public:
     bool hasAFEMneighbor(Particle<nlayer> *pj, int layer);
 
     void updateParticleForce();
+    void updateVisualDamage();
     void updateBondsGeometry();
     void updateBondsForce();
     void resumeParticle();
@@ -174,6 +175,19 @@ void Particle<nlayer>::resumeParticle()
     // used for calculating stiffness matrix
     updateBondsGeometry();
     updateBondsForce();
+}
+
+template <int nlayer>
+void Particle<nlayer>::updateVisualDamage()
+{
+    for (int i = 0; i < nlayer; ++i)
+    {
+        for (Bond<nlayer> *bd : bond_layers[i])
+        {
+            damage_visual += bd->bdamage;
+        }
+    }
+    damage_visual = damage_visual / nb;
 }
 
 template <int nlayer>

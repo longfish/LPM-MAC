@@ -22,6 +22,7 @@ public:
     BondElastic(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2) : Bond<nlayer>{p_p1, p_p2} {}
     BondElastic(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2, int p_layer, double p_dis) : Bond<nlayer>{p_p1, p_p2, p_layer, p_dis} {}
 
+    void updatebDamage();
     void updatebForce();
     void setBondProperty(double p_E, double p_mu, double p_cr_bstrain, int p_nbreak);
     void setBondProperty(double p_C11, double p_C12, double p_C44, double p_cr_bstrain, int p_nbreak);
@@ -33,6 +34,21 @@ void BondElastic<nlayer>::updatebForce()
     // for elastic bonds, a trial elastic calculation is enough
     this->bforce_last = this->bforce;
     this->bforce += 2. * this->Kn * this->ddL + this->p1->TddL_total[this->layer] + this->Tv * this->p1->ddL_total[this->layer];
+}
+
+template <int nlayer>
+void BondElastic<nlayer>::updatebDamage()
+{
+    double bstrain = this->dLe / this->dis_initial;
+    if (bstrain < cr_bstrain)
+        this->damaged = false;
+    else
+    {
+        this->bdamage = 1.0;
+        this->Kn *= (1.0 - this->bdamage);
+        this->Tv *= (1.0 - this->bdamage);
+        this->damaged = true;
+    }
 }
 
 template <int nlayer>
