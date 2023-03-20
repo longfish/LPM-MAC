@@ -60,7 +60,7 @@ void Solver<nlayer>::solveStepwise(Assembly<nlayer> &ass)
         LPM_PARDISO();
     else
         LPM_CG();
-    
+
     /* update the position */
     for (auto pt : ass.pt_sys)
     {
@@ -89,8 +89,9 @@ void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep<nl
         double t2 = omp_get_wtime();
         printf("Stiffness matrix calculation costs %f seconds\n", t2 - t1);
 
-        updateDisplacementBC(ass, load[i]);
         updateForceBC(ass, load[i]);
+        updateDisplacementBC(ass, load[i]);
+        stiffness.updateStiffnessDispBC(ass.pt_sys);
         ass.updateForceState();
         updateRR(ass);
 
@@ -119,15 +120,6 @@ int Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
     while (norm_residual > tol_iter * tol_multiplier && ni < max_iter)
     {
         printf("    Iteration-%d: ", ++ni);
-        // double t1 = omp_get_wtime();
-        // if (ass.pt_sys[0]->cell.dim == 2)
-        //     stiffness.calcStiffness2D(ass.pt_sys);
-        // else
-        //     stiffness.calcStiffness3D(ass.pt_sys);
-        // double t2 = omp_get_wtime();
-        // printf("Stiffness matrix calculation costs %f seconds\n", t2 - t1);
-
-        stiffness.updateStiffnessDispBC(ass.pt_sys);
         solveStepwise(ass); // solve for the incremental displacement
         ass.updateForceState();
         updateRR(ass); /* update the RHS risidual force vector */
@@ -320,7 +312,7 @@ void Solver<nlayer>::LPM_CG()
     ipar[8] = 1; /* default value is 0, does not perform the residual stopping test; otherwise, perform the test */
     ipar[9] = 0; /* default value is 1, perform user defined stopping test; otherwise, does not perform the test */
     // ipar[10] = 1; /* use the preconditioned version of the CG method */
-    dpar[0] = 1e-12;  /* specifies the relative tolerance, the default value is 1e-6 */
+    dpar[0] = 1e-12; /* specifies the relative tolerance, the default value is 1e-6 */
     dpar[1] = 1e-12; /* specifies the absolute tolerance, the default value is 0.0 */
 
     /* check the correctness and consistency of the newly set parameters */
