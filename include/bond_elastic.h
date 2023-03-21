@@ -16,7 +16,6 @@ template <int nlayer>
 class BondElastic : public Bond<nlayer>
 {
 public:
-    int nbreak{0};        // limit the broken number of bonds in a single iteration
     double cr_bstrain{0}; // critical bond strain value at which bond will break
 
     BondElastic(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2) : Bond<nlayer>{p_p1, p_p2} {}
@@ -24,8 +23,8 @@ public:
 
     void updatebDamage();
     void updatebForce();
-    void setBondProperty(double p_E, double p_mu, double p_cr_bstrain, int p_nbreak);
-    void setBondProperty(double p_C11, double p_C12, double p_C44, double p_cr_bstrain, int p_nbreak);
+    void setBondProperty(double p_E, double p_mu, double p_cr_bstrain);
+    void setBondProperty(double p_C11, double p_C12, double p_C44, double p_cr_bstrain);
 };
 
 template <int nlayer>
@@ -33,30 +32,27 @@ void BondElastic<nlayer>::updatebForce()
 {
     // for elastic bonds, a trial elastic calculation is enough
     this->bforce_last = this->bforce;
-    this->bforce += 2. * this->Kn * this->ddL + this->p1->TddL_total[this->layer] + this->Tv * this->p1->ddL_total[this->layer];
+    this->bforce += 2. * this->Kn * this->ddL + 2. * this->Tv * this->p1->ddL_total[this->layer];
+    this->bforce *= (1.0 - this->bdamage);
 }
 
 template <int nlayer>
 void BondElastic<nlayer>::updatebDamage()
 {
-    double bstrain = this->dLe / this->dis_initial;
-    if (bstrain < cr_bstrain)
-        this->damaged = false;
-    else
+    this->bstrain = this->dLe / this->dis_initial;
+    if (this->bstrain >= cr_bstrain && !(this->damaged))
     {
         this->bdamage = 1.0;
         this->Kn *= (1.0 - this->bdamage);
         this->Tv *= (1.0 - this->bdamage);
         this->damaged = true;
+        this->broken = true; // damage is equivalent to broken for brittle materials
     }
 }
 
 template <int nlayer>
-void BondElastic<nlayer>::setBondProperty(double p_E, double p_mu, double p_cr_bstrain, int p_nbreak)
+void BondElastic<nlayer>::setBondProperty(double p_E, double p_mu, double p_cr_bstrain)
 {
-    if (p_nbreak % 2 == 1)
-        p_nbreak++; // should be an even number
-    nbreak = p_nbreak;
     cr_bstrain = p_cr_bstrain;
 
     double Ce[NDIM]{p_E * (1.0 - p_mu) / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
@@ -82,12 +78,8 @@ void BondElastic<nlayer>::setBondProperty(double p_E, double p_mu, double p_cr_b
 }
 
 template <int nlayer>
-void BondElastic<nlayer>::setBondProperty(double p_C11, double p_C12, double p_C44, double p_cr_bstrain, int p_nbreak)
+void BondElastic<nlayer>::setBondProperty(double p_C11, double p_C12, double p_C44, double p_cr_bstrain)
 {
-    if (p_nbreak % 2 == 1)
-        p_nbreak++; // should be an even number
-
-    nbreak = p_nbreak;
     cr_bstrain = p_cr_bstrain;
 
     double Ce[NDIM]{p_C11, p_C12, p_C44}; // C11, C12, C44

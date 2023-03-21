@@ -26,6 +26,7 @@ class Solver
     SolverMode sol_mode;
 
 public:
+    bool damage_occured{false}; // detect if any bonds are damaged
     Stiffness<nlayer> stiffness;
 
     void updateDisplacementBC(Assembly<nlayer> &ass, LoadStep<nlayer> &load_step);
@@ -79,26 +80,44 @@ void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep<nl
 
     for (int i = 0; i < load.size(); i++)
     {
-        printf("Loading step-%d: ", i + 1);
-
         double t1 = omp_get_wtime();
-        if (ass.pt_sys[0]->cell.dim == 2)
-            stiffness.calcStiffness2D(ass.pt_sys);
-        else
-            stiffness.calcStiffness3D(ass.pt_sys);
+        printf("Loading step-%d, damage iteration starts:\n", i + 1);
+
+        // updating the particle system configuration to be in equilibrium
+        int crack_step = 0; // for dump output
+        int n_damageiter = 0;
+        do
+        {
+            if (n_damageiter == 0 || damage_occured)
+            {
+                ass.updateConnections();     // update connections in case any bonds are broken
+                stiffness.reset(ass.pt_sys); // reset the stiffness matrix K_global
+
+                double t11 = omp_get_wtime();
+                if (ass.pt_sys[0]->cell.dim == 2)
+                    stiffness.calcStiffness2D(ass.pt_sys);
+                else
+                    stiffness.calcStiffness3D(ass.pt_sys);
+                double t12 = omp_get_wtime();
+                printf("Stiffness matrix calculation costs %f seconds\n", t12 - t11);
+
+                updateForceBC(ass, load[i]);
+                updateDisplacementBC(ass, load[i]);
+                stiffness.updateStiffnessDispBC(ass.pt_sys);
+                ass.updateForceState();
+            }
+
+            updateRR(ass);
+            int ni = NewtonIteration(ass);
+            damage_occured = ass.updateDamage();
+            n_damageiter++;
+            ass.writeDump(dumpFile, crack_step++);
+            printf("|  Equilibrium reached after %d iterations (loading step %d)\n", ni, i + 1);
+        } while (damage_occured == true);
         double t2 = omp_get_wtime();
-        printf("Stiffness matrix calculation costs %f seconds\n", t2 - t1);
 
-        updateForceBC(ass, load[i]);
-        updateDisplacementBC(ass, load[i]);
-        stiffness.updateStiffnessDispBC(ass.pt_sys);
-        ass.updateForceState();
-        updateRR(ass);
-
-        int ni = NewtonIteration(ass);
-        ass.writeDump(dumpFile, i);
-
-        printf("Loading step %d has finished in %d iterations\n\nData output ...\n", i + 1, ni);
+        printf("Loading step %d has finished after %d damage iterations, spent %f seconds\n\nData output ...\n\n", i + 1, n_damageiter, t2 - t1);
+        //ass.writeDump(dumpFile, i);
     }
 }
 
@@ -110,7 +129,7 @@ int Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
     double norm_reaction_force = cblas_dnrm2(reaction_force.size(), reaction_force.data(), 1);
     double tol_multiplier = MAX(norm_residual, norm_reaction_force);
     char tempChar1[] = "residual", tempChar2[] = "reaction";
-    printf("Norm of residual is %.5e, norm of reaction is %.5e, tolerance criterion is based on ", norm_residual, norm_reaction_force);
+    printf("|  Norm of residual is %.5e, norm of reaction is %.5e, tolerance criterion is based on ", norm_residual, norm_reaction_force);
     if (norm_residual > norm_reaction_force)
         printf("%s force\n", tempChar1);
     else
@@ -119,12 +138,12 @@ int Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
     int ni{0};
     while (norm_residual > tol_iter * tol_multiplier && ni < max_iter)
     {
-        printf("    Iteration-%d: ", ++ni);
+        printf("|  |  Iteration-%d: ", ++ni);
         solveStepwise(ass); // solve for the incremental displacement
         ass.updateForceState();
         updateRR(ass); /* update the RHS risidual force vector */
         norm_residual = cblas_dnrm2(problem_size, stiffness.residual, 1);
-        printf("    Norm of residual is %.3e, residual ratio is %.3e\n", norm_residual, norm_residual / tol_multiplier);
+        printf("|  |  Norm of residual is %.3e, residual ratio is %.3e\n", norm_residual, norm_residual / tol_multiplier);
     }
 
     return ni;

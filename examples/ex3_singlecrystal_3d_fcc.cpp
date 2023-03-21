@@ -35,7 +35,6 @@ void run()
     double C11{108e3}, C12{61e3}, C44{29e3}; // Elastic constants
     // double E0 = 64e3, mu0 = 0.36;      // Young's modulus and Poisson's ratio
     double critical_bstrain = 1.0e-2; // critical bond strain value at which bond will break
-    int nbreak = 20;                  // limit the broken number of bonds in a single iteration, should be an even number
 
     std::vector<Particle<n_layer> *> top, bottom, left, right, front, back, internal;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
@@ -78,7 +77,7 @@ void run()
             {
                 // cast to elastic bond (or other type of bonds)
                 BondElastic<n_layer> *elbd = dynamic_cast<BondElastic<n_layer> *>(bd);
-                elbd->setBondProperty(C11, C12, C44, critical_bstrain, nbreak);
+                elbd->setBondProperty(C11, C12, C44, critical_bstrain);
                 // elbd->setBondProperty(E0, mu0, critical_bstrain, nbreak);
             }
         }

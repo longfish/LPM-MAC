@@ -25,15 +25,15 @@ public:
     double damage_visual{0.}; // damage value for visualization
     UnitCell cell;            // unit cell
 
-    std::array<int, NDIM> disp_constraint{0};                                           // disp BC indicator, 1 means disp BC applied, 0 otherwise
-    std::array<double, nlayer> dLe_total, TdLe_total, ddL_total, TddL_total;            // volumetric bond measure
-    std::array<double, nlayer> cs_sumx, cs_sumy, cs_sumz, Tcs_sumx, Tcs_sumy, Tcs_sumz; // volumetric bond measure
-    std::array<double, NDIM> xyz, xyz_initial, xyz_last;                                // particle coordinates
-    std::array<double, NDIM> Pin{0}, Pex{0};                                            // internal and external particle force
-    std::array<std::vector<Bond<nlayer> *>, nlayer> bond_layers;                        // an array that store n layers of bonds
-    std::vector<Particle<nlayer> *> neighbors;                                          // vector that stores all particles that form bonds
-    std::vector<Particle<nlayer> *> conns;                                              // all connections of the particle (include self)
-    std::array<double, NDIM * NDIM> stress{0}, strain{0};                               // stress and strain tensor
+    std::array<int, NDIM> disp_constraint{0};                    // disp BC indicator, 1 means disp BC applied, 0 otherwise
+    std::array<double, nlayer> dLe_total, ddL_total;             // volumetric bond measure
+    std::array<double, nlayer> cs_sumx, cs_sumy, cs_sumz;        // volumetric bond measure
+    std::array<double, NDIM> xyz, xyz_initial, xyz_last;         // particle coordinates
+    std::array<double, NDIM> Pin{0}, Pex{0};                     // internal and external particle force
+    std::array<std::vector<Bond<nlayer> *>, nlayer> bond_layers; // an array that store n layers of bonds
+    std::vector<Particle<nlayer> *> neighbors;                   // vector that stores all particles that form bonds
+    std::vector<Particle<nlayer> *> conns;                       // all connections of the particle (include self)
+    std::array<double, NDIM * NDIM> stress{0}, strain{0};        // stress and strain tensor
 
     Particle(const int &p_id) : cell{LatticeType::SimpleCubic3D, 0} { id = p_id; };
     Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type);
@@ -47,7 +47,6 @@ public:
     bool hasAFEMneighbor(Particle<nlayer> *pj, int layer);
 
     void updateParticleForce();
-    void updateVisualDamage();
     void updateBondsGeometry();
     void updateBondsForce();
     void resumeParticle();
@@ -69,11 +68,11 @@ bool Particle<nlayer>::hasAFEMneighbor(Particle<nlayer> *pj, int layer)
 {
     for (Bond<nlayer> *bd1 : bond_layers[layer])
     {
-        if (bd1->p2->id == pj->id)
+        if ((bd1->p2->id == pj->id) && !(bd1->broken))
             return true;
         for (Bond<nlayer> *bd2 : bd1->p2->bond_layers[layer])
         {
-            if (bd2->p2->id == pj->id)
+            if ((bd2->p2->id == pj->id) && !(bd2->broken))
                 return true;
         }
     }
@@ -135,25 +134,18 @@ void Particle<nlayer>::updateBondsGeometry()
     // update all the neighbors information
     for (int i = 0; i < nlayer; ++i)
     {
-        dLe_total[i] = 0, TdLe_total[i] = 0;
-        ddL_total[i] = 0, TddL_total[i] = 0;
+        dLe_total[i] = 0, ddL_total[i] = 0;
         cs_sumx[i] = 0, cs_sumy[i] = 0, cs_sumz[i] = 0;
-        Tcs_sumx[i] = 0, Tcs_sumy[i] = 0, Tcs_sumz[i] = 0;
         for (Bond<nlayer> *bd : bond_layers[i])
         {
+            if (bd->broken)
+                continue;
             bd->updatebGeometry();
-
             dLe_total[i] += bd->dLe;
-            TdLe_total[i] += bd->Tv * bd->dLe;
             ddL_total[i] += bd->ddL;
-            TddL_total[i] += bd->Tv * bd->ddL;
-
             cs_sumx[i] += bd->csx;
             cs_sumy[i] += bd->csy;
             cs_sumz[i] += bd->csz;
-            Tcs_sumx[i] += bd->Tv * bd->csx;
-            Tcs_sumy[i] += bd->Tv * bd->csy;
-            Tcs_sumz[i] += bd->Tv * bd->csz;
         }
     }
 }
@@ -175,19 +167,6 @@ void Particle<nlayer>::resumeParticle()
     // used for calculating stiffness matrix
     updateBondsGeometry();
     updateBondsForce();
-}
-
-template <int nlayer>
-void Particle<nlayer>::updateVisualDamage()
-{
-    for (int i = 0; i < nlayer; ++i)
-    {
-        for (Bond<nlayer> *bd : bond_layers[i])
-        {
-            damage_visual += bd->bdamage;
-        }
-    }
-    damage_visual = damage_visual / nb;
 }
 
 template <int nlayer>

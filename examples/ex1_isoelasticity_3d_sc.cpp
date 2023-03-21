@@ -37,7 +37,6 @@ void run()
     // material elastic parameters setting, MPa
     double E0 = 69e3, mu0 = 0.3;      // Young's modulus and Poisson's ratio
     double critical_bstrain = 1.0e-2; // critical bond strain value at which bond will break
-    int nbreak = 20;                  // limit the broken number of bonds in a single iteration, should be an even number
 
     std::vector<Particle<n_layer> *> top_group, bottom_group, internal_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
@@ -57,7 +56,7 @@ void run()
             {
                 // cast to elastic bond (or other type of bonds)
                 BondElastic<n_layer> *elbd = dynamic_cast<BondElastic<n_layer> *>(bd);
-                elbd->setBondProperty(E0, mu0, critical_bstrain, nbreak);
+                elbd->setBondProperty(E0, mu0, critical_bstrain);
             }
         }
     }

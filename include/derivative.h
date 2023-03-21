@@ -14,22 +14,22 @@ std::array<std::array<double, NDIM>, NDIM> fdu2dxyz(Particle<nlayer> *pi) /* The
         for (Bond<nlayer> *bd : pi->bond_layers[i])
         {
             /*d2udxidxi, 1 1*/
-            du2dxyz[0][0] += (bd->Kn * bd->csx + 0.5 * pi->Tcs_sumx[i] + 0.5 * bd->Tv * pi->cs_sumx[i]) * bd->csx +
+            du2dxyz[0][0] += (bd->Kn * bd->csx + bd->Tv * pi->cs_sumx[i]) * bd->csx +
                              (bd->Kn + bd->Tv) * pow(bd->csx, 2);
             /*d2udxidyi, 1 2*/
-            du2dxyz[0][1] += (bd->Kn * bd->csy + 0.5 * pi->Tcs_sumy[i] + 0.5 * bd->Tv * pi->cs_sumy[i]) * bd->csx +
+            du2dxyz[0][1] += (bd->Kn * bd->csy + bd->Tv * pi->cs_sumy[i]) * bd->csx +
                              (bd->Kn + bd->Tv) * bd->csy * bd->csx;
             /*d2udxidzi, 1 3*/
-            du2dxyz[0][2] += (bd->Kn * bd->csz + 0.5 * pi->Tcs_sumz[i] + 0.5 * bd->Tv * pi->cs_sumz[i]) * bd->csx +
+            du2dxyz[0][2] += (bd->Kn * bd->csz + bd->Tv * pi->cs_sumz[i]) * bd->csx +
                              (bd->Kn + bd->Tv) * bd->csz * bd->csx;
             /*d2udyidyi, 2 2*/
-            du2dxyz[1][1] += (bd->Kn * bd->csy + 0.5 * pi->Tcs_sumy[i] + 0.5 * bd->Tv * pi->cs_sumy[i]) * bd->csy +
+            du2dxyz[1][1] += (bd->Kn * bd->csy + bd->Tv * pi->cs_sumy[i]) * bd->csy +
                              (bd->Kn + bd->Tv) * pow(bd->csy, 2);
             /*d2udyidzi, 2 3*/
-            du2dxyz[1][2] += (bd->Kn * bd->csz + 0.5 * pi->Tcs_sumz[i] + 0.5 * bd->Tv * pi->cs_sumz[i]) * bd->csy +
+            du2dxyz[1][2] += (bd->Kn * bd->csz + bd->Tv * pi->cs_sumz[i]) * bd->csy +
                              (bd->Kn + bd->Tv) * bd->csz * bd->csy;
             /*d2udzidzi, 3 3*/
-            du2dxyz[2][2] += (bd->Kn * bd->csz + 0.5 * pi->Tcs_sumz[i] + 0.5 * bd->Tv * pi->cs_sumz[i]) * bd->csz +
+            du2dxyz[2][2] += (bd->Kn * bd->csz + bd->Tv * pi->cs_sumz[i]) * bd->csz +
                              (bd->Kn + bd->Tv) * pow(bd->csz, 2);
         }
     }
@@ -59,31 +59,31 @@ std::array<std::array<double, NDIM>, NDIM> fdu2dxyz1(Particle<nlayer> *pi, Parti
                 if (bd1->p2->id == bd2->p2->id)
                 {
                     /*d2udxidxj, 1 1*/
-                    du2dxyz1[0][0] += (-bd2->Kn * bd2->csx + 0.5 * bd2->p2->Tcs_sumx[0] + 0.5 * bd2->Tv * bd2->p2->cs_sumx[0]) * bd2->csx -
+                    du2dxyz1[0][0] += (-bd2->Kn * bd2->csx + bd2->Tv * bd2->p2->cs_sumx[0]) * bd2->csx -
                                       (bd2->Kn + bd2->Tv) * pow(bd2->csx, 2);
                     /*d2udxidyj, 1 2*/
-                    du2dxyz1[0][1] += (-bd2->Kn * bd2->csy + 0.5 * bd2->p2->Tcs_sumy[0] + 0.5 * bd2->Tv * bd2->p2->cs_sumy[0]) * bd2->csx -
+                    du2dxyz1[0][1] += (-bd2->Kn * bd2->csy + bd2->Tv * bd2->p2->cs_sumy[0]) * bd2->csx -
                                       (bd2->Kn + bd2->Tv) * bd2->csy * bd2->csx;
                     /*d2udxidzj, 1 3*/
-                    du2dxyz1[0][2] += (-bd2->Kn * bd2->csz + 0.5 * bd2->p2->Tcs_sumz[0] + 0.5 * bd2->Tv * bd2->p2->cs_sumz[0]) * bd2->csx -
+                    du2dxyz1[0][2] += (-bd2->Kn * bd2->csz + bd2->Tv * bd2->p2->cs_sumz[0]) * bd2->csx -
                                       (bd2->Kn + bd2->Tv) * bd2->csz * bd2->csx;
                     /*d2udyidxj, 2 1*/
-                    du2dxyz1[1][0] += (-bd2->Kn * bd2->csx + 0.5 * bd2->p2->Tcs_sumx[0] + 0.5 * bd2->Tv * bd2->p2->cs_sumx[0]) * bd2->csy -
+                    du2dxyz1[1][0] += (-bd2->Kn * bd2->csx + bd2->Tv * bd2->p2->cs_sumx[0]) * bd2->csy -
                                       (bd2->Kn + bd2->Tv) * bd2->csy * bd2->csx;
                     /*d2udyidyj, 2 2*/
-                    du2dxyz1[1][1] += (-bd2->Kn * bd2->csy + 0.5 * bd2->p2->Tcs_sumy[0] + 0.5 * bd2->Tv * bd2->p2->cs_sumy[0]) * bd2->csy -
+                    du2dxyz1[1][1] += (-bd2->Kn * bd2->csy + bd2->Tv * bd2->p2->cs_sumy[0]) * bd2->csy -
                                       (bd2->Kn + bd2->Tv) * pow(bd2->csy, 2);
                     /*d2udyidzj, 2 3*/
-                    du2dxyz1[1][2] += (-bd2->Kn * bd2->csz + 0.5 * bd2->p2->Tcs_sumz[0] + 0.5 * bd2->Tv * bd2->p2->cs_sumz[0]) * bd2->csy -
+                    du2dxyz1[1][2] += (-bd2->Kn * bd2->csz + bd2->Tv * bd2->p2->cs_sumz[0]) * bd2->csy -
                                       (bd2->Kn + bd2->Tv) * bd2->csz * bd2->csy;
                     /*d2udzidxj, 3 1*/
-                    du2dxyz1[2][0] += (-bd2->Kn * bd2->csx + 0.5 * bd2->p2->Tcs_sumx[0] + 0.5 * bd2->Tv * bd2->p2->cs_sumx[0]) * bd2->csz -
+                    du2dxyz1[2][0] += (-bd2->Kn * bd2->csx + bd2->Tv * bd2->p2->cs_sumx[0]) * bd2->csz -
                                       (bd2->Kn + bd2->Tv) * bd2->csz * bd2->csx;
                     /*d2udzidyj, 3 2*/
-                    du2dxyz1[2][1] += (-bd2->Kn * bd2->csy + 0.5 * bd2->p2->Tcs_sumy[0] + 0.5 * bd2->Tv * bd2->p2->cs_sumy[0]) * bd2->csz -
+                    du2dxyz1[2][1] += (-bd2->Kn * bd2->csy + bd2->Tv * bd2->p2->cs_sumy[0]) * bd2->csz -
                                       (bd2->Kn + bd2->Tv) * bd2->csz * bd2->csy;
                     /*d2udzidzj, 3 3*/
-                    du2dxyz1[2][2] += (-bd2->Kn * bd2->csz + 0.5 * bd2->p2->Tcs_sumz[0] + 0.5 * bd2->Tv * bd2->p2->cs_sumz[0]) * bd2->csz -
+                    du2dxyz1[2][2] += (-bd2->Kn * bd2->csz + bd2->Tv * bd2->p2->cs_sumz[0]) * bd2->csz -
                                       (bd2->Kn + bd2->Tv) * pow(bd2->csz, 2);
                 }
                 else
@@ -156,31 +156,31 @@ std::array<std::array<double, NDIM>, NDIM> fdu2dxyz2(Particle<nlayer> *pi, Parti
                 if (bd1->p2->id == bd2->p2->id)
                 {
                     /*d2udxidxj, 1 1*/
-                    du2dxyz2[0][0] += (-bd2->Kn * bd2->csx + 0.5 * bd2->p2->Tcs_sumx[1] + 0.5 * bd2->Tv * bd2->p2->cs_sumx[1]) * bd2->csx -
+                    du2dxyz2[0][0] += (-bd2->Kn * bd2->csx + bd2->Tv * bd2->p2->cs_sumx[1]) * bd2->csx -
                                       (bd2->Kn + bd2->Tv) * pow(bd2->csx, 2);
                     /*d2udxidyj, 1 2*/
-                    du2dxyz2[0][1] += (-bd2->Kn * bd2->csy + 0.5 * bd2->p2->Tcs_sumy[1] + 0.5 * bd2->Tv * bd2->p2->cs_sumy[1]) * bd2->csx -
+                    du2dxyz2[0][1] += (-bd2->Kn * bd2->csy + bd2->Tv * bd2->p2->cs_sumy[1]) * bd2->csx -
                                       (bd2->Kn + bd2->Tv) * bd2->csy * bd2->csx;
                     /*d2udxidzj, 1 3*/
-                    du2dxyz2[0][2] += (-bd2->Kn * bd2->csz + 0.5 * bd2->p2->Tcs_sumz[1] + 0.5 * bd2->Tv * bd2->p2->cs_sumz[1]) * bd2->csx -
+                    du2dxyz2[0][2] += (-bd2->Kn * bd2->csz + bd2->Tv * bd2->p2->cs_sumz[1]) * bd2->csx -
                                       (bd2->Kn + bd2->Tv) * bd2->csz * bd2->csx;
                     /*d2udyidxj, 2 1*/
-                    du2dxyz2[1][0] += (-bd2->Kn * bd2->csx + 0.5 * bd2->p2->Tcs_sumx[1] + 0.5 * bd2->Tv * bd2->p2->cs_sumx[1]) * bd2->csy -
+                    du2dxyz2[1][0] += (-bd2->Kn * bd2->csx + bd2->Tv * bd2->p2->cs_sumx[1]) * bd2->csy -
                                       (bd2->Kn + bd2->Tv) * bd2->csy * bd2->csx;
                     /*d2udyidyj, 2 2*/
-                    du2dxyz2[1][1] += (-bd2->Kn * bd2->csy + 0.5 * bd2->p2->Tcs_sumy[1] + 0.5 * bd2->Tv * bd2->p2->cs_sumy[1]) * bd2->csy -
+                    du2dxyz2[1][1] += (-bd2->Kn * bd2->csy + bd2->Tv * bd2->p2->cs_sumy[1]) * bd2->csy -
                                       (bd2->Kn + bd2->Tv) * pow(bd2->csy, 2);
                     /*d2udyidzj, 2 3*/
-                    du2dxyz2[1][2] += (-bd2->Kn * bd2->csz + 0.5 * bd2->p2->Tcs_sumz[1] + 0.5 * bd2->Tv * bd2->p2->cs_sumz[1]) * bd2->csy -
+                    du2dxyz2[1][2] += (-bd2->Kn * bd2->csz + bd2->Tv * bd2->p2->cs_sumz[1]) * bd2->csy -
                                       (bd2->Kn + bd2->Tv) * bd2->csz * bd2->csy;
                     /*d2udzidxj, 3 1*/
-                    du2dxyz2[2][0] += (-bd2->Kn * bd2->csx + 0.5 * bd2->p2->Tcs_sumx[1] + 0.5 * bd2->Tv * bd2->p2->cs_sumx[1]) * bd2->csz -
+                    du2dxyz2[2][0] += (-bd2->Kn * bd2->csx + bd2->Tv * bd2->p2->cs_sumx[1]) * bd2->csz -
                                       (bd2->Kn + bd2->Tv) * bd2->csz * bd2->csx;
                     /*d2udzidyj, 3 2*/
-                    du2dxyz2[2][1] += (-bd2->Kn * bd2->csy + 0.5 * bd2->p2->Tcs_sumy[1] + 0.5 * bd2->Tv * bd2->p2->cs_sumy[1]) * bd2->csz -
+                    du2dxyz2[2][1] += (-bd2->Kn * bd2->csy + bd2->Tv * bd2->p2->cs_sumy[1]) * bd2->csz -
                                       (bd2->Kn + bd2->Tv) * bd2->csz * bd2->csy;
                     /*d2udzidzj, 3 3*/
-                    du2dxyz2[2][2] += (-bd2->Kn * bd2->csz + 0.5 * bd2->p2->Tcs_sumz[1] + 0.5 * bd2->Tv * bd2->p2->cs_sumz[1]) * bd2->csz -
+                    du2dxyz2[2][2] += (-bd2->Kn * bd2->csz + bd2->Tv * bd2->p2->cs_sumz[1]) * bd2->csz -
                                       (bd2->Kn + bd2->Tv) * pow(bd2->csz, 2);
                 }
                 else

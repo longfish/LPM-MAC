@@ -6,7 +6,7 @@
 #include "load_step.h"
 #include "solver.h"
 
-void writeK_global(const char *dataName,double *K_global, int l)
+void writeK_global(const char *dataName, double *K_global, int l)
 {
     FILE *fpt;
     fpt = fopen(dataName, "w+");
@@ -35,8 +35,9 @@ void run()
 
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
-    std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0};
-    Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DSquare.dump", "../geometry/geo1_CT_2DSquare.bond", cell, BondType::Elastic}; // read coordinate from local files
+    std::array<double, 2 * NDIM> box{0.0, 63.5, 0.0, 61.0, 0.0, 1.0};
+    // Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DSquare.dump", "../geometry/geo1_CT_2DSquare.bond", cell, BondType::Elastic}; // read coordinate from local files
+    Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DSQ_nohole.dump", "../geometry/geo1_CT_2DSQ_nohole.bond", cell, BondType::Elastic}; // read coordinate from local files
     // std::vector<std::array<double, NDIM>> sq_xyz = createPlateSQ2D(box, cell, R_matrix);
     // Assembly<n_layer> pt_ass{sq_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
 
@@ -45,12 +46,13 @@ void run()
     // material elastic parameters setting, MPa
     double E0 = 69e3, mu0 = 0.3;      // Young's modulus and Poisson's ratio
     double critical_bstrain = 1.0e-2; // critical bond strain value at which bond will break
-    int nbreak = 20;                  // limit the broken number of bonds in a single iteration, should be an even number
 
     std::vector<Particle<n_layer> *> top_group, bottom_group, internal_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
         // assign boundary and internal particles
+        // if (p1->xyz[0] > box[1] - 25.4)
+        // {
         if (p1->xyz[1] > box[3] - 2 * radius)
         {
             top_group.push_back(p1); // top
@@ -61,6 +63,7 @@ void run()
             bottom_group.push_back(p1); // bottom
             p1->type = 2;
         }
+        //}
         if (p1->nb == cell.nneighbors)
             internal_group.push_back(p1); // particles with full neighbor list
 
@@ -71,14 +74,14 @@ void run()
             {
                 // cast to elastic bond (or other type of bonds)
                 BondElastic<n_layer> *elbd = dynamic_cast<BondElastic<n_layer> *>(bd);
-                elbd->setBondProperty(E0, mu0, critical_bstrain, nbreak);
+                elbd->setBondProperty(E0, mu0, critical_bstrain);
             }
         }
     }
 
     // simulation settings
-    int n_steps = 1;          // number of loading steps
-    double step_size = -1e-3; // step size for force or displacement loading
+    int n_steps = 60;        // number of loading steps
+    double step_size = -1e+2; // step size for force or displacement loading
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
@@ -87,9 +90,9 @@ void run()
 
         // boundary conditions
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', -step_size));
-        //step.dispBCs.push_back(DispBC<n_layer>(top_group, 'z', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'y', step_size));
+        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', 0.0));
+        // step.dispBCs.push_back(DispBC<n_layer>(top_group, 'z', 0.0));
+        step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, step_size, 0.0));
         load.push_back(step);
     }
 

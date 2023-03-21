@@ -18,16 +18,16 @@ class Particle;
 template <int nlayer>
 class Stiffness
 {
-    const double eps = 1e-6;
     StiffnessMode mode; // use finite difference or analytical approach to compute local stiffness
 
 public:
     MKL_INT *IK, *JK;
     int *K_pointer; // start index for each particle in the global stiffness matrix
-    double  *residual;
+    double *residual;
     std::vector<double> K_global;
 
     void initialize(std::vector<Particle<nlayer> *> &pt_sys);
+    void reset(std::vector<Particle<nlayer> *> &pt_sys);
     void calcStiffness3D(std::vector<Particle<nlayer> *> &pt_sys);
     void calcStiffness2D(std::vector<Particle<nlayer> *> &pt_sys);
     void updateStiffnessDispBC(std::vector<Particle<nlayer> *> &pt_sys);
@@ -67,6 +67,20 @@ void Stiffness<nlayer>::initialize(std::vector<Particle<nlayer> *> &pt_sys)
     JK = new MKL_INT[K_pointer[pt_sys.size()]];
     IK = new MKL_INT[pt_sys[0]->cell.dim * pt_sys.size() + 1];
     residual = new double[pt_sys[0]->cell.dim * pt_sys.size()];
+    K_global = std::vector<double>(K_pointer[pt_sys.size()]);
+}
+
+template <int nlayer>
+void Stiffness<nlayer>::reset(std::vector<Particle<nlayer> *> &pt_sys)
+{
+    for (auto pt : pt_sys)
+    {
+        if (pt->cell.dim == 2)
+            K_pointer[pt->id + 1] = K_pointer[pt->id] + (pt->cell.dim) * (pt->cell.dim) * (pt->nconn_largeq) - 1;
+        else
+            K_pointer[pt->id + 1] = K_pointer[pt->id] + (pt->cell.dim) * (pt->cell.dim) * (pt->nconn_largeq) - 3;
+    }
+
     K_global = std::vector<double>(K_pointer[pt_sys.size()]);
 }
 
@@ -140,7 +154,7 @@ std::array<std::array<double, NDIM>, NDIM> Stiffness<nlayer>::localStiffnessFD(P
 
     for (int r = 0; r < pj->cell.dim; ++r)
     {
-        xyz_temp[r] += eps * pj->cell.radius; // forward-difference
+        xyz_temp[r] += EPS * pj->cell.radius; // forward-difference
         pj->moveTo(xyz_temp);                 // move to a new position
 
         // update bforce of all common conns
@@ -154,13 +168,13 @@ std::array<std::array<double, NDIM>, NDIM> Stiffness<nlayer>::localStiffnessFD(P
 
         for (int s = 0; s < pi->cell.dim; s++)
         {
-            double K_value = (pi->Pin[s] - Pin_temp[s]) / eps / (pi->cell.radius);
+            double K_value = (pi->Pin[s] - Pin_temp[s]) / EPS / (pi->cell.radius);
             K_ij.push_back(K_value); // for each K_ij, index order is 11, 12, 13, 21, ..., 32, 33
             // if(pi->id == 20)
             // printf("%f, ", K_value);
         }
 
-        xyz_temp[r] -= eps * pj->cell.radius; // move back the particle position
+        xyz_temp[r] -= EPS * pj->cell.radius; // move back the particle position
         pj->moveTo(xyz_temp);
         for (Particle<nlayer> *pjj : pj->conns) // pj->conns or common_conns
             pjj->resumeParticle();

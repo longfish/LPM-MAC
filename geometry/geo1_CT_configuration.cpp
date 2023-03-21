@@ -61,20 +61,7 @@ bool inNotch(const std::array<double, NDIM> &pt, const std::array<double, NDIM> 
     return false;
 }
 
-/* test if the point is valid or not */
-bool isValid(const std::array<double, NDIM> &pt)
-{
-    if (inCircle(pt, {40.0 - 10.5, 9.2, 0.0}, 9.5 / 2.0))
-        return false; // top circle
-    if (inCircle(pt, {40.0 - 10.5, 40.0 - 9.2, 0.0}, 9.5 / 2.0))
-        return false; // bottom circle
-    if (inCircle(pt, {23.0 - 8.3, 20.0 + 8.1, 0.0}, 3.5))
-        return false; // random circle (CT-1, refer to Zhang's PD validation paper)
-    if (inNotch(pt, {23.0, 20.0, 0.0}, 3.0 / 2.0))
-        return false; // notch
-
-    return true;
-}
+bool isValid(const std::array<double, NDIM> &pt); // declare the isValid function
 
 /* search the neighbor for the particle system, without a crack */
 std::vector<std::vector<int>> searchNeighbor(std::vector<std::array<double, NDIM>> &xyz, struct UnitCell cell)
@@ -121,6 +108,23 @@ std::vector<std::vector<int>> searchNeighbor(std::vector<std::array<double, NDIM
     return bonds;
 }
 
+/* test if the point is valid or not */
+bool isValid(const std::array<double, NDIM> &pt)
+{
+    // if (inCircle(pt, {40.0 - 10.5, 9.2, 0.0}, 9.5 / 2.0))
+    //     return false; // top circle
+    // if (inCircle(pt, {40.0 - 10.5, 40.0 - 9.2, 0.0}, 9.5 / 2.0))
+    //     return false; // bottom circle
+    // if (inCircle(pt, {23.0 - 8.3, 20.0 + 8.1, 0.0}, 3.5))
+    //     return false; // random circle (CT-1, refer to Zhang's PD validation paper)
+    // if (inNotch(pt, {23.0, 20.0, 0.0}, 3.0 / 2.0))
+    //     return false; // notch
+    if (inNotch(pt, {63.5 - 22.7, 30.5, 0.0}, 1.0))
+        return false; // notch
+
+    return true;
+}
+
 void run()
 {
     printf("\nCreating a CT model ...\n");
@@ -134,17 +138,18 @@ void run()
     double angles[] = {PI / 180.0 * 0.0, PI / 180.0 * 0.0, PI / 180.0 * 0.0};
     double *R_matrix = createRMatrix(eulerflag, angles);
 
-    std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0}; // thickness is used for force calculation
+    std::array<double, 2 * NDIM> box{0.0, 63.5, 0.0, 61.0, 0.0, 8.0}; // thickness is used for force calculation
+    // std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0}; // thickness is used for force calculation
     std::vector<std::array<double, NDIM>> sq_xyz = createPlateSQ2D(box, cell, R_matrix), sq_CT;
     for (std::array<double, NDIM> &pt : sq_xyz)
         if (isValid(pt))
             sq_CT.push_back(pt);
 
     std::cout << "\nTotal particle number is: " << sq_CT.size() << std::endl;
-    writeDump("../geometry/geo1_CT_2DSquare.dump", sq_CT, box);
+    writeDump("../geometry/geo1_CT_2DSQ_nohole.dump", sq_CT, box);
 
     std::vector<std::vector<int>> sq_bonds = searchNeighbor(sq_CT, cell);
-    writeBond("../geometry/geo1_CT_2DSquare.bond", sq_bonds);
+    writeBond("../geometry/geo1_CT_2DSQ_nohole.bond", sq_bonds);
 
     printf("\nDone.\n");
 }

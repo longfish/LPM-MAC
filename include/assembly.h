@@ -38,8 +38,9 @@ public:
 
     void createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
     void createBonds();
-    void createConnections();
+    void updateConnections();
     void updateForceState(); // update bond force and particle forces
+    bool updateDamage();     // update damage status, return true if any bonds are damaged
 
     std::map<int, Particle<nlayer> *> toMap();
     void readBond(const std::string &bondFile);
@@ -56,7 +57,7 @@ Assembly<nlayer>::Assembly(const std::string &dumpFile, UnitCell &p_cell, const 
     printf("Reading data ...\n");
     readDump(dumpFile, p_cell); // extract the particle system
     createBonds();
-    createConnections();
+    updateConnections();
 }
 
 template <int nlayer>
@@ -66,7 +67,12 @@ Assembly<nlayer>::Assembly(const std::string &dumpFile, const std::string &bondF
     printf("Reading data ...\n");
     readDump(dumpFile, p_cell);
     readBond(bondFile);
-    createConnections();
+
+#pragma omp parallel for
+    for (Particle<nlayer> *p1 : pt_sys)
+        p1->nb = p1->neighbors.size();
+
+    updateConnections();
 }
 
 template <int nlayer>
@@ -76,7 +82,7 @@ Assembly<nlayer>::Assembly(std::vector<std::array<double, NDIM>> &p_xyz, std::ar
     box = p_box;
     createParticles(p_xyz, p_cell);
     createBonds();
-    createConnections();
+    updateConnections();
     nparticle = pt_sys.size();
 }
 
@@ -101,6 +107,32 @@ void Assembly<nlayer>::updateForceState()
 
     for (Particle<nlayer> *pt : pt_sys)
         pt->updateParticleForce();
+}
+
+template <int nlayer>
+bool Assembly<nlayer>::updateDamage()
+{
+    // update particle-wise damage property
+    bool any_damaged{false};
+    for (Particle<nlayer> *pt : pt_sys)
+    {
+        pt->damage_visual = 0;
+        for (int i = 0; i < nlayer; ++i)
+        {
+            for (Bond<nlayer> *bd : pt->bond_layers[i])
+            {
+                double d_prev = bd->bdamage;
+                bd->updatebDamage(); // update bond damage properties
+                double d_curr = bd->bdamage;
+
+                any_damaged = any_damaged || (d_curr>d_prev);
+                pt->damage_visual += bd->bdamage;
+            }
+        }
+        pt->damage_visual = pt->damage_visual / pt->nb;
+    }
+
+    return any_damaged;
 }
 
 template <int nlayer>
@@ -141,21 +173,28 @@ void Assembly<nlayer>::createBonds()
 }
 
 template <int nlayer>
-void Assembly<nlayer>::createConnections()
+void Assembly<nlayer>::updateConnections()
 {
 #pragma omp parallel for
     for (Particle<nlayer> *p1 : pt_sys)
     {
+        p1->conns.clear(); // clear the connection list
         for (int i = 0; i < nlayer; i++)
         {
             // loop forward bond particles
             for (auto *bd_fw : p1->bond_layers[i])
             {
-                p1->conns.push_back(bd_fw->p2);
+                if (!(bd_fw->broken))
+                {
+                    p1->conns.push_back(bd_fw->p2);
 
-                // loop backward bond particles
-                for (auto *bd_bw : bd_fw->p2->bond_layers[i])
-                    p1->conns.push_back(bd_bw->p2);
+                    // loop backward bond particles
+                    for (auto *bd_bw : bd_fw->p2->bond_layers[i])
+                    {
+                        if (!(bd_bw->broken))
+                            p1->conns.push_back(bd_bw->p2);
+                    }
+                }
             }
         }
         std::sort(p1->conns.begin(), p1->conns.end(), [](Particle<nlayer> *a, Particle<nlayer> *b)

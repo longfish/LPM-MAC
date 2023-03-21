@@ -35,6 +35,7 @@ using namespace boost::adaptors;
 
 /* macros */
 #define PI 3.14159265358979323846
+#define EPS  1e-6
 #define NDIM 3                             /* max number of dimensions, no matter what dimension of the problem */
 #define MAX(x, y) ((x) < (y) ? (y) : (x))  /* Maximum of two variables */
 #define MIN(x, y) ((x) > (y) ? (y) : (x))  /* Minimum of two variables */
