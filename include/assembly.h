@@ -39,8 +39,8 @@ public:
     void createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
     void createBonds();
     void updateConnections();
-    void updateForceState(); // update bond force and particle forces
-    bool updateDamage();     // update damage status, return true if any bonds are damaged
+    void updateForceState();           // update bond force and particle forces
+    bool updateDamage(int max_broken); // update damage status, return true if any bonds are damaged
 
     std::map<int, Particle<nlayer> *> toMap();
     void readBond(const std::string &bondFile);
@@ -110,24 +110,53 @@ void Assembly<nlayer>::updateForceState()
 }
 
 template <int nlayer>
-bool Assembly<nlayer>::updateDamage()
+bool Assembly<nlayer>::updateDamage(int max_broken)
 {
-    // update particle-wise damage property
+    std::vector<Bond<nlayer> *> potential_broken_bonds;
+
+    // compute the bond damage indicator, store the bonds that may be broken
+    for (Particle<nlayer> *pt : pt_sys)
+    {
+        for (int i = 0; i < nlayer; ++i)
+        {
+            for (Bond<nlayer> *bd : pt->bond_layers[i])
+            {
+                if (bd->calcbDamageIndicator())
+                    potential_broken_bonds.push_back(bd);
+            }
+        }
+    }
+
+    if (potential_broken_bonds.size() == 0)
+        return false;
+
+    // sort the bonds by damage indicator
+    std::sort(potential_broken_bonds.begin(), potential_broken_bonds.end(), [](Bond<nlayer> *b1, Bond<nlayer> *b2)
+              { return b1->d_indicator > b2->d_indicator; });
+
+    // get the most damaged bonds
+    std::vector<Bond<nlayer> *> broken_bonds;
+    for (int i = 0; i < max_broken; ++i)
+        broken_bonds.push_back(potential_broken_bonds[i]);
+
+    // update the bond-wise damage property
     bool any_damaged{false};
+    for (Bond<nlayer> *bd : broken_bonds)
+    {
+        double d_prev = bd->bdamage;
+        bool broken_prev = bd->broken;
+        bd->updatebDamage(); // update bond damage properties
+        any_damaged = any_damaged || (abs(bd->bdamage - d_prev) > EPS);
+    }
+
+    // update particle-wise visual damage
     for (Particle<nlayer> *pt : pt_sys)
     {
         pt->damage_visual = 0;
         for (int i = 0; i < nlayer; ++i)
         {
             for (Bond<nlayer> *bd : pt->bond_layers[i])
-            {
-                double d_prev = bd->bdamage;
-                bd->updatebDamage(); // update bond damage properties
-                double d_curr = bd->bdamage;
-
-                any_damaged = any_damaged || (d_curr>d_prev);
                 pt->damage_visual += bd->bdamage;
-            }
         }
         pt->damage_visual = pt->damage_visual / pt->nb;
     }
