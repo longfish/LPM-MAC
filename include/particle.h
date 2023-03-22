@@ -19,7 +19,6 @@ protected:
 public:
     int id{0};                // identifier of the particle, id starts from 0
     int type{0};              // particle type which is needed to identify phases
-    int frozen{0};            // totally fix the particle's position
     int nconn_largeq{0};      // matrix pointer, number of conn larger than (or equal to) its own index
     int nb{0}, nconn{0};      // number of bonds and connections
     double damage_visual{0.}; // damage value for visualization
@@ -138,8 +137,6 @@ void Particle<nlayer>::updateBondsGeometry()
         cs_sumx[i] = 0, cs_sumy[i] = 0, cs_sumz[i] = 0;
         for (Bond<nlayer> *bd : bond_layers[i])
         {
-            if (bd->broken)
-                continue;
             bd->updatebGeometry();
             dLe_total[i] += bd->dLe;
             ddL_total[i] += bd->ddL;
