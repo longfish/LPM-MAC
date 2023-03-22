@@ -21,6 +21,7 @@ public:
     BondElastic(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2) : Bond<nlayer>{p_p1, p_p2} {}
     BondElastic(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2, int p_layer, double p_dis) : Bond<nlayer>{p_p1, p_p2, p_layer, p_dis} {}
 
+    bool calcbDamageIndicator();
     void updatebDamage();
     void updatebForce();
     void setBondProperty(double p_E, double p_mu, double p_cr_bstrain);
@@ -37,10 +38,18 @@ void BondElastic<nlayer>::updatebForce()
 }
 
 template <int nlayer>
+bool BondElastic<nlayer>::calcbDamageIndicator()
+{
+    this->d_indicator = this->dLe / this->dis_initial; // note the dLe of broken bonds should be already zero
+    if (this->d_indicator >= cr_bstrain)
+        return true; // potential broken bond
+    return false;
+}
+
+template <int nlayer>
 void BondElastic<nlayer>::updatebDamage()
 {
-    this->bstrain = this->dLe / this->dis_initial;
-    if (this->bstrain >= cr_bstrain && !(this->damaged))
+    if (this->d_indicator >= cr_bstrain)
     {
         this->bdamage = 1.0;
         this->Kn *= (1.0 - this->bdamage);
