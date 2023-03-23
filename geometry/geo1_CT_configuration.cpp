@@ -111,16 +111,16 @@ std::vector<std::vector<int>> searchNeighbor(std::vector<std::array<double, NDIM
 /* test if the point is valid or not */
 bool isValid(const std::array<double, NDIM> &pt)
 {
-    // if (inCircle(pt, {40.0 - 10.5, 9.2, 0.0}, 9.5 / 2.0))
-    //     return false; // top circle
-    // if (inCircle(pt, {40.0 - 10.5, 40.0 - 9.2, 0.0}, 9.5 / 2.0))
-    //     return false; // bottom circle
-    // if (inCircle(pt, {23.0 - 8.3, 20.0 + 8.1, 0.0}, 3.5))
-    //     return false; // random circle (CT-1, refer to Zhang's PD validation paper)
-    // if (inNotch(pt, {23.0, 20.0, 0.0}, 3.0 / 2.0))
-    //     return false; // notch
-    if (inNotch(pt, {63.5 - 22.7, 30.5, 0.0}, 1.0))
+    if (inCircle(pt, {40.0 - 10.5, 9.2, 0.0}, 9.5 / 2.0))
+        return false; // top circle
+    if (inCircle(pt, {40.0 - 10.5, 40.0 - 9.2, 0.0}, 9.5 / 2.0))
+        return false; // bottom circle
+    if (inCircle(pt, {23.0 - 8.3, 20.0 + 8.1, 0.0}, 3.5))
+        return false; // random circle (CT-1, refer to Zhang's PD validation paper)
+    if (inNotch(pt, {23.0, 20.0, 0.0}, 3.0 / 2.0))
         return false; // notch
+    // if (inNotch(pt, {63.5 - 22.7, 30.5, 0.0}, 1.0))
+    //     return false; // notch for no-hole plate
 
     return true;
 }
@@ -131,25 +131,27 @@ void run()
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
     double radius = 0.2;   // particle radius
-    UnitCell cell(LatticeType::Square2D, radius);
+    UnitCell cell(LatticeType::Hexagon2D, radius);
 
     // Euler angles setting for system rotation
     int eulerflag = 0; // direct rotation
     double angles[] = {PI / 180.0 * 0.0, PI / 180.0 * 0.0, PI / 180.0 * 0.0};
     double *R_matrix = createRMatrix(eulerflag, angles);
 
-    std::array<double, 2 * NDIM> box{0.0, 63.5, 0.0, 61.0, 0.0, 8.0}; // thickness is used for force calculation
-    // std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0}; // thickness is used for force calculation
-    std::vector<std::array<double, NDIM>> sq_xyz = createPlateSQ2D(box, cell, R_matrix), sq_CT;
-    for (std::array<double, NDIM> &pt : sq_xyz)
+    // std::array<double, 2 * NDIM> box{0.0, 63.5, 0.0, 61.0, 0.0, 8.0}; // thickness is used for force calculation
+    std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0}; // thickness is used for force calculation
+    // std::vector<std::array<double, NDIM>> sq_xyz = createPlateSQ2D(box, cell, R_matrix), sq_CT;
+    std::vector<std::array<double, NDIM>> hex_xyz = createPlateHEX2D(box, cell, R_matrix), hex_CT;
+
+    for (std::array<double, NDIM> &pt : hex_xyz)
         if (isValid(pt))
-            sq_CT.push_back(pt);
+            hex_CT.push_back(pt);
 
-    std::cout << "\nTotal particle number is: " << sq_CT.size() << std::endl;
-    writeDump("../geometry/geo1_CT_2DSQ_nohole.dump", sq_CT, box);
+    std::cout << "\nTotal particle number is: " << hex_CT.size() << std::endl;
+    writeDump("../geometry/geo1_CT_2DHEX.dump", hex_CT, box);
 
-    std::vector<std::vector<int>> sq_bonds = searchNeighbor(sq_CT, cell);
-    writeBond("../geometry/geo1_CT_2DSQ_nohole.bond", sq_bonds);
+    std::vector<std::vector<int>> hex_bonds = searchNeighbor(hex_CT, cell);
+    writeBond("../geometry/geo1_CT_2DHEX.bond", hex_bonds);
 
     printf("\nDone.\n");
 }
