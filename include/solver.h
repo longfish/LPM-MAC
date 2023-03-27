@@ -16,11 +16,11 @@
 template <int nlayer>
 class Solver
 {
-    const int max_broken = 2;     /* maximum broken bonds in an iteration */
     const int max_iter = 20;      /* maximum global iteration number */
     const double tol_iter = 1e-5; /* newton iteration tolerance */
 
     int problem_size;
+    int max_broken; /* maximum broken bonds in an iteration */
     double *disp;
     std::string dumpFile;
     std::vector<double> reaction_force;
@@ -38,12 +38,13 @@ public:
 
     int NewtonIteration(Assembly<nlayer> &ass); // return number of Newton iterations
 
-    Solver(Assembly<nlayer> &ass, const StiffnessMode &p_stiff_mode, const SolverMode &p_sol_mode, const std::string &p_dumpFile)
-        : sol_mode{p_sol_mode}, stiffness(ass.pt_sys, p_stiff_mode), dumpFile(p_dumpFile)
+    Solver(Assembly<nlayer> &ass, const StiffnessMode &p_stiff_mode, const SolverMode &p_sol_mode, const std::string &p_dumpFile, const int p_max_broken)
+        : sol_mode{p_sol_mode}, stiffness(ass.pt_sys, p_stiff_mode), dumpFile(p_dumpFile),
     { // stiff_mode = 0 means finite difference; 1 means analytical
         problem_size = (ass.pt_sys[0]->cell.dim) * ass.pt_sys.size();
         disp = new double[problem_size];
         dumpFile = p_dumpFile;
+        max_broken = p_max_broken;
     }
 
     ~Solver()

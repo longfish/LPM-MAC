@@ -112,6 +112,7 @@ void Assembly<nlayer>::updateForceState()
 template <int nlayer>
 bool Assembly<nlayer>::updateDamage(int max_broken)
 {
+    bool any_damaged{false};
     std::vector<Bond<nlayer> *> potential_broken_bonds;
 
     // compute the bond damage indicator, store the bonds that may be broken
@@ -121,32 +122,31 @@ bool Assembly<nlayer>::updateDamage(int max_broken)
         {
             for (Bond<nlayer> *bd : pt->bond_layers[i])
             {
+                double d_prev = bd->bdamage;
                 if (bd->calcbDamageIndicator())
                     potential_broken_bonds.push_back(bd);
+                any_damaged = any_damaged || (abs(bd->bdamage - d_prev) > EPS);
             }
         }
     }
 
-    if (potential_broken_bonds.size() == 0)
-        return false;
-
-    // sort the bonds by damage indicator
-    std::sort(potential_broken_bonds.begin(), potential_broken_bonds.end(), [](Bond<nlayer> *b1, Bond<nlayer> *b2)
-              { return b1->d_indicator > b2->d_indicator; });
-
-    // get the most damaged bonds
-    std::vector<Bond<nlayer> *> broken_bonds;
-    for (int i = 0; i < max_broken; ++i)
-        broken_bonds.push_back(potential_broken_bonds[i]);
-
-    // update the bond-wise damage property
-    bool any_damaged{false};
-    for (Bond<nlayer> *bd : broken_bonds)
+    // update the state if broken bonds are detected
+    if (!potential_broken_bonds.empty())
     {
-        double d_prev = bd->bdamage;
-        bool broken_prev = bd->broken;
-        bd->updatebDamage(); // update bond damage properties
-        any_damaged = any_damaged || (abs(bd->bdamage - d_prev) > EPS);
+        // sort the bonds by damage indicator
+        std::sort(potential_broken_bonds.begin(), potential_broken_bonds.end(), [](Bond<nlayer> *b1, Bond<nlayer> *b2)
+                  { return b1->d_indicator > b2->d_indicator; });
+
+        // get the most damaged bonds
+        std::vector<Bond<nlayer> *> broken_bonds;
+        for (int i = 0; i < max_broken; ++i)
+            broken_bonds.push_back(potential_broken_bonds[i]);
+
+        // update the bond-wise damage property
+        for (Bond<nlayer> *bd : broken_bonds)
+            bd->updatebBroken(); // update bond properties after broken
+
+        any_damaged = true;
     }
 
     // update particle-wise visual damage

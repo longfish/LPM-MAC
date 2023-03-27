@@ -29,7 +29,7 @@ public:
     Particle<nlayer> *p1, *p2;                    // particles are not owned by the bond (only store the location)
 
     virtual void updatebForce() { bforce = 0; }
-    virtual void updatebDamage() { damaged = false; }
+    virtual void updatebBroken() { damaged = false; }
     virtual bool calcbDamageIndicator() { return false; } // return true if the bond will potentially break
 
     void updatebGeometry()

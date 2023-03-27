@@ -88,7 +88,7 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "CT_2DHex_position.dump"}; // stiffness mode and solution mode
+    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "CT_2DHex_position.dump", cell.nneighbors}; // stiffness mode and solution mode
     solv.solveProblem(pt_ass, load);
 
     double finish = omp_get_wtime();
