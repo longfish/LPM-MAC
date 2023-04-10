@@ -25,22 +25,17 @@ public:
     double csx{0}, csy{0}, csz{0};                // direction cosine
     double bforce_last{0}, bforce{0}, bdamage{0}; // bond-wise quantities
     double d_indicator{0};                        // damage indicator
-    bool damaged{false}, broken{false};           // bond-wise damage status
     Particle<nlayer> *p1, *p2;                    // particles are not owned by the bond (only store the location)
-
-    virtual void updatebForce() { bforce = 0; }
-    virtual void updatebBroken() { damaged = false; }
-    virtual bool calcbDamageIndicator() { return false; } // return true if the bond will potentially break
 
     void updatebGeometry()
     {
         dis_last = dis;
-        dis = (this->broken) ? (0.0) : (p1->distanceTo(p2));
-        dLe = (this->broken) ? (0.0) : (dis - dis_initial - dLp);
-        ddL = (this->broken) ? (0.0) : (dis - dis_last);
-        csx = (this->broken) ? (0.0) : (p1->xyz[0] - p2->xyz[0]) / dis;
-        csy = (this->broken) ? (0.0) : (p1->xyz[1] - p2->xyz[1]) / dis;
-        csz = (this->broken) ? (0.0) : (p1->xyz[2] - p2->xyz[2]) / dis;
+        dis = p1->distanceTo(p2);
+        dLe = dis - dis_initial - dLp;
+        ddL = dis - dis_last;
+        csx = (p1->xyz[0] - p2->xyz[0]) / dis;
+        csy = (p1->xyz[1] - p2->xyz[1]) / dis;
+        csz = (p1->xyz[2] - p2->xyz[2]) / dis;
     }
 
     Bond(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2)

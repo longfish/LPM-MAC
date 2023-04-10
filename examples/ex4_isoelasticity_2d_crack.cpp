@@ -24,7 +24,7 @@ void run()
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
     std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0}; // thickness is used for force calculation
-    Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DHEX.dump", "../geometry/geo1_CT_2DHEX.bond", cell, BondType::Elastic}; // read coordinate from local files
+    Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DHEX.dump", "../geometry/geo1_CT_2DHEX.bond", cell, ParticleType::Elastic}; // read coordinate from local files
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
@@ -52,16 +52,9 @@ void run()
             p1->type = 3;
         }
 
-        // assign material properties
-        for (int i = 0; i < n_layer; ++i)
-        {
-            for (auto bd : p1->bond_layers[i])
-            {
-                // cast to elastic bond (or other type of bonds)
-                BondElastic<n_layer> *elbd = dynamic_cast<BondElastic<n_layer> *>(bd);
-                elbd->setBondProperty(E0, mu0, critical_bstrain);
-            }
-        }
+        // assign material properties - need to cast to elastic particle
+        ParticleElastic<n_layer> *elpt = dynamic_cast<ParticleElastic<n_layer> *>(p1);
+        elpt->setParticleProperty(E0, mu0);
     }
 
     // simulation settings
@@ -88,7 +81,7 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "CT_2DHex_position.dump", 2}; // stiffness mode and solution mode
+    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "CT_2DHex_position.dump"}; // stiffness mode and solution mode
     solv.solveProblem(pt_ass, load);
 
     double finish = omp_get_wtime();

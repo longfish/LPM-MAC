@@ -60,9 +60,10 @@ enum class StiffnessMode : char
     FiniteDifference
 };
 
-enum class BondType : char
+enum class ParticleType : char
 {
     Elastic,
+    ElasticDamage,
     ElasticPlaneStress
 };
 

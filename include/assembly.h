@@ -11,36 +11,44 @@
 #include "lpm.h"
 #include "unit_cell.h"
 #include "bond.h"
-#include "bond_elastic.h"
-#include "bond_elastic_planestress.h"
+#include "particle_elastic.h"
+#include "particle_elastic_damage.h"
 
 template <int nlayer>
 class Bond;
 
 template <int nlayer>
-class BondElastic;
+class Particle;
+
+/////////////////////////////////
+// Declare particle class
+template <int nlayer>
+class ParticleElastic;
 
 template <int nlayer>
-class Particle;
+class ParticleElasticDamage;
+/////////////////////////////////
 
 template <int nlayer>
 class Assembly
 {
 public:
-    BondType btype;                         // bond type
+    ParticleType ptype;                     // particle type
     int nparticle;                          // number of particles
     std::vector<Particle<nlayer> *> pt_sys; // system of particles
     std::array<double, 2 * NDIM> box;       // simulation box
 
-    Assembly(std::vector<std::array<double, NDIM>> &p_xyz, std::array<double, 2 * NDIM> &p_box, UnitCell &p_cell, const BondType &p_btype); // Construct a particle system from scratch
-    Assembly(const std::string &dumpFile, UnitCell &p_cell, const BondType &p_btype);                                                       // Assemble the particle system from the dump file
-    Assembly(const std::string &dumpFile, const std::string &bondFile, UnitCell &p_cell, const BondType &p_btype);                          // Assemble the particle system from the dump file
+    Assembly(std::vector<std::array<double, NDIM>> &p_xyz, std::array<double, 2 * NDIM> &p_box, UnitCell &p_cell, const ParticleType &p_ptype); // Construct a particle system from scratch
+    Assembly(const std::string &dumpFile, UnitCell &p_cell, const ParticleType &p_ptype);                                                       // Assemble the particle system from the dump file
+    Assembly(const std::string &dumpFile, const std::string &bondFile, UnitCell &p_cell, const ParticleType &p_ptype);                          // Assemble the particle system from the dump file
 
     void createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
     void createBonds();
+    void setStateVariables();
+    void resetStateVariables();
     void updateConnections();
-    void updateForceState();           // update bond force and particle forces
-    bool updateDamage(int max_broken); // update damage status, return true if any bonds are damaged
+    void updateGeometry();
+    void updateForceState(); // update bond force and particle forces
 
     std::map<int, Particle<nlayer> *> toMap();
     void readBond(const std::string &bondFile);
@@ -51,9 +59,9 @@ public:
 };
 
 template <int nlayer>
-Assembly<nlayer>::Assembly(const std::string &dumpFile, UnitCell &p_cell, const BondType &p_btype)
+Assembly<nlayer>::Assembly(const std::string &dumpFile, UnitCell &p_cell, const ParticleType &p_ptype)
 {
-    btype = p_btype;
+    ptype = p_ptype;
     printf("Reading data ...\n");
     readDump(dumpFile, p_cell); // extract the particle system
     createBonds();
@@ -61,14 +69,13 @@ Assembly<nlayer>::Assembly(const std::string &dumpFile, UnitCell &p_cell, const 
 }
 
 template <int nlayer>
-Assembly<nlayer>::Assembly(const std::string &dumpFile, const std::string &bondFile, UnitCell &p_cell, const BondType &p_btype)
+Assembly<nlayer>::Assembly(const std::string &dumpFile, const std::string &bondFile, UnitCell &p_cell, const ParticleType &p_ptype)
 {
-    btype = p_btype;
+    ptype = p_ptype;
     printf("Reading data ...\n");
     readDump(dumpFile, p_cell);
     readBond(bondFile);
 
-#pragma omp parallel for
     for (Particle<nlayer> *p1 : pt_sys)
         p1->nb = p1->neighbors.size();
 
@@ -76,9 +83,9 @@ Assembly<nlayer>::Assembly(const std::string &dumpFile, const std::string &bondF
 }
 
 template <int nlayer>
-Assembly<nlayer>::Assembly(std::vector<std::array<double, NDIM>> &p_xyz, std::array<double, 2 * NDIM> &p_box, UnitCell &p_cell, const BondType &p_btype)
+Assembly<nlayer>::Assembly(std::vector<std::array<double, NDIM>> &p_xyz, std::array<double, 2 * NDIM> &p_box, UnitCell &p_cell, const ParticleType &p_ptype)
 {
-    btype = p_btype;
+    ptype = p_ptype;
     box = p_box;
     createParticles(p_xyz, p_cell);
     createBonds();
@@ -96,75 +103,39 @@ std::map<int, Particle<nlayer> *> Assembly<nlayer>::toMap()
 }
 
 template <int nlayer>
-void Assembly<nlayer>::updateForceState()
+void Assembly<nlayer>::setStateVariables()
 {
-    // update particle geometry and bond force
     for (Particle<nlayer> *pt : pt_sys)
-    {
-        pt->updateBondsGeometry();
-        pt->updateBondsForce();
-    }
-
-    for (Particle<nlayer> *pt : pt_sys)
-    {
-        pt->updateParticleStress();
-        pt->updateParticleForce();
-    }
+        pt->setParticleStateVariables();
 }
 
 template <int nlayer>
-bool Assembly<nlayer>::updateDamage(int max_broken)
+void Assembly<nlayer>::resetStateVariables()
 {
-    bool any_damaged{false};
-    std::vector<Bond<nlayer> *> potential_broken_bonds;
+    for (Particle<nlayer> *pt : pt_sys)
+        pt->resetParticleStateVariables();
+}
 
-    // compute the bond damage indicator, store the bonds that may be broken
+template <int nlayer>
+void Assembly<nlayer>::updateGeometry()
+{
+    // update particle geometry
+    for (Particle<nlayer> *pt : pt_sys)
+        pt->updateBondsGeometry();
+}
+
+template <int nlayer>
+void Assembly<nlayer>::updateForceState()
+{
+    // update bond force and particle force state
+    for (Particle<nlayer> *pt : pt_sys)
+        pt->updateBondsForce();
+
     for (Particle<nlayer> *pt : pt_sys)
     {
-        for (int i = 0; i < nlayer; ++i)
-        {
-            for (Bond<nlayer> *bd : pt->bond_layers[i])
-            {
-                double d_prev = bd->bdamage;
-                if (bd->calcbDamageIndicator())
-                    potential_broken_bonds.push_back(bd);
-                any_damaged = any_damaged || (abs(bd->bdamage - d_prev) > EPS);
-            }
-        }
+        pt->updateParticleForce();
+        pt->updateParticleStress();
     }
-
-    // update the state if broken bonds are detected
-    if (!potential_broken_bonds.empty())
-    {
-        // sort the bonds by damage indicator
-        std::sort(potential_broken_bonds.begin(), potential_broken_bonds.end(), [](Bond<nlayer> *b1, Bond<nlayer> *b2)
-                  { return b1->d_indicator > b2->d_indicator; });
-
-        // get the most damaged bonds
-        std::vector<Bond<nlayer> *> broken_bonds;
-        for (int i = 0; i < max_broken; ++i)
-            broken_bonds.push_back(potential_broken_bonds[i]);
-
-        // update the bond-wise damage property
-        for (Bond<nlayer> *bd : broken_bonds)
-            bd->updatebBroken(); // update bond properties after broken
-
-        any_damaged = true;
-    }
-
-    // update particle-wise visual damage
-    for (Particle<nlayer> *pt : pt_sys)
-    {
-        pt->damage_visual = 0;
-        for (int i = 0; i < nlayer; ++i)
-        {
-            for (Bond<nlayer> *bd : pt->bond_layers[i])
-                pt->damage_visual += bd->bdamage;
-        }
-        pt->damage_visual = pt->damage_visual / pt->nb;
-    }
-
-    return any_damaged;
 }
 
 template <int nlayer>
@@ -172,7 +143,10 @@ void Assembly<nlayer>::createParticles(std::vector<std::array<double, NDIM>> &p_
 {
     for (auto xyz : p_xyz)
     {
-        Particle<nlayer> *pt = new Particle<nlayer>(xyz[0], xyz[1], xyz[2], p_cell);
+        Particle<nlayer> *pt = nullptr;
+        if (ptype == ParticleType::Elastic)
+            pt = new ParticleElastic<nlayer>(xyz[0], xyz[1], xyz[2], p_cell);
+
         pt_sys.push_back(pt);
     }
 }
@@ -192,10 +166,7 @@ void Assembly<nlayer>::createBonds()
                 if (distance < 1.01 * p1->cell.neighbor1_cutoff)
                     layer = 0;
 
-                Bond<nlayer> *bd = nullptr; // create bonds
-                if (btype == BondType::Elastic)
-                    bd = new BondElastic<nlayer>(p1, p2, layer, distance);
-
+                Bond<nlayer> *bd = new Bond<nlayer>(p1, p2, layer, distance); // create bonds
                 p1->bond_layers[layer].push_back(bd);
                 p1->neighbors.push_back(p2);
             }
@@ -216,16 +187,12 @@ void Assembly<nlayer>::updateConnections()
             // loop forward bond particles
             for (auto *bd_fw : p1->bond_layers[i])
             {
-                if (!(bd_fw->broken))
-                {
-                    p1->conns.push_back(bd_fw->p2);
+                p1->conns.push_back(bd_fw->p2);
 
-                    // loop backward bond particles
-                    for (auto *bd_bw : bd_fw->p2->bond_layers[i])
-                    {
-                        if (!(bd_bw->broken))
-                            p1->conns.push_back(bd_bw->p2);
-                    }
+                // loop backward bond particles
+                for (auto *bd_bw : bd_fw->p2->bond_layers[i])
+                {
+                    p1->conns.push_back(bd_bw->p2);
                 }
             }
         }
@@ -345,7 +312,10 @@ void Assembly<nlayer>::readDump(const std::string &dumpFile, UnitCell &cell)
     double xyz[NDIM];
     while (fscanf(fpt, "%d %d %lf %lf %lf", &(id), &(type), &(xyz[0]), &(xyz[1]), &(xyz[2])) > 0)
     {
-        Particle<nlayer> *pt = new Particle<nlayer>(xyz[0], xyz[1], xyz[2], cell, type);
+        Particle<nlayer> *pt = nullptr;
+        if (ptype == ParticleType::Elastic)
+            pt = new ParticleElastic<nlayer>(xyz[0], xyz[1], xyz[2], cell, type);
+
         pt->id = id;
         pt_sys.push_back(pt);
     }
@@ -380,10 +350,7 @@ void Assembly<nlayer>::readBond(const std::string &bondFile)
         //                        { return p->id == p2id; });
 
         double distance = p1->distanceTo(p2);
-
-        Bond<nlayer> *bd = nullptr; // create bonds
-        if (btype == BondType::Elastic)
-            bd = new BondElastic<nlayer>(p1, p2, layer, distance);
+        Bond<nlayer> *bd = new Bond<nlayer>(p1, p2, layer, distance); // create bonds
 
         p1->bond_layers[layer].push_back(bd);
         p1->neighbors.push_back(p2);

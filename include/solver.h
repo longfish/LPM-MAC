@@ -20,14 +20,12 @@ class Solver
     const double tol_iter = 1e-5; /* newton iteration tolerance */
 
     int problem_size;
-    int max_broken; /* maximum broken bonds in an iteration */
     double *disp;
     std::string dumpFile;
     std::vector<double> reaction_force;
     SolverMode sol_mode;
 
 public:
-    bool damage_occured{false}; // detect if any bonds are damaged
     Stiffness<nlayer> stiffness;
 
     void updateDisplacementBC(Assembly<nlayer> &ass, LoadStep<nlayer> &load_step);
@@ -38,13 +36,12 @@ public:
 
     int NewtonIteration(Assembly<nlayer> &ass); // return number of Newton iterations
 
-    Solver(Assembly<nlayer> &ass, const StiffnessMode &p_stiff_mode, const SolverMode &p_sol_mode, const std::string &p_dumpFile, const int p_max_broken)
+    Solver(Assembly<nlayer> &ass, const StiffnessMode &p_stiff_mode, const SolverMode &p_sol_mode, const std::string &p_dumpFile)
         : sol_mode{p_sol_mode}, stiffness(ass.pt_sys, p_stiff_mode), dumpFile(p_dumpFile)
     { // stiff_mode = 0 means finite difference; 1 means analytical
         problem_size = (ass.pt_sys[0]->cell.dim) * ass.pt_sys.size();
         disp = new double[problem_size];
         dumpFile = p_dumpFile;
-        max_broken = p_max_broken;
     }
 
     ~Solver()
@@ -78,48 +75,35 @@ void Solver<nlayer>::solveStepwise(Assembly<nlayer> &ass)
 template <int nlayer>
 void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep<nlayer>> &load)
 {
-    //ass.writeDump(dumpFile, 0);
+    ass.writeDump(dumpFile, 0);
 
     for (int i = 0; i < load.size(); i++)
     {
         double t1 = omp_get_wtime();
-        printf("Loading step-%d, damage iteration starts:\n", i + 1);
+        printf("Loading step-%d, iteration starts:\n", i + 1);
 
         // updating the particle system configuration to be in equilibrium
-        int crack_step = 0; // for dump output
-        int n_damageiter = 0;
-        do
-        {
-            if (n_damageiter == 0 || damage_occured)
-            {
-                ass.updateConnections();     // update connections in case any bonds are broken
-                stiffness.reset(ass.pt_sys); // reset the stiffness matrix K_global
+        double t11 = omp_get_wtime();
+        if (ass.pt_sys[0]->cell.dim == 2)
+            stiffness.calcStiffness2D(ass.pt_sys);
+        else
+            stiffness.calcStiffness3D(ass.pt_sys);
+        double t12 = omp_get_wtime();
+        printf("Stiffness matrix calculation costs %f seconds\n", t12 - t11);
 
-                double t11 = omp_get_wtime();
-                if (ass.pt_sys[0]->cell.dim == 2)
-                    stiffness.calcStiffness2D(ass.pt_sys);
-                else
-                    stiffness.calcStiffness3D(ass.pt_sys);
-                double t12 = omp_get_wtime();
-                printf("Stiffness matrix calculation costs %f seconds\n", t12 - t11);
+        ass.setStateVariables(); // set converged state variables
+        updateForceBC(ass, load[i]);
+        updateDisplacementBC(ass, load[i]);
+        stiffness.updateStiffnessDispBC(ass.pt_sys);
+        ass.updateGeometry();
+        ass.updateForceState();
+        updateRR(ass);
 
-                updateForceBC(ass, load[i]);
-                updateDisplacementBC(ass, load[i]);
-                stiffness.updateStiffnessDispBC(ass.pt_sys);
-                ass.updateForceState();
-            }
-
-            updateRR(ass);
-            int ni = NewtonIteration(ass);
-            damage_occured = ass.updateDamage(max_broken);
-            n_damageiter++;
-            ass.writeDump(dumpFile, crack_step++);
-            printf("|  Equilibrium reached after %d iterations (loading step %d)\n", ni, i + 1);
-        } while (damage_occured == true);
+        int ni = NewtonIteration(ass);
         double t2 = omp_get_wtime();
 
-        printf("Loading step %d has finished after %d damage iterations, spent %f seconds\n\nData output ...\n\n", i + 1, n_damageiter, t2 - t1);
-        // ass.writeDump(dumpFile, i);
+        printf("Loading step %d has finished, spent %f seconds\n\nData output ...\n\n", i + 1, t2 - t1);
+        ass.writeDump(dumpFile, i);
     }
 }
 
@@ -142,6 +126,8 @@ int Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
     {
         printf("|  |  Iteration-%d: ", ++ni);
         solveStepwise(ass); // solve for the incremental displacement
+        ass.updateGeometry();
+        ass.resetStateVariables(); // reset some state variables to last converged value
         ass.updateForceState();
         updateRR(ass); /* update the RHS risidual force vector */
         norm_residual = cblas_dnrm2(problem_size, stiffness.residual, 1);

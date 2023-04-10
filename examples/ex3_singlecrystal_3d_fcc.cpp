@@ -26,7 +26,7 @@ void run()
     std::array<double, 2 * NDIM> box{0, 10, 0, 10, 0, 10};
 
     std::vector<std::array<double, NDIM>> fcc_xyz = createCuboidFCC3D(box, cell, R_matrix);
-    Assembly<n_layer> pt_ass{fcc_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
+    Assembly<n_layer> pt_ass{fcc_xyz, box, cell, ParticleType::Elastic}; // elastic bond with brittle damage law
     // Assembly<n_layer> pt_ass{"../geometry/FCC_Hailong/FCC_single.dump", cell, BondType::Elastic}; // read coordinate from dump file
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
@@ -34,7 +34,6 @@ void run()
     // material elastic parameters setting, MPa
     double C11{108e3}, C12{61e3}, C44{29e3}; // Elastic constants
     // double E0 = 64e3, mu0 = 0.36;      // Young's modulus and Poisson's ratio
-    double critical_bstrain = 1.0e-2; // critical bond strain value at which bond will break
 
     std::vector<Particle<n_layer> *> top, bottom, left, right, front, back, internal;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
@@ -70,17 +69,9 @@ void run()
             internal.push_back(p1); // particles with full neighbor list
         }
 
-        // assign material properties
-        for (int i = 0; i < n_layer; ++i)
-        {
-            for (auto bd : p1->bond_layers[i])
-            {
-                // cast to elastic bond (or other type of bonds)
-                BondElastic<n_layer> *elbd = dynamic_cast<BondElastic<n_layer> *>(bd);
-                elbd->setBondProperty(C11, C12, C44, critical_bstrain);
-                // elbd->setBondProperty(E0, mu0, critical_bstrain, nbreak);
-            }
-        }
+        // assign material properties - need to cast to elastic particle
+        ParticleElastic<n_layer> *elpt = dynamic_cast<ParticleElastic<n_layer> *>(p1);
+        elpt->setParticleProperty(C11, C12, C44);
     }
 
     // simulation settings
@@ -110,7 +101,7 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump", 2}; // stiffness mode and solution mode
+    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump"}; // stiffness mode and solution mode
     solv.solveProblem(pt_ass, load);
 
     double finish = omp_get_wtime();

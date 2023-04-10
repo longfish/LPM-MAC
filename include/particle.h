@@ -22,8 +22,8 @@ public:
     int nconn_largeq{0};                                         // matrix pointer, number of conn larger than (or equal to) its own index
     int nb{0}, nconn{0};                                         // number of bonds and connections
     double damage_visual{0.};                                    // damage value for visualization
-    double damage{0.}, damage_last{0.};                          // particle-wise damage variables
     UnitCell cell;                                               // unit cell
+    std::vector<double> state_var, state_var_last;               // vectors that store state variables
     std::array<int, NDIM> disp_constraint{0};                    // disp BC indicator, 1 means disp BC applied, 0 otherwise
     std::array<double, nlayer> dLe_total, ddL_total;             // volumetric bond measure
     std::array<double, nlayer> cs_sumx, cs_sumy, cs_sumz;        // volumetric bond measure
@@ -44,14 +44,20 @@ public:
     void moveBy(const std::array<double, NDIM> &dxyz);
 
     bool hasAFEMneighbor(Particle<nlayer> *pj, int layer);
+    bool operator==(const Particle<nlayer> &other);
+    double distanceTo(Particle<nlayer> *A);
 
     void updateParticleForce();
     void updateParticleStress();
     void updateBondsGeometry();
-    void updateBondsForce();
+    void updateParticleDamageVisual();
+    void setParticleStateVariables();
+    void resetParticleStateVariables();
     void resumeParticle();
-    double distanceTo(Particle<nlayer> *A);
-    bool operator==(const Particle<nlayer> &other);
+
+    // virtual functions that can be inherited
+    virtual void updateBondsForce(){}
+
 };
 
 template <int nlayer>
@@ -64,15 +70,41 @@ bool Particle<nlayer>::operator==(const Particle<nlayer> &other)
 }
 
 template <int nlayer>
+void Particle<nlayer>::setParticleStateVariables()
+{
+    for (int i = 0; i < state_var.size(); ++i)
+        state_var_last[i] = state_var[i];
+}
+
+template <int nlayer>
+void Particle<nlayer>::resetParticleStateVariables()
+{
+    for (int i = 0; i < state_var.size(); ++i)
+        state_var[i] = state_var_last[i];
+}
+
+template <int nlayer>
+void Particle<nlayer>::updateParticleDamageVisual()
+{
+    damage_visual = 0;
+    for (int i = 0; i < nlayer; ++i)
+    {
+        for (Bond<nlayer> *bd : bond_layers[i])
+            damage_visual += bd->bdamage;
+    }
+    damage_visual = damage_visual / nb;
+}
+
+template <int nlayer>
 bool Particle<nlayer>::hasAFEMneighbor(Particle<nlayer> *pj, int layer)
 {
     for (Bond<nlayer> *bd1 : bond_layers[layer])
     {
-        if ((bd1->p2->id == pj->id) && !(bd1->broken))
+        if (bd1->p2->id == pj->id)
             return true;
         for (Bond<nlayer> *bd2 : bd1->p2->bond_layers[layer])
         {
-            if ((bd2->p2->id == pj->id) && !(bd2->broken))
+            if (bd2->p2->id == pj->id) 
                 return true;
         }
     }
@@ -145,17 +177,6 @@ void Particle<nlayer>::updateBondsGeometry()
             cs_sumy[i] += bd->csy;
             cs_sumz[i] += bd->csz;
         }
-    }
-}
-
-template <int nlayer>
-void Particle<nlayer>::updateBondsForce()
-{
-    // update all the bond forces
-    for (int i = 0; i < nlayer; ++i)
-    {
-        for (Bond<nlayer> *bd : bond_layers[i])
-            bd->updatebForce();
     }
 }
 

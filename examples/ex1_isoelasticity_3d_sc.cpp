@@ -26,18 +26,11 @@ void run()
     std::array<double, 2 * NDIM> box{-0.0, 10.0, -0.4, 10.0, -0.4, 30.0};
 
     std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
-    Assembly<n_layer> pt_ass{sc_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
-    // pt_ass.writeBond("../geometry/test.bond");
-    // pt_ass.writeConfigurationDump("../geometry/test.dump");
-    // Assembly<n_layer> pt_ass{"../geometry/test.dump", "../geometry/test.bond", cell, BondType::Elastic}; // read coordinate from local files
-    // Assembly<n_layer> pt_ass{"../geometry/test.dump", cell, BondType::Elastic}; // read coordinate from local files
-
+    Assembly<n_layer> pt_ass{sc_xyz, box, cell, ParticleType::Elastic}; // elastic bond
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
-    double E0 = 69e3, mu0 = 0.3;      // Young's modulus and Poisson's ratio
-    double critical_bstrain = 1.0e-2; // critical bond strain value at which bond will break
-
+    double E0 = 69e3, mu0 = 0.3; // Young's modulus and Poisson's ratio
     std::vector<Particle<n_layer> *> top_group, bottom_group, internal_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
@@ -49,16 +42,9 @@ void run()
         if (p1->nb == cell.nneighbors)
             internal_group.push_back(p1); // particles with full neighbor list
 
-        // assign material properties
-        for (int i = 0; i < n_layer; ++i)
-        {
-            for (auto bd : p1->bond_layers[i])
-            {
-                // cast to elastic bond (or other type of bonds)
-                BondElastic<n_layer> *elbd = dynamic_cast<BondElastic<n_layer> *>(bd);
-                elbd->setBondProperty(E0, mu0, critical_bstrain);
-            }
-        }
+        // assign material properties - need to cast to elastic particle
+        ParticleElastic<n_layer> *elpt = dynamic_cast<ParticleElastic<n_layer> *>(p1);
+        elpt->setParticleProperty(E0, mu0);
     }
 
     // simulation settings
@@ -78,12 +64,13 @@ void run()
         load.push_back(step);
     }
 
+    pt_ass.updateGeometry();
     pt_ass.updateForceState();
 
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump", 2}; // stiffness mode and solution mode
+    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump"}; // stiffness mode and solution mode
     solv.solveProblem(pt_ass, load);
 
     double finish = omp_get_wtime();
