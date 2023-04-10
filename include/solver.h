@@ -39,7 +39,7 @@ public:
     int NewtonIteration(Assembly<nlayer> &ass); // return number of Newton iterations
 
     Solver(Assembly<nlayer> &ass, const StiffnessMode &p_stiff_mode, const SolverMode &p_sol_mode, const std::string &p_dumpFile, const int p_max_broken)
-        : sol_mode{p_sol_mode}, stiffness(ass.pt_sys, p_stiff_mode), dumpFile(p_dumpFile),
+        : sol_mode{p_sol_mode}, stiffness(ass.pt_sys, p_stiff_mode), dumpFile(p_dumpFile)
     { // stiff_mode = 0 means finite difference; 1 means analytical
         problem_size = (ass.pt_sys[0]->cell.dim) * ass.pt_sys.size();
         disp = new double[problem_size];
@@ -78,7 +78,7 @@ void Solver<nlayer>::solveStepwise(Assembly<nlayer> &ass)
 template <int nlayer>
 void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep<nlayer>> &load)
 {
-    ass.writeDump(dumpFile, 0);
+    //ass.writeDump(dumpFile, 0);
 
     for (int i = 0; i < load.size(); i++)
     {

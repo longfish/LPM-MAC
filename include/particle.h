@@ -17,13 +17,13 @@ protected:
     static int _ID;
 
 public:
-    int id{0};                // identifier of the particle, id starts from 0
-    int type{0};              // particle type which is needed to identify phases
-    int nconn_largeq{0};      // matrix pointer, number of conn larger than (or equal to) its own index
-    int nb{0}, nconn{0};      // number of bonds and connections
-    double damage_visual{0.}; // damage value for visualization
-    UnitCell cell;            // unit cell
-
+    int id{0};                                                   // identifier of the particle, id starts from 0
+    int type{0};                                                 // particle type which is needed to identify phases
+    int nconn_largeq{0};                                         // matrix pointer, number of conn larger than (or equal to) its own index
+    int nb{0}, nconn{0};                                         // number of bonds and connections
+    double damage_visual{0.};                                    // damage value for visualization
+    double damage{0.}, damage_last{0.};                          // particle-wise damage variables
+    UnitCell cell;                                               // unit cell
     std::array<int, NDIM> disp_constraint{0};                    // disp BC indicator, 1 means disp BC applied, 0 otherwise
     std::array<double, nlayer> dLe_total, ddL_total;             // volumetric bond measure
     std::array<double, nlayer> cs_sumx, cs_sumy, cs_sumz;        // volumetric bond measure
@@ -32,7 +32,7 @@ public:
     std::array<std::vector<Bond<nlayer> *>, nlayer> bond_layers; // an array that store n layers of bonds
     std::vector<Particle<nlayer> *> neighbors;                   // vector that stores all particles that form bonds
     std::vector<Particle<nlayer> *> conns;                       // all connections of the particle (include self)
-    std::array<double, NDIM * NDIM> stress{0}, strain{0};        // stress and strain tensor
+    std::vector<double> stress, strain;                          // stress and strain tensor
 
     Particle(const int &p_id) : cell{LatticeType::SimpleCubic3D, 0} { id = p_id; };
     Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type);
@@ -46,6 +46,7 @@ public:
     bool hasAFEMneighbor(Particle<nlayer> *pj, int layer);
 
     void updateParticleForce();
+    void updateParticleStress();
     void updateBondsGeometry();
     void updateBondsForce();
     void resumeParticle();
@@ -182,6 +183,31 @@ void Particle<nlayer>::updateParticleForce()
             Pin[0] += bd->csx * 0.5 * (bd->bforce + (*op_bd)->bforce);
             Pin[1] += bd->csy * 0.5 * (bd->bforce + (*op_bd)->bforce);
             Pin[2] += bd->csz * 0.5 * (bd->bforce + (*op_bd)->bforce);
+        }
+    }
+}
+
+template <int nlayer>
+void Particle<nlayer>::updateParticleStress()
+{
+    // initialize the tensor
+    stress = std::vector<double>(2 * NDIM, 0.0);
+
+    // compute the tensor using average bond force
+    double V_m = cell.particle_volume * nb / cell.nneighbors;
+    for (int i = 0; i < nlayer; ++i)
+    {
+        for (Bond<nlayer> *bd : bond_layers[i])
+        {
+            auto op_bd = std::find_if(bd->p2->bond_layers[i].begin(), bd->p2->bond_layers[i].end(),
+                                      [&](Bond<nlayer> *b)
+                                      { return b->p2->id == id; });
+            stress[0] += 0.5 / V_m * (bd->dis) * 0.5 * (bd->bforce + (*op_bd)->bforce) * (bd->csx) * (bd->csx);
+            stress[1] += 0.5 / V_m * (bd->dis) * 0.5 * (bd->bforce + (*op_bd)->bforce) * (bd->csy) * (bd->csy);
+            stress[2] += 0.5 / V_m * (bd->dis) * 0.5 * (bd->bforce + (*op_bd)->bforce) * (bd->csz) * (bd->csz);
+            stress[3] += 0.5 / V_m * (bd->dis) * 0.5 * (bd->bforce + (*op_bd)->bforce) * (bd->csy) * (bd->csz);
+            stress[4] += 0.5 / V_m * (bd->dis) * 0.5 * (bd->bforce + (*op_bd)->bforce) * (bd->csx) * (bd->csz);
+            stress[5] += 0.5 / V_m * (bd->dis) * 0.5 * (bd->bforce + (*op_bd)->bforce) * (bd->csx) * (bd->csy);
         }
     }
 }

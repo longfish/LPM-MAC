@@ -6,12 +6,18 @@
 #include "load_step.h"
 #include "solver.h"
 
+const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
+
+void one_cycle(Solver<n_layer> &solv, Assembly<n_layer> &pt_ass, std::vector<LoadStep<n_layer>> &loading_i)
+{
+    solv.solveProblem(pt_ass, loading_i);
+}
+
 void run()
 {
     double start = omp_get_wtime(); // record the CPU time, begin
 
-    const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 0.2;   // particle radius
+    double radius = 0.2; // particle radius
     UnitCell cell(LatticeType::Hexagon2D, radius);
 
     // Euler angles setting for system rotation
@@ -23,13 +29,13 @@ void run()
 
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
-    std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0}; // thickness is used for force calculation
+    std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0};                                                      // thickness is used for force calculation
     Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DHEX.dump", "../geometry/geo1_CT_2DHEX.bond", cell, BondType::Elastic}; // read coordinate from local files
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
-    double E0 = 69e3, mu0 = 0.3;      // Young's modulus and Poisson's ratio
+    double E0 = 205e3, mu0 = 0.29;    // Young's modulus (MPa) and Poisson's ratio
     double critical_bstrain = 1.0e-3; // critical bond strain value at which bond will break
 
     std::vector<Particle<n_layer> *> top_group, bottom_group, mid_group;
@@ -64,32 +70,45 @@ void run()
         }
     }
 
-    // simulation settings
-    int n_steps = 60;         // number of loading steps
-    double step_size = -1e-3; // step size for force or displacement loading
-
-    std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
-    for (int i = 0; i < n_steps; i++)
+    // define one cycle of loading
+    double f_max = 600, R = 0.1; // step size for cyclic force loading (N)
+    double f_mid = 0.5 * (f_max + R * f_max), f_amp = 0.5 * (1 - R) * f_max;
+    std::vector<LoadStep<n_layer>> load_cycle, load_initial; // load settings
+    LoadStep<n_layer> step{100};                             // initialize with number of cycle jumps after the loading
+    for (int i = 0; i < 9; ++i)
     {
-        LoadStep<n_layer> step{1}; // 1 means tension loading, -1 means compression loading
-
-        // boundary conditions
-        step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0));
+        step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0)); // boundary conditions
         step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'y', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', -step_size));
-        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'y', step_size));
-        // step.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, -step_size, 0.0));
-        // step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, step_size, 0.0));
-        load.push_back(step);
+        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', 1e-3));
+        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'y', -1e-3));
+        // step.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, f_mid, 0.0));
+        // step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, -f_mid, 0.0));
+        load_cycle.push_back(step);
     }
+    load_initial.push_back(step);
+    // load_cycle[0].forceBCs[0].fy += f_amp, load_cycle[0].forceBCs[1].fy -= f_amp;
+    // load_cycle[1].forceBCs[0].fy += (2 * f_amp), load_cycle[1].forceBCs[1].fy -= (2 * f_amp);
+    // load_cycle[2].forceBCs[0].fy += f_amp, load_cycle[2].forceBCs[1].fy -= f_amp;
+    // // load_cycle[3]
+    // load_cycle[4].forceBCs[0].fy -= f_amp, load_cycle[4].forceBCs[1].fy += f_amp;
+    // load_cycle[5].forceBCs[0].fy -= (2 * f_amp), load_cycle[5].forceBCs[1].fy += (2 * f_amp);
+    // load_cycle[6].forceBCs[0].fy -= f_amp, load_cycle[6].forceBCs[1].fy += f_amp;
+    // // load_cycle[7]
 
     pt_ass.updateForceState();
 
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "CT_2DHex_position.dump", cell.nneighbors}; // stiffness mode and solution mode
-    solv.solveProblem(pt_ass, load);
+    std::string dumpFile{"CT_2DHex_fatigue.dump"};
+    pt_ass.writeDump(dumpFile, 0);
+
+    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, cell.nneighbors}; // stiffness mode and solution mode
+    solv.solveProblem(pt_ass, load_initial);                                                            // initial loading
+
+    // int n_cycles = 5;
+    // for (int i = 0; i < n_cycles; ++i)
+    //     one_cycle(solv, pt_ass, load_cycle);
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);

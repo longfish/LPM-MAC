@@ -106,7 +106,10 @@ void Assembly<nlayer>::updateForceState()
     }
 
     for (Particle<nlayer> *pt : pt_sys)
+    {
+        pt->updateParticleStress();
         pt->updateParticleForce();
+    }
 }
 
 template <int nlayer>

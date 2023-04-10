@@ -13,12 +13,12 @@ template <int nlayer>
 class LoadStep
 {
 public:
-    int lind; // load indicator
+    int njump; // store the number of jumps after the current loading
     std::vector<DispBC<nlayer>> dispBCs;
     std::vector<ForceBC<nlayer>> forceBCs;
 
-    LoadStep(int p_lind)
-        : lind{p_lind} {}
+    LoadStep(int p_njump)
+        : njump{p_njump} {}
 };
 
 #endif
