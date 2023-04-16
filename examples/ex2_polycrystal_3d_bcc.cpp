@@ -20,7 +20,7 @@ void run()
 
     // std::vector<std::array<double, NDIM>> fcc_xyz = createCuboidFCC3D(box, cell, R_matrix);
     // Assembly<n_layer> pt_ass{fcc_xyz, box, cell, BondType::Elastic}; // elastic bond with brittle damage law
-    Assembly<n_layer> pt_ass{"../geometry/BCC_Hailong/BCC_5grains.dump", cell, ParticleType::Elastic}; // read coordinate from dump file
+    Assembly<n_layer> pt_ass{"../benchmark/BCC_Hailong/BCC_5grains.dump", cell, ParticleType::Elastic}; // read coordinate from dump file
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
@@ -99,6 +99,7 @@ void run()
         load.push_back(step);
     }
 
+    pt_ass.updateGeometry();
     pt_ass.updateForceState();
 
     double initrun = omp_get_wtime();

@@ -48,7 +48,7 @@ void run()
     }
 
     // simulation settings
-    int n_steps = 1;          // number of loading steps
+    int n_steps = 2;          // number of loading steps
     double step_size = -1e-3; // step size for force or displacement loading
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps

@@ -96,6 +96,7 @@ void run()
         load.push_back(step);
     }
 
+    pt_ass.updateGeometry();
     pt_ass.updateForceState();
 
     double initrun = omp_get_wtime();
