@@ -32,8 +32,7 @@ void ParticleElastic<nlayer>::updateBondsForce()
     {
         for (Bond<nlayer> *bd : this->bond_layers[i])
         {
-            bd->bforce_last = bd->bforce;
-            bd->bforce += 2. * bd->Kn * bd->ddL + 2. * bd->Tv * bd->p1->ddL_total[bd->layer];
+            bd->bforce = 2. * bd->Kn * bd->dLe + 2. * bd->Tv * this->dLe_total[bd->layer];
             bd->bforce *= (1.0 - bd->bdamage);
         }
     }
