@@ -19,6 +19,15 @@ public:
 
     LoadStep(int p_njump)
         : njump{p_njump} {}
+
+    void loadCutHalf()
+    {
+        for (DispBC<nlayer> &d : dispBCs)
+            d.cutHalf();
+
+        for (ForceBC<nlayer> &f : forceBCs)
+            f.cutHalf();
+    }
 };
 
 #endif
