@@ -16,7 +16,7 @@
 template <int nlayer>
 class Solver
 {
-    const int max_iter = 20;      /* maximum global iteration number */
+    const int max_iter = 30;      /* maximum Newton iteration number */
     const double tol_iter = 1e-5; /* newton iteration tolerance */
 
     int problem_size;
@@ -34,7 +34,7 @@ public:
     void LPM_PARDISO();
     void LPM_CG();
 
-    int NewtonIteration(Assembly<nlayer> &ass); // return number of Newton iterations
+    bool NewtonIteration(Assembly<nlayer> &ass); // return number of Newton iterations
 
     Solver(Assembly<nlayer> &ass, const StiffnessMode &p_stiff_mode, const SolverMode &p_sol_mode, const std::string &p_dumpFile)
         : sol_mode{p_sol_mode}, stiffness(ass.pt_sys, p_stiff_mode), dumpFile(p_dumpFile)
@@ -49,12 +49,13 @@ public:
         delete[] disp;
     }
 
+    bool solveProblemStep(Assembly<nlayer> &ass, LoadStep<nlayer> &load);
     void solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep<nlayer>> &load);
-    void solveStepwise(Assembly<nlayer> &ass);
+    void solveLinearSystem(Assembly<nlayer> &ass);
 };
 
 template <int nlayer>
-void Solver<nlayer>::solveStepwise(Assembly<nlayer> &ass)
+void Solver<nlayer>::solveLinearSystem(Assembly<nlayer> &ass)
 {
     if (sol_mode == SolverMode::PARDISO)
         LPM_PARDISO();
@@ -73,42 +74,63 @@ void Solver<nlayer>::solveStepwise(Assembly<nlayer> &ass)
 }
 
 template <int nlayer>
+bool Solver<nlayer>::solveProblemStep(Assembly<nlayer> &ass, LoadStep<nlayer> &load_step)
+{
+    // updating the particle system configuration to be in equilibrium
+    stiffness.reset(ass.pt_sys);
+    double t11 = omp_get_wtime();
+    if (ass.pt_sys[0]->cell.dim == 2)
+        stiffness.calcStiffness2D(ass.pt_sys);
+    else
+        stiffness.calcStiffness3D(ass.pt_sys);
+    double t12 = omp_get_wtime();
+    printf("Stiffness matrix calculation costs %f seconds\n", t12 - t11);
+
+    updateForceBC(ass, load_step);
+    updateDisplacementBC(ass, load_step);
+    stiffness.updateStiffnessDispBC(ass.pt_sys);
+
+    ass.updateGeometry();
+    ass.updateForceState();
+    updateRR(ass);
+
+    return NewtonIteration(ass);
+}
+
+template <int nlayer>
 void Solver<nlayer>::solveProblem(Assembly<nlayer> &ass, std::vector<LoadStep<nlayer>> &load)
 {
     ass.writeDump(dumpFile, 0);
 
-    for (int i = 0; i < load.size(); i++)
+    int n_step = load.size();
+    bool is_converged{true}; // flag to determine whether need to cut the loading into half
+    for (int i = 0; i < n_step; i++)
     {
-        double t1 = omp_get_wtime();
+    restart:
         printf("Loading step-%d, iteration starts:\n", i + 1);
+        double t1 = omp_get_wtime();
 
-        // updating the particle system configuration to be in equilibrium
-        double t11 = omp_get_wtime();
-        if (ass.pt_sys[0]->cell.dim == 2)
-            stiffness.calcStiffness2D(ass.pt_sys);
-        else
-            stiffness.calcStiffness3D(ass.pt_sys);
-        double t12 = omp_get_wtime();
-        printf("Stiffness matrix calculation costs %f seconds\n", t12 - t11);
+        is_converged = solveProblemStep(ass, load[i]);
+        if (!is_converged)
+        {
+            ass.resetStateVariables(true); // reset the state_var to last converged ones
+            load[i].loadCutHalf();
+            load.insert(load.begin() + i, load[i]);
+            ++n_step;
+            goto restart;
+        }
 
-        ass.setStateVariables(); // set converged state variables
-        updateForceBC(ass, load[i]);
-        updateDisplacementBC(ass, load[i]);
-        stiffness.updateStiffnessDispBC(ass.pt_sys);
-        ass.updateGeometry();
-        ass.updateForceState();
-        updateRR(ass);
+        ass.updateStateVar(); // update/store state variables using the converged solution
 
-        int ni = NewtonIteration(ass);
         double t2 = omp_get_wtime();
-
         printf("Loading step %d has finished, spent %f seconds\n\nData output ...\n\n", i + 1, t2 - t1);
+
         ass.writeDump(dumpFile, i);
     }
 }
 
 template <int nlayer>
-int Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
+bool Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
 {
     // compute the Euclidean norm (L2 norm)
     double norm_residual = cblas_dnrm2(problem_size, stiffness.residual, 1);
@@ -122,19 +144,21 @@ int Solver<nlayer>::NewtonIteration(Assembly<nlayer> &ass)
         printf("%s force\n", tempChar2);
 
     int ni{0};
-    while (norm_residual > tol_iter * tol_multiplier && ni < max_iter)
+    while (norm_residual > tol_iter * tol_multiplier)
     {
-        printf("|  |  Iteration-%d: ", ++ni);
-        solveStepwise(ass); // solve for the incremental displacement
+        if (++ni > max_iter)
+            return false; // abnormal return
+
+        printf("|  |  Iteration-%d: ", ni);
+        solveLinearSystem(ass); // solve for the incremental displacement
         ass.updateGeometry();
-        ass.resetStateVariables(); // reset some state variables to last converged value
         ass.updateForceState();
         updateRR(ass); /* update the RHS risidual force vector */
         norm_residual = cblas_dnrm2(problem_size, stiffness.residual, 1);
         printf("|  |  Norm of residual is %.3e, residual ratio is %.3e\n", norm_residual, norm_residual / tol_multiplier);
     }
 
-    return ni;
+    return true; // normal return
 }
 
 template <int nlayer>
