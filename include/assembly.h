@@ -44,10 +44,10 @@ public:
 
     void createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
     void createBonds();
-    void setStateVariables();
-    void resetStateVariables();
+    void resetStateVariables(bool no_xyz);
     void updateConnections();
     void updateGeometry();
+    void updateStateVar();
     void updateForceState(); // update bond force and particle forces
 
     std::map<int, Particle<nlayer> *> toMap();
@@ -103,17 +103,14 @@ std::map<int, Particle<nlayer> *> Assembly<nlayer>::toMap()
 }
 
 template <int nlayer>
-void Assembly<nlayer>::setStateVariables()
+void Assembly<nlayer>::resetStateVariables(bool reset_xyz)
 {
     for (Particle<nlayer> *pt : pt_sys)
-        pt->setParticleStateVariables();
-}
-
-template <int nlayer>
-void Assembly<nlayer>::resetStateVariables()
-{
-    for (Particle<nlayer> *pt : pt_sys)
+    {
+        if (reset_xyz)
+            pt->xyz = pt->xyz_last;
         pt->resetParticleStateVariables();
+    }
 }
 
 template <int nlayer>
@@ -125,9 +122,22 @@ void Assembly<nlayer>::updateGeometry()
 }
 
 template <int nlayer>
+void Assembly<nlayer>::updateStateVar()
+{
+    for (Particle<nlayer> *pt : pt_sys)
+    {
+        pt->xyz_last = pt->xyz;
+        pt->updateParticleStateVar();
+    }
+
+    for (Particle<nlayer> *pt : pt_sys)
+        pt->storeParticleStateVariables();
+}
+
+template <int nlayer>
 void Assembly<nlayer>::updateForceState()
 {
-    // update bond force and particle force state
+    // this function should be after the geometry updating (ie., above function)
     for (Particle<nlayer> *pt : pt_sys)
         pt->updateBondsForce();
 
@@ -135,6 +145,7 @@ void Assembly<nlayer>::updateForceState()
     {
         pt->updateParticleForce();
         pt->updateParticleStress();
+        pt->updateParticleDamageVisual();
     }
 }
 
@@ -146,6 +157,8 @@ void Assembly<nlayer>::createParticles(std::vector<std::array<double, NDIM>> &p_
         Particle<nlayer> *pt = nullptr;
         if (ptype == ParticleType::Elastic)
             pt = new ParticleElastic<nlayer>(xyz[0], xyz[1], xyz[2], p_cell);
+        if (ptype == ParticleType::ElasticDamage)
+            pt = new ParticleElasticDamage<nlayer>(xyz[0], xyz[1], xyz[2], p_cell);
 
         pt_sys.push_back(pt);
     }
@@ -160,10 +173,10 @@ void Assembly<nlayer>::createBonds()
         for (Particle<nlayer> *p2 : pt_sys)
         {
             double distance = p1->distanceTo(p2);
-            if ((distance < 1.01 * p1->cell.neighbor2_cutoff) && (p1->id != p2->id))
+            if ((distance < 1.01 * p1->cell.neighbor_cutoff[1]) && (p1->id != p2->id))
             {
                 int layer = 1;
-                if (distance < 1.01 * p1->cell.neighbor1_cutoff)
+                if (distance < 1.01 * p1->cell.neighbor_cutoff[0])
                     layer = 0;
 
                 Bond<nlayer> *bd = new Bond<nlayer>(p1, p2, layer, distance); // create bonds
@@ -315,6 +328,8 @@ void Assembly<nlayer>::readDump(const std::string &dumpFile, UnitCell &cell)
         Particle<nlayer> *pt = nullptr;
         if (ptype == ParticleType::Elastic)
             pt = new ParticleElastic<nlayer>(xyz[0], xyz[1], xyz[2], cell, type);
+        if (ptype == ParticleType::ElasticDamage)
+            pt = new ParticleElasticDamage<nlayer>(xyz[0], xyz[1], xyz[2], cell, type);
 
         pt->id = id;
         pt_sys.push_back(pt);
