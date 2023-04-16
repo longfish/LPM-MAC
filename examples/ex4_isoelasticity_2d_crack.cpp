@@ -23,14 +23,15 @@ void run()
 
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
-    std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0}; // thickness is used for force calculation
-    Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DHEX.dump", "../geometry/geo1_CT_2DHEX.bond", cell, ParticleType::Elastic}; // read coordinate from local files
+    std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0};                                                                // thickness is used for force calculation
+    Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DHEX.dump", "../geometry/geo1_CT_2DHEX.bond", cell, ParticleType::ElasticDamage}; // read coordinate from local files
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
-    double E0 = 69e3, mu0 = 0.3;      // Young's modulus and Poisson's ratio
-    double critical_bstrain = 1.0e-3; // critical bond strain value at which bond will break
+    double E0 = 205e3, mu0 = 0.29;                  // Young's modulus and Poisson's ratio, MPa
+    double alpha = 0.96, beta = 350, kappa0 = 5e-3; // brittle damage parameters
+    double comp_tensile_ratio = 10;
 
     std::vector<Particle<n_layer> *> top_group, bottom_group, mid_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
@@ -53,18 +54,18 @@ void run()
         }
 
         // assign material properties - need to cast to elastic particle
-        ParticleElastic<n_layer> *elpt = dynamic_cast<ParticleElastic<n_layer> *>(p1);
-        elpt->setParticleProperty(E0, mu0);
+        ParticleElasticDamage<n_layer> *elpt = dynamic_cast<ParticleElasticDamage<n_layer> *>(p1);
+        elpt->setParticleProperty(E0, mu0, kappa0, alpha, beta, comp_tensile_ratio);
     }
 
     // simulation settings
-    int n_steps = 60;         // number of loading steps
-    double step_size = -1e-3; // step size for force or displacement loading
+    int n_steps = 50;         // number of loading steps
+    double step_size = -4e-4; // step size for force or displacement loading
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
     {
-        LoadStep<n_layer> step{1}; // 1 means tension loading, -1 means compression loading
+        LoadStep<n_layer> step{1};
 
         // boundary conditions
         step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0));
@@ -76,7 +77,9 @@ void run()
         load.push_back(step);
     }
 
+    pt_ass.updateGeometry();
     pt_ass.updateForceState();
+    pt_ass.updateStateVar();
 
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
