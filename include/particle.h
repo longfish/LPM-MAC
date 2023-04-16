@@ -17,22 +17,21 @@ protected:
     static int _ID;
 
 public:
-    int id{0};                                                   // identifier of the particle, id starts from 0
-    int type{0};                                                 // particle type which is needed to identify phases
-    int nconn_largeq{0};                                         // matrix pointer, number of conn larger than (or equal to) its own index
-    int nb{0}, nconn{0};                                         // number of bonds and connections
-    double damage_visual{0.};                                    // damage value for visualization
-    UnitCell cell;                                               // unit cell
-    std::vector<double> state_var, state_var_last;               // vectors that store state variables
-    std::array<int, NDIM> disp_constraint{0};                    // disp BC indicator, 1 means disp BC applied, 0 otherwise
-    std::array<double, nlayer> dLe_total, ddL_total;             // volumetric bond measure
-    std::array<double, nlayer> cs_sumx, cs_sumy, cs_sumz;        // volumetric bond measure
-    std::array<double, NDIM> xyz, xyz_initial, xyz_last;         // particle coordinates
-    std::array<double, NDIM> Pin{0}, Pex{0};                     // internal and external particle force
-    std::array<std::vector<Bond<nlayer> *>, nlayer> bond_layers; // an array that store n layers of bonds
-    std::vector<Particle<nlayer> *> neighbors;                   // vector that stores all particles that form bonds
-    std::vector<Particle<nlayer> *> conns;                       // all connections of the particle (include self)
-    std::vector<double> stress, strain;                          // stress and strain tensor
+    int id{0};                                                       // identifier of the particle, id starts from 0
+    int type{0};                                                     // particle type which is needed to identify phases
+    int nconn_largeq{0};                                             // matrix pointer, number of conn larger than (or equal to) its own index
+    int nb{0}, nconn{0};                                             // number of bonds and connections
+    double damage_visual{0.};                                        // damage value for visualization
+    UnitCell cell;                                                   // unit cell
+    std::vector<double> state_var, state_var_last;                   // vectors that store state variables
+    std::array<int, NDIM> disp_constraint{0};                        // disp BC indicator, 1 means disp BC applied, 0 otherwise
+    std::array<double, nlayer> dLe_total, cs_sumx, cs_sumy, cs_sumz; // volumetric bond measure
+    std::array<double, NDIM> xyz, xyz_initial, xyz_last;             // particle coordinates
+    std::array<double, NDIM> Pin{0}, Pex{0};                         // internal and external particle force
+    std::array<std::vector<Bond<nlayer> *>, nlayer> bond_layers;     // an array that store n layers of bonds
+    std::vector<Particle<nlayer> *> neighbors;                       // vector that stores all particles that form bonds
+    std::vector<Particle<nlayer> *> conns;                           // all connections of the particle (include self)
+    std::vector<double> stress, strain;                              // stress and strain tensor
 
     Particle(const int &p_id) : cell{LatticeType::SimpleCubic3D, 0} { id = p_id; };
     Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type);
@@ -51,13 +50,13 @@ public:
     void updateParticleStress();
     void updateBondsGeometry();
     void updateParticleDamageVisual();
-    void setParticleStateVariables();
+    void storeParticleStateVariables();
     void resetParticleStateVariables();
-    void resumeParticle();
+    void resumeParticleState();
 
     // virtual functions that can be inherited
-    virtual void updateBondsForce(){}
-
+    virtual void updateBondsForce() {}
+    virtual void updateParticleStateVar() {}
 };
 
 template <int nlayer>
@@ -70,17 +69,41 @@ bool Particle<nlayer>::operator==(const Particle<nlayer> &other)
 }
 
 template <int nlayer>
-void Particle<nlayer>::setParticleStateVariables()
+void Particle<nlayer>::storeParticleStateVariables()
 {
+    // set the last converged state variables to be the current one
     for (int i = 0; i < state_var.size(); ++i)
         state_var_last[i] = state_var[i];
+
+    for (int i = 0; i < nlayer; ++i)
+    {
+        for (Bond<nlayer> *bd : bond_layers[i])
+        {
+            bd->dis_last = bd->dis;
+            bd->bdamage_last = bd->bdamage;
+            bd->bforce_last = bd->bforce;
+            bd->dLp_last = bd->dLp;
+        }
+    }
 }
 
 template <int nlayer>
 void Particle<nlayer>::resetParticleStateVariables()
 {
+    // reset back the current state variables to the last converged one
     for (int i = 0; i < state_var.size(); ++i)
         state_var[i] = state_var_last[i];
+
+    for (int i = 0; i < nlayer; ++i)
+    {
+        for (Bond<nlayer> *bd : bond_layers[i])
+        {
+            bd->dis = bd->dis_last;
+            bd->bdamage = bd->bdamage_last;
+            bd->bforce = bd->bforce_last;
+            bd->dLp = bd->dLp_last;
+        }
+    }
 }
 
 template <int nlayer>
@@ -92,7 +115,11 @@ void Particle<nlayer>::updateParticleDamageVisual()
         for (Bond<nlayer> *bd : bond_layers[i])
             damage_visual += bd->bdamage;
     }
-    damage_visual = damage_visual / nb;
+
+    if (nb != 0)
+        damage_visual = damage_visual / (double)this->neighbors.size();
+    else
+        damage_visual = 1.0;
 }
 
 template <int nlayer>
@@ -104,7 +131,7 @@ bool Particle<nlayer>::hasAFEMneighbor(Particle<nlayer> *pj, int layer)
             return true;
         for (Bond<nlayer> *bd2 : bd1->p2->bond_layers[layer])
         {
-            if (bd2->p2->id == pj->id) 
+            if (bd2->p2->id == pj->id)
                 return true;
         }
     }
@@ -117,6 +144,7 @@ Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p
 {
     xyz = {p_x, p_y, p_z};
     xyz_initial = xyz;
+    xyz_last = xyz;
     type = p_type;
     id = _ID++;
 }
@@ -127,6 +155,7 @@ Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p
 {
     xyz = {p_x, p_y, p_z};
     xyz_initial = xyz;
+    xyz_last = xyz;
     id = _ID++;
 }
 
@@ -136,27 +165,25 @@ Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p
 {
     xyz = {p_x, p_y, p_z};
     xyz_initial = xyz;
+    xyz_last = xyz;
     id = _ID++;
 }
 
 template <int nlayer>
 void Particle<nlayer>::moveTo(const double &new_x, const double &new_y, const double &new_z)
 {
-    xyz_last = xyz;
     xyz = {new_x, new_y, new_z};
 }
 
 template <int nlayer>
 void Particle<nlayer>::moveTo(const std::array<double, NDIM> &new_xyz)
 {
-    xyz_last = xyz;
     xyz = new_xyz;
 }
 
 template <int nlayer>
 void Particle<nlayer>::moveBy(const std::array<double, NDIM> &dxyz)
 {
-    xyz_last = xyz;
     xyz = {xyz[0] + dxyz[0], xyz[1] + dxyz[1], xyz[2] + dxyz[2]};
 }
 
@@ -166,13 +193,13 @@ void Particle<nlayer>::updateBondsGeometry()
     // update all the neighbors information
     for (int i = 0; i < nlayer; ++i)
     {
-        dLe_total[i] = 0, ddL_total[i] = 0;
+        dLe_total[i] = 0;
         cs_sumx[i] = 0, cs_sumy[i] = 0, cs_sumz[i] = 0;
         for (Bond<nlayer> *bd : bond_layers[i])
         {
-            bd->updatebGeometry();
+            if (bd->updatebGeometry())
+                --nb;
             dLe_total[i] += bd->dLe;
-            ddL_total[i] += bd->ddL;
             cs_sumx[i] += bd->csx;
             cs_sumy[i] += bd->csy;
             cs_sumz[i] += bd->csz;
@@ -181,11 +208,22 @@ void Particle<nlayer>::updateBondsGeometry()
 }
 
 template <int nlayer>
-void Particle<nlayer>::resumeParticle()
+void Particle<nlayer>::resumeParticleState()
 {
-    // used for calculating stiffness matrix
-    updateBondsGeometry();
-    updateBondsForce();
+    // this function is mainly for calculating stiffness matrix by finite difference
+    for (Particle<nlayer> *pjj : conns)
+    {
+        pjj->updateBondsGeometry(); // update all bond information, e.g., dL, dL_total
+        pjj->resetParticleStateVariables();
+        for (int i = 0; i < nlayer; ++i)
+        {
+            for (Bond<nlayer> *bd : pjj->bond_layers[i])
+            {
+                bd->bforce = bd->bforce_last;
+                bd->bdamage = bd->bdamage_last;
+            }
+        }
+    }
 }
 
 template <int nlayer>
