@@ -158,12 +158,15 @@ std::array<std::array<double, NDIM>, NDIM> Stiffness<nlayer>::localStiffnessFD(P
         xyz_temp[r] += EPS * pj->cell.radius; // forward-difference
         pj->moveTo(xyz_temp);                 // move to a new position
 
-        // update bforce of all common conns
-        for (Particle<nlayer> *pjj : pj->conns) // pj->conns or common_conns
-        {
-            pjj->updateBondsGeometry(); // update all bond information, e.g., dL, ddL
-            pjj->updateBondsForce();    // update all bond forces
-        }
+        // update bforce of all common conns (need to update all nonlocal geometry and state variables before bforce calculation)
+        for (Particle<nlayer> *pjj : pj->conns)
+            pjj->updateBondsGeometry(); // update all bond information, e.g., dL, dL_total
+
+        for (Particle<nlayer> *pjj : pj->conns)
+            pjj->updateParticleStateVar();
+
+        for (Particle<nlayer> *pjj : pj->conns)
+            pjj->updateBondsForce(); // update all bond forces
 
         pi->updateParticleForce(); // update pi particle internal forces
 
@@ -175,10 +178,10 @@ std::array<std::array<double, NDIM>, NDIM> Stiffness<nlayer>::localStiffnessFD(P
             // printf("%f, ", K_value);
         }
 
+        // resume the particle's original state
         xyz_temp[r] -= EPS * pj->cell.radius; // move back the particle position
         pj->moveTo(xyz_temp);
-        for (Particle<nlayer> *pjj : pj->conns) // pj->conns or common_conns
-            pjj->resumeParticle();
+        pj->resumeParticleState();
     } // K_ij has finished
 
     std::array<std::array<double, NDIM>, NDIM> K_local{0};
@@ -377,7 +380,7 @@ void Stiffness<nlayer>::updateStiffnessDispBC(std::vector<Particle<nlayer> *> &p
     {
         for (int k = 0; k < pt_sys[0]->cell.dim; k++)
         {
-            if (pi->disp_constraint[k] == 1 || abs(pi->damage_visual - 1) < EPS) // if the particle is under disp bc or totally damaged
+            if (pi->disp_constraint[k] == 1 || pi->nb == 0) // if the particle is under disp bc or totally damaged
             {
                 // printf("disp id: %d, dis: %d\n", pi->id, k);
                 for (const auto &pj_iterator : pi->conns | indexed(0))
