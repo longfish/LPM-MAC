@@ -11,9 +11,10 @@ public:
     int dim;
     int nneighbors, nneighbors1, nneighbors2;
     int nneighbors_AFEM, nneighbors_AFEM1, nneighbors_AFEM2;
-    double radius, neighbor1_cutoff, neighbor2_cutoff;
+    double radius;
     double particle_volume;                     /* volume of unit cell */
     std::array<double, NDIM * NDIM> el_mapping; /* mapping from elasticity to Kn, Tv */
+    std::vector<double> neighbor_cutoff;
 
     UnitCell(LatticeType p_lattice, double p_radius);
     void setSquare();
@@ -49,8 +50,7 @@ void UnitCell::setSquare()
     nneighbors = 8;
     nneighbors1 = 4;
     nneighbors2 = 4;
-    neighbor1_cutoff = 2.0 * radius;
-    neighbor2_cutoff = 2.0 * sqrt(2.0) * radius;
+    neighbor_cutoff = {2.0 * radius, 2.0 * sqrt(2.0) * radius};
     nneighbors_AFEM = 16;
     nneighbors_AFEM1 = 12;
     nneighbors_AFEM2 = 12;
@@ -69,8 +69,7 @@ void UnitCell::setHexagon()
     nneighbors_AFEM = 30;
     nneighbors_AFEM1 = 18;
     nneighbors_AFEM2 = 18;
-    neighbor1_cutoff = 2.0 * radius;
-    neighbor2_cutoff = 2.0 * sqrt(3.0) * radius;
+    neighbor_cutoff = {2.0 * radius, 2.0 * sqrt(3.0) * radius};
     particle_volume = 2 * sqrt(3) * pow(radius, 2); /* volume (area) of unit cell */
 }
 
@@ -83,8 +82,7 @@ void UnitCell::setSimpleCubic()
     nneighbors = 18;
     nneighbors1 = 6;
     nneighbors2 = 12;
-    neighbor1_cutoff = 2.0 * radius;
-    neighbor2_cutoff = 2.0 * sqrt(2.0) * radius;
+    neighbor_cutoff = {2.0 * radius, 2.0 * sqrt(2.0) * radius};
     nneighbors_AFEM = 60;
     nneighbors_AFEM1 = 24;
     nneighbors_AFEM2 = 54;
@@ -100,8 +98,7 @@ void UnitCell::setFCC()
     nneighbors = 18;
     nneighbors1 = 12;
     nneighbors2 = 6;
-    neighbor1_cutoff = 2.0 * radius;
-    neighbor2_cutoff = 2.0 * sqrt(2.0) * radius;
+    neighbor_cutoff = {2.0 * radius, 2.0 * sqrt(2.0) * radius};
     nneighbors_AFEM = 60;
     nneighbors_AFEM1 = 54;
     nneighbors_AFEM2 = 24;
@@ -117,8 +114,7 @@ void UnitCell::setBCC()
     nneighbors = 14;
     nneighbors1 = 8;
     nneighbors2 = 6;
-    neighbor1_cutoff = 2.0 * radius;
-    neighbor2_cutoff = 4.0 / sqrt(3.0) * radius;
+    neighbor_cutoff = {2.0 * radius, 4.0 / sqrt(3.0) * radius};
     nneighbors_AFEM = 40;
     nneighbors_AFEM1 = 34;
     nneighbors_AFEM2 = 24;

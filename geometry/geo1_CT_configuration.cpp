@@ -78,14 +78,14 @@ std::vector<std::vector<int>> searchNeighbor(std::vector<std::array<double, NDIM
         {
             double dis = sqrt(pow((xyz[j][0] - xyz[i][0]), 2) + pow((xyz[j][1] - xyz[i][1]), 2) + pow((xyz[j][2] - xyz[i][2]), 2));
 
-            if ((dis < 1.01 * cell.neighbor2_cutoff) && (j != i)) /* The first nearest neighbors */
+            if ((dis < 1.01 * cell.neighbor_cutoff[1]) && (j != i)) /* The first nearest neighbors */
             {
                 // test if the bond is valid
                 std::array<double, NDIM> mid{(xyz[j][0] - xyz[i][0]) / 2.0, (xyz[j][1] - xyz[i][1]) / 2.0, 0.0};
                 if (isValid(mid))
                 {
                     int layer = 1;
-                    if (dis < 1.01 * cell.neighbor1_cutoff)
+                    if (dis < 1.01 * cell.neighbor_cutoff[0])
                         layer = 0;
                     neighbors[i][index] = j;
                     neighbors_layer[i][index] = layer;
