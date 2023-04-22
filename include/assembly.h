@@ -44,11 +44,14 @@ public:
 
     void createParticles(std::vector<std::array<double, NDIM>> &p_xyz, UnitCell &p_cell);
     void createBonds();
-    void resetStateVariables(bool no_xyz);
     void updateConnections();
     void updateGeometry();
-    void updateStateVar();
+    void resetStateVar(bool reset_xyz);
+    void storeStateVar();
     void updateForceState(); // update bond force and particle forces
+
+    bool updateStateVar();
+    bool updateBrokenBonds();
 
     std::map<int, Particle<nlayer> *> toMap();
     void readBond(const std::string &bondFile);
@@ -103,7 +106,25 @@ std::map<int, Particle<nlayer> *> Assembly<nlayer>::toMap()
 }
 
 template <int nlayer>
-void Assembly<nlayer>::resetStateVariables(bool reset_xyz)
+void Assembly<nlayer>::updateGeometry()
+{
+    // update particle geometry
+    for (Particle<nlayer> *pt : pt_sys)
+        pt->updateBondsGeometry();
+}
+
+template <int nlayer>
+void Assembly<nlayer>::storeStateVar()
+{
+    for (Particle<nlayer> *pt : pt_sys)
+    {
+        pt->xyz_last = pt->xyz;
+        pt->storeParticleStateVariables();
+    }
+}
+
+template <int nlayer>
+void Assembly<nlayer>::resetStateVar(bool reset_xyz)
 {
     for (Particle<nlayer> *pt : pt_sys)
     {
@@ -114,24 +135,23 @@ void Assembly<nlayer>::resetStateVariables(bool reset_xyz)
 }
 
 template <int nlayer>
-void Assembly<nlayer>::updateGeometry()
+bool Assembly<nlayer>::updateStateVar()
 {
-    // update particle geometry
+    bool any_damaged{false};
     for (Particle<nlayer> *pt : pt_sys)
-        pt->updateBondsGeometry();
+        any_damaged = pt->updateParticleStateVariables() || any_damaged;
+
+    return any_damaged;
 }
 
 template <int nlayer>
-void Assembly<nlayer>::updateStateVar()
+bool Assembly<nlayer>::updateBrokenBonds()
 {
+    bool any_broken{false};
     for (Particle<nlayer> *pt : pt_sys)
-    {
-        pt->xyz_last = pt->xyz;
-        pt->updateParticleStateVar();
-    }
+        any_broken = pt->updateParticleBrokenBonds() || any_broken;
 
-    for (Particle<nlayer> *pt : pt_sys)
-        pt->storeParticleStateVariables();
+    return any_broken;
 }
 
 template <int nlayer>
