@@ -130,7 +130,7 @@ void run()
     printf("\nCreating a CT model ...\n");
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 0.2;   // particle radius
+    double radius = 0.8;   // particle radius
     UnitCell cell(LatticeType::Hexagon2D, radius);
 
     // Euler angles setting for system rotation
@@ -148,10 +148,10 @@ void run()
             hex_CT.push_back(pt);
 
     std::cout << "\nTotal particle number is: " << hex_CT.size() << std::endl;
-    writeDump("../geometry/geo1_CT_2DHEX.dump", hex_CT, box);
+    writeDump("../geometry/geo1_CT_2DHEX_small.dump", hex_CT, box);
 
     std::vector<std::vector<int>> hex_bonds = searchNeighbor(hex_CT, cell);
-    writeBond("../geometry/geo1_CT_2DHEX.bond", hex_bonds);
+    writeBond("../geometry/geo1_CT_2DHEX_small.bond", hex_bonds);
 
     printf("\nDone.\n");
 }

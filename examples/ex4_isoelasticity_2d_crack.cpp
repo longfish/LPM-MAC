@@ -29,9 +29,9 @@ void run()
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
-    double E0 = 205e3, mu0 = 0.29;                  // Young's modulus and Poisson's ratio, MPa
-    double alpha = 0.96, beta = 350, kappa0 = 5e-3; // brittle damage parameters
-    double comp_tensile_ratio = 10;
+    double E0 = 205e3, mu0 = 0.29;                  // Steel, Young's modulus and Poisson's ratio, MPa
+    double alpha = 0.96, beta = 100, kappa0 = 6e-3; // brittle damage parameters
+    double comp_tensile_ratio = 0.9;
 
     std::vector<Particle<n_layer> *> top_group, bottom_group, mid_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
@@ -59,10 +59,11 @@ void run()
     }
 
     // simulation settings
-    int n_steps = 50;         // number of loading steps
-    double step_size = -4e-4; // step size for force or displacement loading
+    int n_steps = 80;         // number of loading steps
+    double step_size = -2e-4; // step size for force or displacement loading
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
+
     for (int i = 0; i < n_steps; i++)
     {
         LoadStep<n_layer> step{1};
@@ -76,6 +77,8 @@ void run()
         // step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, step_size, 0.0));
         load.push_back(step);
     }
+    load[0].dispBCs[2].step *= 50; // increase the elastic loading step size
+    load[0].dispBCs[3].step *= 50;
 
     pt_ass.updateGeometry();
     pt_ass.updateForceState();
