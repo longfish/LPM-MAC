@@ -163,7 +163,7 @@ std::array<std::array<double, NDIM>, NDIM> Stiffness<nlayer>::localStiffnessFD(P
             pjj->updateBondsGeometry(); // update all bond information, e.g., dL, dL_total
 
         for (Particle<nlayer> *pjj : pj->conns)
-            pjj->updateParticleStateVar();
+            pjj->updateParticleStateVariables();
 
         for (Particle<nlayer> *pjj : pj->conns)
             pjj->updateBondsForce(); // update all bond forces
@@ -380,7 +380,7 @@ void Stiffness<nlayer>::updateStiffnessDispBC(std::vector<Particle<nlayer> *> &p
     {
         for (int k = 0; k < pt_sys[0]->cell.dim; k++)
         {
-            if (pi->disp_constraint[k] == 1 || pi->nb == 0) // if the particle is under disp bc or totally damaged
+            if (pi->disp_constraint[k] == 1 || abs(pi->damage_visual - 1.0) < EPS) // if the particle is under disp bc or totally damaged
             {
                 // printf("disp id: %d, dis: %d\n", pi->id, k);
                 for (const auto &pj_iterator : pi->conns | indexed(0))
