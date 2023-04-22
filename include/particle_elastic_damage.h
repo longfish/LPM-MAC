@@ -28,7 +28,7 @@ class ParticleElasticDamage : public Particle<nlayer>
 public:
     double kappa0{0}, alpha{0}, beta{0}; // damage parameters
     double comp_tensile_ratio{1};
-    double damage_threshold{0.99}; // should be less than 1 - e-6
+    double damage_threshold{0.35}, critical_bstrain{1.2e-3};
 
     ParticleElasticDamage(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell) : Particle<nlayer>{p_x, p_y, p_z, p_cell}
     {
@@ -44,11 +44,32 @@ public:
 
     double calcEqStrain();
 
-    void updateParticleStateVar();
+    bool updateParticleStateVariables();
+    bool updateParticleBrokenBonds();
+
     void updateBondsForce();
     void setParticleProperty(double p_E, double p_mu, double p_kappa0, double p_alpha, double p_beta, double p_comp_tensile_ratio);
     void setParticleProperty(double p_C11, double p_C12, double p_C44, double p_kappa0, double p_alpha, double p_beta, double p_comp_tensile_ratio);
 };
+
+template <int nlayer>
+bool ParticleElasticDamage<nlayer>::updateParticleBrokenBonds()
+{
+    bool any_broken{false};
+    for (int i = 0; i < nlayer; ++i)
+    {
+        for (Bond<nlayer> *bd : this->bond_layers[i])
+        {
+            if (bd->bstrain >= critical_bstrain && abs(bd->bdamage - 1.0) > EPS)
+            {
+                any_broken = any_broken || true;
+                bd->bdamage = 1;
+                //--(this->nb);
+            }
+        }
+    }
+    return any_broken;
+}
 
 template <int nlayer>
 void ParticleElasticDamage<nlayer>::updateBondsForce()
@@ -58,8 +79,8 @@ void ParticleElasticDamage<nlayer>::updateBondsForce()
     {
         for (Bond<nlayer> *bd : this->bond_layers[i])
         {
-            bd->bforce = 2. * bd->Kn * bd->dLe + 2. * bd->Tv * this->dLe_total[bd->layer]; // trial elastic bforce
-            bd->bdamage = std::max(this->state_var[0], bd->p2->state_var[0]);              // update the bond-wise damage
+            bd->bforce = 2. * bd->Kn * bd->dLe + 2. * bd->Tv * this->dLe_total[bd->layer];           // trial elastic bforce
+            bd->bdamage = std::max(bd->bdamage, std::max(this->state_var[0], bd->p2->state_var[0])); // update the bond-wise damage
             bd->bforce *= (1.0 - bd->bdamage);
         }
     }
@@ -90,31 +111,26 @@ double ParticleElasticDamage<nlayer>::calcEqStrain()
         double bl = this->cell.neighbor_cutoff[i]; // bond length of the current layer
         I1 += this->dLe_total[i] / bl;
         for (Bond<nlayer> *bd : this->bond_layers[i])
-            J2 += bd->dLe * bd->dLe / bl / bl;
+            J2 += bd->bstrain * bd->bstrain;
     }
     J2 = 0.5 * I1 * I1 / this->nb - 0.5 * J2;
     return func_eq_strain(comp_tensile_ratio, I1, J2);
 }
 
 template <int nlayer>
-void ParticleElasticDamage<nlayer>::updateParticleStateVar()
+bool ParticleElasticDamage<nlayer>::updateParticleStateVariables()
 {
-    this->state_var[1] = calcEqStrain();                        // local equivalent strain
-    double d_eq = this->state_var[1] - this->state_var_last[1]; // incremental equivalent strain
-    if (this->state_var[1] - this->state_var[2] > 0 && d_eq > 0 && this->state_var[0] < 1 - EPS)
-    {
-        // double dp = this->state_var_last[0] + d_eq * func_g(this->state_var_last[2], kappa0, alpha, beta); // update damage using explicit Euler
-        this->state_var[2] = std::max(this->state_var[1], this->state_var[2]); // update kappa
-        this->state_var[0] = func_D(this->state_var[2], kappa0, alpha, beta);
-    }
-    else
-    {
-        this->state_var[0] = this->state_var_last[0];
-        this->state_var[2] = this->state_var_last[2];
-    }
+    this->state_var[1] = calcEqStrain();                                   // local equivalent strain
+    this->state_var[2] = std::max(this->state_var[1], this->state_var[2]); // update kappa
+    double damage_prev = this->state_var[0];                               // previous damage
 
-    if (this->state_var[0] > damage_threshold)
-        this->state_var[0] = 1.0;
+    if (abs(this->state_var[1] - this->state_var[2]) < EPS)
+        this->state_var[0] = func_D(this->state_var[2], kappa0, alpha, beta);
+
+    if (this->state_var[0] >= damage_threshold)
+        this->state_var[0] = damage_threshold;
+
+    return abs(this->state_var[0] - damage_prev) > 1e-3; // return true if damage is updated noticeably
 }
 
 template <int nlayer>
