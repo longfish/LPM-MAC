@@ -56,7 +56,8 @@ public:
 
     // virtual functions that can be inherited
     virtual void updateBondsForce() {}
-    virtual void updateParticleStateVar() {}
+    virtual bool updateParticleStateVariables() { return false; }
+    virtual bool updateParticleBrokenBonds() { return false; };
 };
 
 template <int nlayer>
@@ -102,6 +103,8 @@ void Particle<nlayer>::resetParticleStateVariables()
             bd->bdamage = bd->bdamage_last;
             bd->bforce = bd->bforce_last;
             bd->dLp = bd->dLp_last;
+            // if (id == 5145)
+            //     printf("bstrain %f \n", bd->bstrain);
         }
     }
 }
@@ -109,6 +112,9 @@ void Particle<nlayer>::resetParticleStateVariables()
 template <int nlayer>
 void Particle<nlayer>::updateParticleDamageVisual()
 {
+    // if (id == 5145)
+    //     printf("D: %f \n", state_var[0]);
+
     damage_visual = 0;
     for (int i = 0; i < nlayer; ++i)
     {
@@ -116,75 +122,7 @@ void Particle<nlayer>::updateParticleDamageVisual()
             damage_visual += bd->bdamage;
     }
 
-    if (nb != 0)
-        damage_visual = damage_visual / (double)this->neighbors.size();
-    else
-        damage_visual = 1.0;
-}
-
-template <int nlayer>
-bool Particle<nlayer>::hasAFEMneighbor(Particle<nlayer> *pj, int layer)
-{
-    for (Bond<nlayer> *bd1 : bond_layers[layer])
-    {
-        if (bd1->p2->id == pj->id)
-            return true;
-        for (Bond<nlayer> *bd2 : bd1->p2->bond_layers[layer])
-        {
-            if (bd2->p2->id == pj->id)
-                return true;
-        }
-    }
-    return false;
-}
-
-template <int nlayer>
-Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type)
-    : cell{p_cell}
-{
-    xyz = {p_x, p_y, p_z};
-    xyz_initial = xyz;
-    xyz_last = xyz;
-    type = p_type;
-    id = _ID++;
-}
-
-template <int nlayer>
-Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const LatticeType &p_lattice, const double &p_radius)
-    : cell{p_lattice, p_radius}
-{
-    xyz = {p_x, p_y, p_z};
-    xyz_initial = xyz;
-    xyz_last = xyz;
-    id = _ID++;
-}
-
-template <int nlayer>
-Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell)
-    : cell{p_cell}
-{
-    xyz = {p_x, p_y, p_z};
-    xyz_initial = xyz;
-    xyz_last = xyz;
-    id = _ID++;
-}
-
-template <int nlayer>
-void Particle<nlayer>::moveTo(const double &new_x, const double &new_y, const double &new_z)
-{
-    xyz = {new_x, new_y, new_z};
-}
-
-template <int nlayer>
-void Particle<nlayer>::moveTo(const std::array<double, NDIM> &new_xyz)
-{
-    xyz = new_xyz;
-}
-
-template <int nlayer>
-void Particle<nlayer>::moveBy(const std::array<double, NDIM> &dxyz)
-{
-    xyz = {xyz[0] + dxyz[0], xyz[1] + dxyz[1], xyz[2] + dxyz[2]};
+    damage_visual = damage_visual / (double)neighbors.size();
 }
 
 template <int nlayer>
@@ -197,8 +135,7 @@ void Particle<nlayer>::updateBondsGeometry()
         cs_sumx[i] = 0, cs_sumy[i] = 0, cs_sumz[i] = 0;
         for (Bond<nlayer> *bd : bond_layers[i])
         {
-            if (bd->updatebGeometry())
-                --nb;
+            bd->updatebGeometry();
             dLe_total[i] += bd->dLe;
             cs_sumx[i] += bd->csx;
             cs_sumy[i] += bd->csy;
@@ -269,6 +206,71 @@ void Particle<nlayer>::updateParticleStress()
             stress[5] += 0.5 / V_m * (bd->dis) * 0.5 * (bd->bforce + (*op_bd)->bforce) * (bd->csx) * (bd->csy);
         }
     }
+}
+
+template <int nlayer>
+bool Particle<nlayer>::hasAFEMneighbor(Particle<nlayer> *pj, int layer)
+{
+    for (Bond<nlayer> *bd1 : bond_layers[layer])
+    {
+        if (bd1->p2->id == pj->id)
+            return true;
+        for (Bond<nlayer> *bd2 : bd1->p2->bond_layers[layer])
+        {
+            if (bd2->p2->id == pj->id)
+                return true;
+        }
+    }
+    return false;
+}
+
+template <int nlayer>
+Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type)
+    : cell{p_cell}
+{
+    xyz = {p_x, p_y, p_z};
+    xyz_initial = xyz;
+    xyz_last = xyz;
+    type = p_type;
+    id = _ID++;
+}
+
+template <int nlayer>
+Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const LatticeType &p_lattice, const double &p_radius)
+    : cell{p_lattice, p_radius}
+{
+    xyz = {p_x, p_y, p_z};
+    xyz_initial = xyz;
+    xyz_last = xyz;
+    id = _ID++;
+}
+
+template <int nlayer>
+Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell)
+    : cell{p_cell}
+{
+    xyz = {p_x, p_y, p_z};
+    xyz_initial = xyz;
+    xyz_last = xyz;
+    id = _ID++;
+}
+
+template <int nlayer>
+void Particle<nlayer>::moveTo(const double &new_x, const double &new_y, const double &new_z)
+{
+    xyz = {new_x, new_y, new_z};
+}
+
+template <int nlayer>
+void Particle<nlayer>::moveTo(const std::array<double, NDIM> &new_xyz)
+{
+    xyz = new_xyz;
+}
+
+template <int nlayer>
+void Particle<nlayer>::moveBy(const std::array<double, NDIM> &dxyz)
+{
+    xyz = {xyz[0] + dxyz[0], xyz[1] + dxyz[1], xyz[2] + dxyz[2]};
 }
 
 template <int nlayer>
