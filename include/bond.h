@@ -20,26 +20,21 @@ public:
     int layer{-1};                                                 // index of current bond layer
     double dis_initial{0}, dis_last{0}, dis{0};                    // initial, last, and current bond length
     double dL{0}, dLe{0}, dLp{0}, dLp_last{0};                     // total, elastic and plastic bond change
+    double bstrain{0};                                             // bond strain
     double Kn{0}, Tv{0};                                           // LPM coefficient
     double csx{0}, csy{0}, csz{0};                                 // direction cosine
     double bforce_last{0}, bforce{0}, bdamage{0}, bdamage_last{0}; // bond-wise quantities
     Particle<nlayer> *p1, *p2;                                     // particles are not owned by the bond (only store the location)
 
-    bool updatebGeometry()
+    void updatebGeometry()
     {
         dis = p1->distanceTo(p2);
-        dL = dis - dis_initial;
-        dLe = dis - dis_initial - dLp;
-        csx = (p1->xyz[0] - p2->xyz[0]) / dis;
-        csy = (p1->xyz[1] - p2->xyz[1]) / dis;
-        csz = (p1->xyz[2] - p2->xyz[2]) / dis;
-        if (abs(bdamage - 1.0) < EPS)
-        {
-            dLe = 0, csx = 0, csy = 0, csz = 0;
-            return true; // true means the bond has broken
-        }
-
-        return false;
+        dL = (abs(bdamage - 1.0) < EPS) ? 0.0 : (dis - dis_initial);
+        bstrain = (abs(bdamage - 1.0) < EPS) ? 0.0 : (dL / dis);
+        dLe = (abs(bdamage - 1.0) < EPS) ? 0.0 : (dis - dis_initial - dLp);
+        csx = (abs(bdamage - 1.0) < EPS) ? 0.0 : ((p1->xyz[0] - p2->xyz[0]) / dis);
+        csy = (abs(bdamage - 1.0) < EPS) ? 0.0 : ((p1->xyz[1] - p2->xyz[1]) / dis);
+        csz = (abs(bdamage - 1.0) < EPS) ? 0.0 : ((p1->xyz[2] - p2->xyz[2]) / dis);
     }
 
     Bond(Particle<nlayer> *p_p1, Particle<nlayer> *p_p2)
