@@ -4,7 +4,7 @@
 #include "utilities.h"
 #include "stiffness.h"
 #include "load_step.h"
-#include "solver.h"
+#include "solver_static.h"
 
 void run()
 {
@@ -102,8 +102,8 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump"}; // stiffness mode and solution mode
-    solv.solveProblem(pt_ass, load);
+    SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump"}; // stiffness mode and solution mode
+    solv.solveProblem(load);
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);

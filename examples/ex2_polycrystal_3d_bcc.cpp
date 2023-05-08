@@ -4,7 +4,7 @@
 #include "utilities.h"
 #include "stiffness.h"
 #include "load_step.h"
-#include "solver.h"
+#include "solver_static.h"
 
 void run()
 {
@@ -32,32 +32,32 @@ void run()
         // assign boundary and internal particles
         if (p1->xyz[2] > box[5] - 2 * radius)
         {
-            //p1->type = 11;
+            // p1->type = 11;
             top.push_back(p1);
         }
         if (p1->xyz[2] < box[4] + 2 * radius)
         {
-            //p1->type = 12;
+            // p1->type = 12;
             bottom.push_back(p1);
         }
         if (p1->xyz[1] > box[3] - 2 * radius)
         {
-            //p1->type = 13;
+            // p1->type = 13;
             back.push_back(p1);
         }
         if (p1->xyz[1] < box[2] + 2 * radius)
         {
-            //p1->type = 14;
+            // p1->type = 14;
             front.push_back(p1);
         }
         if (p1->xyz[0] > box[1] - 2 * radius)
         {
-            //p1->type = 15;
+            // p1->type = 15;
             right.push_back(p1);
         }
         if (p1->xyz[0] < box[0] + 2 * radius)
         {
-            //p1->type = 16;
+            // p1->type = 16;
             left.push_back(p1);
         }
         if (p1->nb == cell.nneighbors)
@@ -94,7 +94,7 @@ void run()
         // step.dispBCs.push_back(DispBC<n_layer>(top, 'x', 0));
         // step.dispBCs.push_back(DispBC<n_layer>(top, 'y', 0));
         // step.dispBCs.push_back(DispBC<n_layer>(bottom, 'z', -U_stepz));
-        //step.forceBCs.push_back(ForceBC<n_layer>(bottom, 0, 0, -200));
+        // step.forceBCs.push_back(ForceBC<n_layer>(bottom, 0, 0, -200));
 
         load.push_back(step);
     }
@@ -105,8 +105,8 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump"}; // stiffness mode and solution mode
-    solv.solveProblem(pt_ass, load);
+    SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump"}; // stiffness mode and solution mode
+    solv.solveProblem(load);
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);

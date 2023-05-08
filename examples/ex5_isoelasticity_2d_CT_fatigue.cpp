@@ -4,14 +4,9 @@
 #include "utilities.h"
 #include "stiffness.h"
 #include "load_step.h"
-#include "solver.h"
+#include "solver_fatigue.h"
 
 const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-
-void one_cycle(Solver<n_layer> &solv, Assembly<n_layer> &pt_ass, std::vector<LoadStep<n_layer>> &loading_i)
-{
-    solv.solveProblem(pt_ass, loading_i);
-}
 
 void run()
 {
@@ -29,8 +24,8 @@ void run()
 
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
-    std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0};                                                      // thickness is used for force calculation
-    Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DHEX.dump", "../geometry/geo1_CT_2DHEX.bond", cell, BondType::Elastic}; // read coordinate from local files
+    std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0};                                                             // thickness is used for force calculation
+    Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DHEX.dump", "../geometry/geo1_CT_2DHEX.bond", cell, ParticleType::FatigueHCF}; // read coordinate from local files
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
