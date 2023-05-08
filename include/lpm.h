@@ -64,7 +64,7 @@ enum class ParticleType : char
 {
     Elastic,
     ElasticDamage,
-    ElasticPlaneStress
+    FatigueHCF
 };
 
 enum class LatticeType : char

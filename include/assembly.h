@@ -13,6 +13,7 @@
 #include "bond.h"
 #include "particle_elastic.h"
 #include "particle_elastic_damage.h"
+#include "particle_fatigue_hcf.h"
 
 template <int nlayer>
 class Bond;
@@ -27,6 +28,9 @@ class ParticleElastic;
 
 template <int nlayer>
 class ParticleElasticDamage;
+
+template <int nlayer>
+class ParticleFatigueHCF;
 /////////////////////////////////
 
 template <int nlayer>
@@ -179,6 +183,8 @@ void Assembly<nlayer>::createParticles(std::vector<std::array<double, NDIM>> &p_
             pt = new ParticleElastic<nlayer>(xyz[0], xyz[1], xyz[2], p_cell);
         if (ptype == ParticleType::ElasticDamage)
             pt = new ParticleElasticDamage<nlayer>(xyz[0], xyz[1], xyz[2], p_cell);
+        if (ptype == ParticleType::FatigueHCF)
+            pt = new ParticleFatigueHCF<nlayer>(xyz[0], xyz[1], xyz[2], p_cell);
 
         pt_sys.push_back(pt);
     }
@@ -350,6 +356,8 @@ void Assembly<nlayer>::readDump(const std::string &dumpFile, UnitCell &cell)
             pt = new ParticleElastic<nlayer>(xyz[0], xyz[1], xyz[2], cell, type);
         if (ptype == ParticleType::ElasticDamage)
             pt = new ParticleElasticDamage<nlayer>(xyz[0], xyz[1], xyz[2], cell, type);
+        if (ptype == ParticleType::FatigueHCF)
+            pt = new ParticleFatigueHCF<nlayer>(xyz[0], xyz[1], xyz[2], cell, type);
 
         pt->id = id;
         pt_sys.push_back(pt);
