@@ -17,17 +17,12 @@
 template <int nlayer>
 class SolverStatic : public Solver<nlayer>
 {
-    const int max_iter = 30;      /* maximum Newton iteration number */
-    const double tol_iter = 1e-5; /* newton iteration tolerance */
-
 public:
-    SolverStatic(Assembly<nlayer> &p_ass, const StiffnessMode &p_stiff_mode, const SolverMode &p_sol_mode, const std::string &p_dumpFile)
-        : Solver<nlayer>{p_ass, p_stiff_mode, p_sol_mode, p_dumpFile} {}
+    SolverStatic(Assembly<nlayer> &p_ass, const StiffnessMode &p_stiff_mode, const SolverMode &p_sol_mode, const std::string &p_dumpFile, const int &p_niter, const double &p_tol)
+        : Solver<nlayer>{p_ass, p_stiff_mode, p_sol_mode, p_dumpFile, p_niter, p_tol} {}
 
     bool solveProblemStep(LoadStep<nlayer> &load, int &dump_step);
     void solveProblem(std::vector<LoadStep<nlayer>> &load);
-
-    int NewtonIteration(); // return number of Newton iterations
 };
 
 template <int nlayer>
@@ -90,8 +85,8 @@ bool SolverStatic<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, int &du
         printf("Stiffness matrix calculation costs %f seconds\n", t12 - t11);
 
         // balance the system using current bond configuration and state variables
-        n_newton = NewtonIteration();
-        if (n_newton >= max_iter)
+        n_newton = this->NewtonIteration();
+        if (n_newton >= this->max_NR_iter)
             break;
 
         if (m % 2 == 0)
@@ -116,48 +111,11 @@ bool SolverStatic<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, int &du
         }
     }
 
-    if (n_newton < max_iter)
+    if (n_newton < this->max_NR_iter)
         return true; // normal return
     else
         return false; // abnormal return
 }
 
-template <int nlayer>
-int SolverStatic<nlayer>::NewtonIteration()
-{
-    // update the force state and residual
-    this->ass.updateGeometry();
-    this->ass.updateForceState();
-    this->updateRR();
-
-    // compute the Euclidean norm (L2 norm)
-    double norm_residual = cblas_dnrm2(this->problem_size, this->stiffness.residual, 1);
-    double norm_reaction_force = cblas_dnrm2(this->reaction_force.size(), this->reaction_force.data(), 1);
-    double tol_multiplier = MAX(norm_residual, norm_reaction_force);
-    char tempChar1[] = "residual", tempChar2[] = "reaction";
-    printf("|  Norm of residual is %.5e, norm of reaction is %.5e, tolerance criterion is based on ", norm_residual, norm_reaction_force);
-    if (norm_residual > norm_reaction_force)
-        printf("%s force\n", tempChar1);
-    else
-        printf("%s force\n", tempChar2);
-
-    int ni{0};
-    while (norm_residual > tol_iter * tol_multiplier)
-    {
-        if (++ni > max_iter)
-            return max_iter; // abnormal return
-
-        printf("|  |  Iteration-%d: ", ni);
-        this->solveLinearSystem(); // solve for the incremental displacement
-
-        this->ass.updateGeometry();
-        this->ass.updateForceState();
-        this->updateRR(); /* update the RHS risidual force vector */
-        norm_residual = cblas_dnrm2(this->problem_size, this->stiffness.residual, 1);
-        printf("|  |  Norm of residual is %.3e, residual ratio is %.3e\n", norm_residual, norm_residual / tol_multiplier);
-    }
-
-    return ni; // normal return, return number of iterations
-}
 
 #endif

@@ -53,15 +53,9 @@ void run()
             p1->type = 3;
         }
 
-        // assign material properties
-        for (int i = 0; i < n_layer; ++i)
-        {
-            for (auto bd : p1->bond_layers[i])
-            {
-                // cast to elastic bond (or other type of bonds)
-                BondElastic<n_layer> *elbd = dynamic_cast<BondElastic<n_layer> *>(bd);
-                elbd->setBondProperty(E0, mu0, critical_bstrain);
-            }
+        // assign material properties, cast to fatigue damage particle type
+                ParticleFatigueHCF<n_layer> *ftpt = dynamic_cast<ParticleFatigueHCF<n_layer> *>(p1);
+                ftpt->setParticleProperty(E0, mu0, critical_bstrain);
         }
     }
 
