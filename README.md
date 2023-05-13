@@ -33,9 +33,6 @@ The results will be in the build folder.
 ### Examples
 There are some example codes in the `./examples` folder that contains additional numerical cases in [1, 2]. They define the `run()` functions of the project. Please change/add the example file and `src/lmpcpp.cpp` to run the code. In case if a new bond type is needed, one needs to add it to `assembly.h` as well.
 
-### Default numerical example
-A 3D simple cubic lattice example for elastic material is provided by default in `./src` directory.
-
 ### References
 1. Meng C, Wei H, Chen H, et al. Modeling plasticity of cubic crystals using a nonlocal lattice particle method[J]. Computer Methods in Applied Mechanics and Engineering, 2021, 385: 114069.
 
