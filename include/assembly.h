@@ -52,6 +52,7 @@ public:
     void updateGeometry();
     void resetStateVar(bool reset_xyz);
     void storeStateVar();
+    void clearStateVar(bool clear_damage);
     void updateForceState(); // update bond force and particle forces
 
     bool updateStateVar();
@@ -135,6 +136,18 @@ void Assembly<nlayer>::resetStateVar(bool reset_xyz)
         if (reset_xyz)
             pt->xyz = pt->xyz_last;
         pt->resetParticleStateVariables();
+    }
+}
+
+template <int nlayer>
+void Assembly<nlayer>::clearStateVar(bool clear_damage)
+{
+    for (Particle<nlayer> *pt : pt_sys)
+    {
+        double dam = pt->state_var[0];
+        pt->clearParticleStateVariables();
+        if (!clear_damage)
+            pt->state_var[0] = dam;
     }
 }
 

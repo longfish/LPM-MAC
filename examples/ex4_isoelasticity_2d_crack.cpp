@@ -66,7 +66,7 @@ void run()
 
     for (int i = 0; i < n_steps; i++)
     {
-        LoadStep<n_layer> step{1};
+        LoadStep<n_layer> step;
 
         // boundary conditions
         step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0));

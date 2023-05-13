@@ -54,7 +54,7 @@ void run()
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
     {
-        LoadStep<n_layer> step{1}; // 1 means tension loading, -1 means compression loading
+        LoadStep<n_layer> step; // 1 means tension loading, -1 means compression loading
 
         // boundary conditions
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));

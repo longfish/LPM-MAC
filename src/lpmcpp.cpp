@@ -16,9 +16,9 @@
 
 // #include "ex1_isoelasticity_3d_sc.cpp"
 // #include "ex2_polycrystal_3d_bcc.cpp"
-#include "ex3_singlecrystal_3d_fcc.cpp"
+// #include "ex3_singlecrystal_3d_fcc.cpp"
 // #include "ex4_isoelasticity_2d_crack.cpp"
-// #include "ex5_isoelasticity_2d_CT_fatigue.cpp"
+#include "ex5_isoelasticity_2d_CT_fatigue.cpp"
 
 /************************************************************************/
 /****************************** Main procedure **************************/

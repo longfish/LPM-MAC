@@ -30,8 +30,10 @@ void run()
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
-    double E0 = 205e3, mu0 = 0.29;    // Young's modulus (MPa) and Poisson's ratio
-    double critical_bstrain = 1.0e-3; // critical bond strain value at which bond will break
+    double E0 = 205e3, mu0 = 0.29;                           // Young's modulus (MPa) and Poisson's ratio
+    double sigma_TS = 420;                                   // tensile strength (MPa)
+    double f_A = 9.4e-4, f_b = 0.45, f_c = 6.5, f_eta = 0.2; // fatigue parameters
+    double critical_bstrain = 1.0e-3;                        // critical bond strain value at which bond will break
 
     std::vector<Particle<n_layer> *> top_group, bottom_group, mid_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
@@ -54,35 +56,31 @@ void run()
         }
 
         // assign material properties, cast to fatigue damage particle type
-                ParticleFatigueHCF<n_layer> *ftpt = dynamic_cast<ParticleFatigueHCF<n_layer> *>(p1);
-                ftpt->setParticleProperty(E0, mu0, critical_bstrain);
-        }
+        ParticleFatigueHCF<n_layer> *ftpt = dynamic_cast<ParticleFatigueHCF<n_layer> *>(p1);
+        ftpt->setParticleProperty(E0, mu0, sigma_TS, f_A, f_b, f_c, f_eta);
     }
 
     // define one cycle of loading
-    double f_max = 600, R = 0.1; // step size for cyclic force loading (N)
-    double f_mid = 0.5 * (f_max + R * f_max), f_amp = 0.5 * (1 - R) * f_max;
-    std::vector<LoadStep<n_layer>> load_cycle, load_initial; // load settings
-    LoadStep<n_layer> step{100};                             // initialize with number of cycle jumps after the loading
-    for (int i = 0; i < 9; ++i)
-    {
-        step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0)); // boundary conditions
-        step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'y', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', 1e-3));
-        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'y', -1e-3));
-        // step.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, f_mid, 0.0));
-        // step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, -f_mid, 0.0));
-        load_cycle.push_back(step);
-    }
-    load_initial.push_back(step);
-    // load_cycle[0].forceBCs[0].fy += f_amp, load_cycle[0].forceBCs[1].fy -= f_amp;
-    // load_cycle[1].forceBCs[0].fy += (2 * f_amp), load_cycle[1].forceBCs[1].fy -= (2 * f_amp);
-    // load_cycle[2].forceBCs[0].fy += f_amp, load_cycle[2].forceBCs[1].fy -= f_amp;
-    // // load_cycle[3]
-    // load_cycle[4].forceBCs[0].fy -= f_amp, load_cycle[4].forceBCs[1].fy += f_amp;
-    // load_cycle[5].forceBCs[0].fy -= (2 * f_amp), load_cycle[5].forceBCs[1].fy += (2 * f_amp);
-    // load_cycle[6].forceBCs[0].fy -= f_amp, load_cycle[6].forceBCs[1].fy += f_amp;
-    // // load_cycle[7]
+    double f_max = 600, R = 0.1, f_min = R * f_max;         // cyclic force loading (N)
+    std::vector<LoadStep<n_layer>> load_cycle;              // load settings
+    std::vector<std::vector<LoadStep<n_layer>>> all_cycles; // all loads
+
+    // cycle step-1
+    LoadStep<n_layer> step;
+    step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0)); // boundary conditions
+    step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'y', 0.0));
+    step.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, f_min, 0.0));
+    step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, -f_min, 0.0));
+    load_cycle.push_back(step);
+
+    // cycle step-2
+    step.forceBCs[0].fy = f_max;
+    step.forceBCs[1].fy = -f_max;
+    load_cycle.push_back(step);
+
+    // initialize 1000000 cycles
+    for (int i = 0; i < 1000000; ++i)
+        all_cycles.push_back(load_cycle);
 
     pt_ass.updateForceState();
 
@@ -92,12 +90,8 @@ void run()
     std::string dumpFile{"CT_2DHex_fatigue.dump"};
     pt_ass.writeDump(dumpFile, 0);
 
-    Solver<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, cell.nneighbors}; // stiffness mode and solution mode
-    solv.solveProblem(pt_ass, load_initial);                                                            // initial loading
-
-    // int n_cycles = 5;
-    // for (int i = 0; i < n_cycles; ++i)
-    //     one_cycle(solv, pt_ass, load_cycle);
+    SolverFatigue<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, 30, 1e-5}; // stiffness mode and solution mode
+    solv.solveProblem(all_cycles);                                                                      // initial loading
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);

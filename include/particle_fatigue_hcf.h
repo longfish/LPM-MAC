@@ -1,6 +1,6 @@
 #pragma once
-#ifndef PARTICLE_ELASTIC_DAMAGE_H
-#define PARTICLE_ELASTIC_DAMAGE_H
+#ifndef PARTICLE_FATIGUE_HCF_H
+#define PARTICLE_FATIGUE_HCF_H
 
 #include <vector>
 #include <array>
@@ -11,38 +11,41 @@
 #include "bond.h"
 
 // Elastic plane strain or 3D material
-// Update bdamage and bforce after geometry calculation 
-// Three particle-wise state variables: [0]damage
-
+// Update bdamage and bforce after geometry calculation
+// Four particle-wise state variables: [0]damage, [1]counter, [2]eq_stress1, [3]eq_stress2
 
 template <int nlayer>
 class ParticleFatigueHCF : public Particle<nlayer>
 {
 public:
-    double kappa0{0}, alpha{0}, beta{0}; // damage parameters
-    double comp_tensile_ratio{1};
+    double A{0}, b{0}, c{0}; // damage parameters
+    double sigma_TS{0};      // tensile strength
+    double eta{0.2};         // fatigue cycle jumping parameter
+    double eq_stress_a{0};   // equivalent stress amplitude
+    double Ddot{0};          // damage rate
     double damage_threshold{0.35}, critical_bstrain{1.2e-3};
 
     ParticleFatigueHCF(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell) : Particle<nlayer>{p_x, p_y, p_z, p_cell}
     {
-        this->state_var = std::vector<double>(3, 0.);
-        this->state_var_last = std::vector<double>(3, 0.);
+        this->state_var = std::vector<double>(4, 0.);
+        this->state_var_last = std::vector<double>(4, 0.);
     }
 
     ParticleFatigueHCF(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type) : Particle<nlayer>{p_x, p_y, p_z, p_cell, p_type}
     {
-        this->state_var = std::vector<double>(3, 0.);
-        this->state_var_last = std::vector<double>(3, 0.);
+        this->state_var = std::vector<double>(4, 0.);
+        this->state_var_last = std::vector<double>(4, 0.);
     }
 
-    double calcEqStrain();
+    double calcEqStress();
+    int calcNCycleJump();
 
     bool updateParticleStateVariables();
     bool updateParticleBrokenBonds();
 
     void updateBondsForce();
-    void setParticleProperty(double p_E, double p_mu, double p_kappa0, double p_alpha, double p_beta, double p_comp_tensile_ratio);
-    void setParticleProperty(double p_C11, double p_C12, double p_C44, double p_kappa0, double p_alpha, double p_beta, double p_comp_tensile_ratio);
+    void setParticleProperty(double p_E, double p_mu, double p_sigma_TS, double p_A, double p_b, double p_c, double p_eta);
+    void setParticleProperty(double p_C11, double p_C12, double p_C44, double p_sigma_TS, double p_A, double p_b, double p_c, double p_eta);
 };
 
 template <int nlayer>
@@ -80,26 +83,48 @@ void ParticleFatigueHCF<nlayer>::updateBondsForce()
 }
 
 template <int nlayer>
-double ParticleFatigueHCF<nlayer>::calcEqStrain()
+int ParticleFatigueHCF<nlayer>::calcNCycleJump()
 {
+    double coef = eta * pow((1 - state_var[0]), b + 1) / A / b;
+    double para = pow(sigma_TS / eq_stress_a, c);
+    return (int)(coef * para);
+}
 
+template <int nlayer>
+double ParticleFatigueHCF<nlayer>::calcEqStress()
+{
+    return 0.0;
 }
 
 template <int nlayer>
 bool ParticleFatigueHCF<nlayer>::updateParticleStateVariables()
 {
+    // counter can only be 0 or 1
+    // compute equivalent stress
+    state_var[(int)state_var[1] + 2] = calcEqStress();
+    state_var[1] += 1; // counter++;
 
+    // if counter == 2
+    // compute the eq stress amplitude
+    // compute Ddot
+    // update D
+    if (state_var[1] == 2)
+    {
+        eq_stress_a = 0.5 * (state_var[2] + state_var[3]);
+        Ddot = A * pow((eq_stress_a / sigma_TS), c) / pow(1 - state_var[0], b);
+        state_var[0] += Ddot * this->ncycle_jump;
+    }
+    return false;
 }
 
 template <int nlayer>
-void ParticleFatigueHCF<nlayer>::setParticleProperty(double p_E, double p_mu, double p_kappa0, double p_alpha, double p_beta, double p_comp_tensile_ratio)
+void ParticleFatigueHCF<nlayer>::setParticleProperty(double p_E, double p_mu, double p_sigma_TS, double p_A, double p_b, double p_c, double p_eta)
 {
-    kappa0 = p_kappa0;
-    alpha = p_alpha;
-    beta = p_beta;
-    comp_tensile_ratio = p_comp_tensile_ratio;
-    this->state_var[2] = kappa0;
-    this->state_var_last[2] = kappa0;
+    sigma_TS = p_sigma_TS;
+    A = p_A;
+    b = p_b;
+    c = p_c;
+    eta = p_eta;
 
     double Ce[NDIM]{p_E * (1.0 - p_mu) / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
                     p_E * p_mu / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
@@ -130,14 +155,13 @@ void ParticleFatigueHCF<nlayer>::setParticleProperty(double p_E, double p_mu, do
 }
 
 template <int nlayer>
-void ParticleFatigueHCF<nlayer>::setParticleProperty(double p_C11, double p_C12, double p_C44, double p_kappa0, double p_alpha, double p_beta, double p_comp_tensile_ratio)
+void ParticleFatigueHCF<nlayer>::setParticleProperty(double p_C11, double p_C12, double p_C44, double p_sigma_TS, double p_A, double p_b, double p_c, double p_eta)
 {
-    kappa0 = p_kappa0;
-    alpha = p_alpha;
-    beta = p_beta;
-    comp_tensile_ratio = p_comp_tensile_ratio;
-    this->state_var[2] = kappa0;
-    this->state_var_last[2] = kappa0;
+    sigma_TS = p_sigma_TS;
+    A = p_A;
+    b = p_b;
+    c = p_c;
+    eta = p_eta;
 
     double Ce[NDIM]{p_C11, p_C12, p_C44}; // C11, C12, C44
     double KnTv[NDIM]{0};

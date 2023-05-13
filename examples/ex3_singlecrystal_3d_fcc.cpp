@@ -81,7 +81,7 @@ void run()
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
     {
-        LoadStep<n_layer> step{1}; // 1 means tension loading, -1 means compression loading
+        LoadStep<n_layer> step; 
 
         // boundary conditions
         // left: U_stepx; right: -U_stepx

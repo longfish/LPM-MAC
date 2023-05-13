@@ -21,6 +21,7 @@ public:
     int type{0};                                                     // particle type which is needed to identify phases
     int nconn_largeq{0};                                             // matrix pointer, number of conn larger than (or equal to) its own index
     int nb{0}, nconn{0};                                             // number of bonds and connections
+    int ncycle_jump{0};                                          // cycle jumping numbers for fatigue simulation
     double damage_visual{0.};                                        // damage value for visualization
     UnitCell cell;                                                   // unit cell
     std::vector<double> state_var, state_var_last;                   // vectors that store state variables
@@ -52,9 +53,11 @@ public:
     void updateParticleDamageVisual();
     void storeParticleStateVariables();
     void resetParticleStateVariables();
+    void clearParticleStateVariables();
     void resumeParticleState();
 
     // virtual functions that can be inherited
+    virtual double calcNCycleJump() {}
     virtual void updateBondsForce() {}
     virtual bool updateParticleStateVariables() { return false; }
     virtual bool updateParticleBrokenBonds() { return false; };
@@ -85,6 +88,17 @@ void Particle<nlayer>::storeParticleStateVariables()
             bd->bforce_last = bd->bforce;
             bd->dLp_last = bd->dLp;
         }
+    }
+}
+
+template <int nlayer>
+void Particle<nlayer>::clearParticleStateVariables()
+{
+    // clear the current particle state variables (useful in fatigue modeling)
+    for (int i = 0; i < state_var.size(); ++i)
+    {
+        state_var_last[i] = 0;
+        state_var[i] = 0;
     }
 }
 
