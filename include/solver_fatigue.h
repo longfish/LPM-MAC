@@ -22,7 +22,7 @@ public:
         : Solver<nlayer>{p_ass, p_stiff_mode, p_sol_mode, p_dumpFile, p_niter, p_tol} {}
 
     int getCycleJumpN();
-    int updateFatigueStatus();
+    int updateFatigueDamage();
     bool solveProblemStep(LoadStep<nlayer> &load, int &time_step);
     void solveProblemOneCycle(std::vector<LoadStep<nlayer>> &load);
     void solveProblem(std::vector<std::vector<LoadStep<nlayer>>> &cycle_loads);
@@ -39,7 +39,7 @@ int SolverFatigue<nlayer>::getCycleJumpN()
 }
 
 template <int nlayer>
-int SolverFatigue<nlayer>::updateFatigueStatus()
+int SolverFatigue<nlayer>::updateFatigueDamage()
 {
     ass.updateStateVar();     // compute the damage rate
     int dN = getCycleJumpN(); // determine the cycle-jump number
@@ -52,6 +52,8 @@ int SolverFatigue<nlayer>::updateFatigueStatus()
         pt->ncycle_jump = 0;                // set the ncycle_jump to be zero
     }
 
+    this->ass.updateForceState();
+
     return dN;
 }
 
@@ -62,7 +64,8 @@ void SolverFatigue<nlayer>::solveProblem(std::vector<std::vector<LoadStep<nlayer
     do
     {
         solveProblemOneCycle(cycle_loads[N]);
-        N += updateFatigueStatus();
+        int n_jump = updateFatigueDamage();
+        N += n_jump;
     } while (N < cycle_loads.size());
 }
 
@@ -89,7 +92,7 @@ void SolverFatigue<nlayer>::solveProblemOneCycle(std::vector<LoadStep<nlayer>> &
 template <int nlayer>
 bool SolverFatigue<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, int &time_step)
 {
-    // fix the damage, update the deformation field
+    // keep the damage unchanged, update the deformation field
 
     bool new_broken{false};
     int n_newton{0};

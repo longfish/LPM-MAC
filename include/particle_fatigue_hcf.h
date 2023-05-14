@@ -93,14 +93,45 @@ int ParticleFatigueHCF<nlayer>::calcNCycleJump()
 template <int nlayer>
 double ParticleFatigueHCF<nlayer>::calcEqStress()
 {
-    return 0.0;
+    // compute local stress tensor
+    std::vector<double> stress_local(6, 0);
+    for (int i = 0; i < nlayer; ++i)
+    {
+        for (Bond<nlayer> *bd : this->bond_layers[i])
+        {
+            stress_local[0] += 0.5 / this->cell.particle_volume * bd->dis * bd->bforce * bd->csx * bd->csx * this->cell.nneighbors / this->nb;
+            stress_local[1] += 0.5 / this->cell.particle_volume * bd->dis * bd->bforce * bd->csy * bd->csy * this->cell.nneighbors / this->nb;
+            stress_local[2] += 0.5 / this->cell.particle_volume * bd->dis * bd->bforce * bd->csz * bd->csz * this->cell.nneighbors / this->nb;
+            stress_local[3] += 0.5 / this->cell.particle_volume * bd->dis * bd->bforce * bd->csy * bd->csz * this->cell.nneighbors / this->nb;
+            stress_local[4] += 0.5 / this->cell.particle_volume * bd->dis * bd->bforce * bd->csx * bd->csz * this->cell.nneighbors / this->nb;
+            stress_local[5] += 0.5 / this->cell.particle_volume * bd->dis * bd->bforce * bd->csx * bd->csy * this->cell.nneighbors / this->nb;
+        }
+    }
+
+    /* update stress tensor to be trial devitoric stress tensor */
+    double temp = 1.0 / 3.0 * (stress_local[0] + stress_local[1] + stress_local[2]);
+    for (int j = 0; j < NDIM; j++)
+        stress_local[j] -= temp;
+
+    /* von Mises equivalent stress */
+    double sigma_eq = 0.0;
+    for (int j = 0; j < 2 * NDIM; j++)
+    {
+        if (j < NDIM)
+            sigma_eq += stress_local[j] * stress_local[j]; // s11, s22, s33
+        else
+            sigma_eq += 2.0 * stress_local[j] * stress_local[j]; // s23, s13, s12
+    }
+    sigma_eq = sqrt(3.0 / 2.0 * sigma_eq);
+
+    return sigma_eq;
 }
 
 template <int nlayer>
 bool ParticleFatigueHCF<nlayer>::updateParticleStateVariables()
 {
     // counter can only be 0 or 1
-    // compute equivalent stress
+    // compute equivalent stress and store it
     state_var[(int)state_var[1] + 2] = calcEqStress();
     state_var[1] += 1; // counter++;
 
