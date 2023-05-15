@@ -6,12 +6,34 @@
 #include "load_step.h"
 #include "solver_static.h"
 
+template <typename T>
+void writeMatrix(const char *dataName, T *data, int l)
+{
+    FILE *fpt;
+    fpt = fopen(dataName, "w+");
+    for (int i = 0; i < l; i++)
+    {
+        if constexpr (std::is_integral_v<T>)
+        { // constexpr only necessary on first statement
+            fprintf(fpt, " %d\n", data[i]);
+        }
+        else if (std::is_floating_point_v<T>)
+        { // automatically constexpr
+            fprintf(fpt, " %.5e\n", data[i]);
+        }
+
+        // fprintf(fpt, " %.5e\n", data[i]);
+    }
+
+    fclose(fpt);
+}
+
 void run()
 {
     double start = omp_get_wtime(); // record the CPU time, begin
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 0.6;   // particle radius
+    double radius = 0.8;   // particle radius
     UnitCell cell(LatticeType::SimpleCubic3D, radius);
 
     // Euler angles setting for system rotation
@@ -35,7 +57,7 @@ void run()
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
         // assign boundary and internal particles
-        if (p1->xyz[2] > box[5] - 1.5 * radius)
+        if (p1->xyz[2] > box[5] - 2 * radius)
         {
             top_group.push_back(p1); // top
             p1->type = 1;
@@ -60,7 +82,7 @@ void run()
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
     {
-        LoadStep<n_layer> step; 
+        LoadStep<n_layer> step;
 
         // boundary conditions
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
@@ -76,10 +98,16 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    int max_iter = 1;                                                                                                         /* maximum Newton iteration number */
+    int max_iter = 1;                                                                                                          /* maximum Newton iteration number */
     double tol_iter = 1e-5;                                                                                                    /* newton iteration tolerance */
-    SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::PARDISO, "result_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
+    SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
+
+    // write down global matrices
     solv.solveProblem(load);
+    writeMatrix("matrix_K_global.txt", solv.stiffness.K_global, solv.stiffness.K_pointer[pt_ass.pt_sys.size()]);
+    writeMatrix("matrix_K_pointer.txt", solv.stiffness.K_pointer, pt_ass.pt_sys.size() + 1);
+    writeMatrix("matrix_IK.txt", solv.stiffness.IK, pt_ass.pt_sys[0]->cell.dim * pt_ass.pt_sys.size() + 1);
+    writeMatrix("matrix_JK.txt", solv.stiffness.JK, solv.stiffness.K_pointer[pt_ass.pt_sys.size()]);
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);

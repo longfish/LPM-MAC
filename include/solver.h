@@ -77,7 +77,7 @@ int Solver<nlayer>::NewtonIteration()
             return max_NR_iter; // abnormal return
 
         printf("|  |  Iteration-%d: ", ni);
-        solveLinearSystem(); // solve for the incremental displacement
+        //solveLinearSystem(); // solve for the incremental displacement
 
         ass.updateGeometry();
         ass.updateForceState();
@@ -200,6 +200,7 @@ void Solver<nlayer>::LPM_PARDISO()
     // iparm[17] = -1;       /* Output: Number of nonzeros in the factor LU */
     // iparm[18] = -1;       /* Output: Mflops for LU factorization */
     // iparm[19] = 0;        /* Output: Numbers of CG Iterations */
+    iparm[27]=1;
 
     n = problem_size; /* Data number */
     maxfct = 1;       /* Maximum number of numerical factorizations */
@@ -291,7 +292,7 @@ void Solver<nlayer>::LPM_CG()
         goto failure;
 
     /* modify the initialized solver parameters */
-    //ipar[0] = problem_size;
+    // ipar[0] = problem_size;
     ipar[8] = 1; /* default value is 0, does not perform the residual stopping test; otherwise, perform the test */
     ipar[9] = 0; /* default value is 1, perform user defined stopping test; otherwise, does not perform the test */
     // ipar[10] = 1; /* use the preconditioned version of the CG method */

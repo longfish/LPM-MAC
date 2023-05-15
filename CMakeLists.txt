@@ -8,7 +8,7 @@ endif()
 
 set(OBJ lpmcpp)
 set(CMAKE_CXX_COMPILER "g++")
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 project(${OBJ} LANGUAGES CXX)
 find_package(MKL CONFIG REQUIRED)
