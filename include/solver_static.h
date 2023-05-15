@@ -39,15 +39,15 @@ void SolverStatic<nlayer>::solveProblem(std::vector<LoadStep<nlayer>> &load)
         double t1 = omp_get_wtime();
 
         is_converged = solveProblemStep(load[i], dump_step);
-        if (!is_converged)
-        {
-            this->ass.resetStateVar(true); // reset the state_var to last converged ones
-            load[i].loadCutHalf();
-            load.insert(load.begin() + i, load[i]);
-            ++n_step;
-            printf("Step-%d not converging\n\n", i + 1);
-            goto restart;
-        }
+        // if (!is_converged)
+        // {
+        //     this->ass.resetStateVar(true); // reset the state_var to last converged ones
+        //     load[i].loadCutHalf();
+        //     load.insert(load.begin() + i, load[i]);
+        //     ++n_step;
+        //     printf("Step-%d not converging\n\n", i + 1);
+        //     goto restart;
+        // }
 
         // ass.updateStateVar();
         this->ass.storeStateVar(); // store converged state variables

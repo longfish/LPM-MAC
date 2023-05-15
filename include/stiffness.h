@@ -22,7 +22,7 @@ class Stiffness
 
 public:
     MKL_INT *IK, *JK;
-    int *K_pointer; // start index for each particle in the global stiffness matrix
+    MKL_INT *K_pointer; // start index for each particle in the global stiffness matrix
     double *residual, *K_global;
 
     void initialize(std::vector<Particle<nlayer> *> &pt_sys);
@@ -54,7 +54,7 @@ public:
 template <int nlayer>
 void Stiffness<nlayer>::initialize(std::vector<Particle<nlayer> *> &pt_sys)
 {
-    K_pointer = new int[pt_sys.size() + 1];
+    K_pointer = new MKL_INT[pt_sys.size() + 1];
     K_pointer[pt_sys[0]->id] = 0;
     for (auto pt : pt_sys)
     {
@@ -64,10 +64,10 @@ void Stiffness<nlayer>::initialize(std::vector<Particle<nlayer> *> &pt_sys)
             K_pointer[pt->id + 1] = K_pointer[pt->id] + (pt->cell.dim) * (pt->cell.dim) * (pt->nconn_largeq) - 3;
     }
 
-    IK = new MKL_INT[pt_sys[0]->cell.dim * pt_sys.size() + 1];
-    JK = new MKL_INT[K_pointer[pt_sys.size()]];
-    residual = new double[pt_sys[0]->cell.dim * pt_sys.size()];
-    K_global = new double[K_pointer[pt_sys.size()]];
+    IK = new MKL_INT[pt_sys[0]->cell.dim * pt_sys.size() + 1]{};
+    JK = new MKL_INT[K_pointer[pt_sys.size()]]{};
+    residual = new double[pt_sys[0]->cell.dim * pt_sys.size()]{};
+    K_global = new double[K_pointer[pt_sys.size()]]{};
 }
 
 template <int nlayer>
@@ -81,8 +81,11 @@ void Stiffness<nlayer>::reset(std::vector<Particle<nlayer> *> &pt_sys)
             K_pointer[pt->id + 1] = K_pointer[pt->id] + (pt->cell.dim) * (pt->cell.dim) * (pt->nconn_largeq) - 3;
     }
 
-    std::fill(JK, JK + K_pointer[pt_sys.size()], 0);
-    std::fill(K_global, K_global + K_pointer[pt_sys.size()], 0);
+    for (int i = 0; i < K_pointer[pt_sys.size()]; ++i)
+    {
+        JK[i] = 0;
+        K_global[i] = 0;
+    }
 }
 
 template <int nlayer>

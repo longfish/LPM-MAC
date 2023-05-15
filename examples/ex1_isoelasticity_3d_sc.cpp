@@ -11,7 +11,7 @@ void run()
     double start = omp_get_wtime(); // record the CPU time, begin
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 0.25;  // particle radius
+    double radius = 0.6;   // particle radius
     UnitCell cell(LatticeType::SimpleCubic3D, radius);
 
     // Euler angles setting for system rotation
@@ -36,9 +36,15 @@ void run()
     {
         // assign boundary and internal particles
         if (p1->xyz[2] > box[5] - 1.5 * radius)
+        {
             top_group.push_back(p1); // top
-        if (p1->xyz[2] < box[4] + 1.5 * radius)
+            p1->type = 1;
+        }
+        if (p1->xyz[2] < box[4] + 2 * radius)
+        {
             bottom_group.push_back(p1); // bottom
+            p1->type = 2;
+        }
         if (p1->nb == cell.nneighbors)
             internal_group.push_back(p1); // particles with full neighbor list
 
@@ -48,13 +54,13 @@ void run()
     }
 
     // simulation settings
-    int n_steps = 2;          // number of loading steps
+    int n_steps = 1;          // number of loading steps
     double step_size = -1e-3; // step size for force or displacement loading
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
     {
-        LoadStep<n_layer> step; // 1 means tension loading, -1 means compression loading
+        LoadStep<n_layer> step; 
 
         // boundary conditions
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
@@ -70,9 +76,9 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    int max_iter = 30;                                                                                                         /* maximum Newton iteration number */
+    int max_iter = 1;                                                                                                         /* maximum Newton iteration number */
     double tol_iter = 1e-5;                                                                                                    /* newton iteration tolerance */
-    SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
+    SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::PARDISO, "result_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
     solv.solveProblem(load);
 
     double finish = omp_get_wtime();

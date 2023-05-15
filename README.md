@@ -23,7 +23,7 @@ A multi-threaded implementation of a nonlocal lattice particle method (LPM) usin
 2. `git clone https://github.com/longfish/LPM-CPP.git`  # clone the project source files into your own machine
 3. `mkdir build`
 4. `cd build`
-5. `cmake .. -G "Ninja" -DMKL_INTERFACE=ilp64 -DCMAKE_BUILD_TYPE=Release` # change from *Release* to *Debug* if needed
+5. `cmake .. -G "Ninja" -DMKL_INTERFACE=ilp64 -DCMAKE_BUILD_TYPE=Release` # change from *Release* to *Debug* for debugging (e.g., valgrind)
 6. `cmake --build . -j 8`
 
 ### Run the code
