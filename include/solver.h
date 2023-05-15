@@ -286,7 +286,7 @@ void Solver<nlayer>::LPM_CG()
         goto failure;
 
     /* modify the initialized solver parameters */
-    ipar[4] = problem_size;
+    ipar[0] = problem_size;
     ipar[8] = 1; /* default value is 0, does not perform the residual stopping test; otherwise, perform the test */
     ipar[9] = 0; /* default value is 1, perform user defined stopping test; otherwise, does not perform the test */
     // ipar[10] = 1; /* use the preconditioned version of the CG method */

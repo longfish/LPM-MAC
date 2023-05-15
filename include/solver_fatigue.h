@@ -23,7 +23,7 @@ public:
 
     int getCycleJumpN();
     int updateFatigueDamage();
-    bool solveProblemStep(LoadStep<nlayer> &load, int &time_step);
+    bool solveProblemStep(LoadStep<nlayer> &load, int time_step);
     void solveProblemOneCycle(std::vector<LoadStep<nlayer>> &load);
     void solveProblem(std::vector<std::vector<LoadStep<nlayer>>> &cycle_loads);
 };
@@ -41,8 +41,9 @@ int SolverFatigue<nlayer>::getCycleJumpN()
 template <int nlayer>
 int SolverFatigue<nlayer>::updateFatigueDamage()
 {
-    ass.updateStateVar();     // compute the damage rate
+    this->ass.updateStateVar();     // compute the damage rate
     int dN = getCycleJumpN(); // determine the cycle-jump number
+    std::cout << dN << std::endl;
 
     // set the ncycle_jump of the particle
     for (Particle<nlayer> *pt : this->ass.pt_sys)
@@ -82,7 +83,7 @@ void SolverFatigue<nlayer>::solveProblemOneCycle(std::vector<LoadStep<nlayer>> &
         double t1 = omp_get_wtime();
         bool is_converged = solveProblemStep(load[i], i + 1);
 
-        ass.updateStateVar(); // update the state variables in current cycle
+        this->ass.updateStateVar(); // update the state variables in current cycle
 
         double t2 = omp_get_wtime();
         printf("Loading step %d has finished, spent %f seconds\n\n", i + 1, t2 - t1);
@@ -90,7 +91,7 @@ void SolverFatigue<nlayer>::solveProblemOneCycle(std::vector<LoadStep<nlayer>> &
 }
 
 template <int nlayer>
-bool SolverFatigue<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, int &time_step)
+bool SolverFatigue<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, int time_step)
 {
     // keep the damage unchanged, update the deformation field
 

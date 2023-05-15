@@ -85,7 +85,7 @@ void ParticleFatigueHCF<nlayer>::updateBondsForce()
 template <int nlayer>
 int ParticleFatigueHCF<nlayer>::calcNCycleJump()
 {
-    double coef = eta * pow((1 - state_var[0]), b + 1) / A / b;
+    double coef = eta * pow((1 - this->state_var[0]), b + 1) / A / b;
     double para = pow(sigma_TS / eq_stress_a, c);
     return (int)(coef * para);
 }
@@ -132,18 +132,19 @@ bool ParticleFatigueHCF<nlayer>::updateParticleStateVariables()
 {
     // counter can only be 0 or 1
     // compute equivalent stress and store it
-    state_var[(int)state_var[1] + 2] = calcEqStress();
-    state_var[1] += 1; // counter++;
+    int counter = this->state_var[1];
+    this->state_var[counter + 2] = calcEqStress();
+    this->state_var[1] += 1; // counter++;
 
     // if counter == 2
     // compute the eq stress amplitude
     // compute Ddot
     // update D
-    if (state_var[1] == 2)
+    if (this->state_var[1] == 2)
     {
-        eq_stress_a = 0.5 * (state_var[2] + state_var[3]);
-        Ddot = A * pow((eq_stress_a / sigma_TS), c) / pow(1 - state_var[0], b);
-        state_var[0] += Ddot * this->ncycle_jump;
+        eq_stress_a = 0.5 * (this->state_var[2] + this->state_var[3]);
+        Ddot = A * pow((eq_stress_a / sigma_TS), c) / pow(1 - this->state_var[0], b);
+        this->state_var[0] += Ddot * this->ncycle_jump;
     }
     return false;
 }
