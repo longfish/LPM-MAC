@@ -9,6 +9,7 @@
 #include <fstream>
 #include <cstdio>
 #include <iomanip>
+#include <iterator>
 
 #include <stdio.h>
 #include <math.h>

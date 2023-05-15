@@ -217,7 +217,7 @@ void Solver<nlayer>::LPM_PARDISO()
     /* Reordering and Symbolic Factorization. This step also allocates all memory that is  */
     /* necessary for the factorization */
     phase = 11;
-    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, stiffness.K_global.data(), stiffness.IK, stiffness.JK.data(), &idum, &nrhs, iparm, &msglvl, &ddum, &ddum, &error);
+    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, stiffness.K_global, stiffness.IK, stiffness.JK, &idum, &nrhs, iparm, &msglvl, &ddum, &ddum, &error);
     if (error != 0)
     {
         printf("\nERROR during symbolic factorization: " IFORMAT, error);
@@ -228,7 +228,7 @@ void Solver<nlayer>::LPM_PARDISO()
 
     /* Numerical factorization */
     phase = 22;
-    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, stiffness.K_global.data(), stiffness.IK, stiffness.JK.data(), &idum, &nrhs, iparm, &msglvl, &ddum, &ddum, &error);
+    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, stiffness.K_global, stiffness.IK, stiffness.JK, &idum, &nrhs, iparm, &msglvl, &ddum, &ddum, &error);
     if (error != 0)
     {
         printf("\nERROR during numerical factorization: " IFORMAT, error);
@@ -237,7 +237,7 @@ void Solver<nlayer>::LPM_PARDISO()
 
     /* Back substitution and iterative refinement */
     phase = 33;
-    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, stiffness.K_global.data(), stiffness.IK, stiffness.JK.data(), &idum, &nrhs, iparm, &msglvl, stiffness.residual, disp, &error);
+    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, stiffness.K_global, stiffness.IK, stiffness.JK, &idum, &nrhs, iparm, &msglvl, stiffness.residual, disp, &error);
     if (error != 0)
     {
         printf("\nERROR during solution: " IFORMAT, error);
@@ -247,7 +247,7 @@ void Solver<nlayer>::LPM_PARDISO()
 
     /* Termination and release of memory */
     phase = -1; /* Release internal memory. */
-    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, &ddum, stiffness.IK, stiffness.JK.data(), &idum, &nrhs, iparm, &msglvl, &ddum, &ddum, &error1);
+    PARDISO(pt, &maxfct, &mnum, &mtype, &phase, &n, &ddum, stiffness.IK, stiffness.JK, &idum, &nrhs, iparm, &msglvl, &ddum, &ddum, &error1);
     if (error1 != 0)
     {
         printf("\nERROR on release stage: " IFORMAT, error1);
@@ -274,7 +274,7 @@ void Solver<nlayer>::LPM_CG()
     /* initial setting */
     n = problem_size; /* Data number */
     tmp = new double[4 * n];
-    mkl_sparse_d_create_csr(&csrA, SPARSE_INDEX_BASE_ONE, n, n, stiffness.IK, stiffness.IK + 1, stiffness.JK.data(), stiffness.K_global.data());
+    mkl_sparse_d_create_csr(&csrA, SPARSE_INDEX_BASE_ONE, n, n, stiffness.IK, stiffness.IK + 1, stiffness.JK, stiffness.K_global);
 
     /* initial guess for the displacement vector */
     for (int i = 0; i < n; i++)
@@ -286,11 +286,11 @@ void Solver<nlayer>::LPM_CG()
         goto failure;
 
     /* modify the initialized solver parameters */
-    ipar[0] = problem_size;
+    ipar[4] = problem_size;
     ipar[8] = 1; /* default value is 0, does not perform the residual stopping test; otherwise, perform the test */
     ipar[9] = 0; /* default value is 1, perform user defined stopping test; otherwise, does not perform the test */
     // ipar[10] = 1; /* use the preconditioned version of the CG method */
-    dpar[0] = 1e-12; /* specifies the relative tolerance, the default value is 1e-6 */
+    dpar[0] = 1e-8;  /* specifies the relative tolerance, the default value is 1e-6 */
     dpar[1] = 1e-12; /* specifies the absolute tolerance, the default value is 0.0 */
 
     /* check the correctness and consistency of the newly set parameters */
