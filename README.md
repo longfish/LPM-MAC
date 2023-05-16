@@ -16,15 +16,14 @@ A multi-threaded implementation of a nonlocal lattice particle method (LPM) usin
 3. install Ninja: `sudo apt-get install ninja-build`
 4. install openmp: `sudo apt-get install libomp-dev`
 5. install boost: `sudo apt install libboost-all-dev`
-6. note-1: please add the MKL include path into your editor preference (like VS Code)
-7. note-2: please choose the oneAPI version that can run icpc, the program doesn't run properly with icpx
+6. note: please add the MKL include path into your editor preference (like VS Code)
 
 ### Compile and run LPM-CPP
 1. `source /opt/intel/oneapi/setvars.sh linux64 `
 2. `git clone https://github.com/longfish/LPM-CPP.git`  # clone the project source files into your own machine
 3. `mkdir build`
 4. `cd build`
-5. `cmake .. -G "Ninja" -DMKL_INTERFACE=lp64 -DCMAKE_BUILD_TYPE=Release` # change from *Release* to *Debug* for debugging (e.g., valgrind)
+5. `cmake .. -G "Ninja" -DMKL_INTERFACE=ilp64 -DCMAKE_BUILD_TYPE=Release` # change from *Release* to *Debug* for debugging (e.g., valgrind)
 6. `cmake --build . -j 8`
 
 ### Run the code
