@@ -258,7 +258,7 @@ void Solver<nlayer>::LPM_PARDISO()
 template <int nlayer>
 void Solver<nlayer>::LPM_CG()
 {
-    MKL_INT n, rci_request = 0, itercount, mkl_disable_fast_mm;
+    MKL_INT n, rci_request, itercount, mkl_disable_fast_mm;
     MKL_INT ipar[128];
     double dpar[128], *tmp;
 
@@ -274,11 +274,7 @@ void Solver<nlayer>::LPM_CG()
     /* initial setting */
     n = problem_size; /* Data number */
     tmp = new double[4 * n]{};
-    for (int i = 0; i < 128; i++)
-    {
-        ipar[i] = 0;
-        dpar[i] = 0;
-    }
+
     mkl_sparse_d_create_csr(&csrA, SPARSE_INDEX_BASE_ONE, n, n, stiffness.IK, stiffness.IK + 1, stiffness.JK, stiffness.K_global);
 
     /* initial guess for the displacement vector */
@@ -291,11 +287,11 @@ void Solver<nlayer>::LPM_CG()
         goto failure;
 
     /* modify the initialized solver parameters */
-    // ipar[0] = problem_size;
+    ipar[0] = problem_size;
     ipar[8] = 1; /* default value is 0, does not perform the residual stopping test; otherwise, perform the test */
     ipar[9] = 0; /* default value is 1, perform user defined stopping test; otherwise, does not perform the test */
     // ipar[10] = 1; /* use the preconditioned version of the CG method */
-    dpar[0] = 1e-8;  /* specifies the relative tolerance, the default value is 1e-6 */
+    dpar[0] = 1e-12; /* specifies the relative tolerance, the default value is 1e-6 */
     dpar[1] = 1e-12; /* specifies the absolute tolerance, the default value is 0.0 */
 
     /* check the correctness and consistency of the newly set parameters */
