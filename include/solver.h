@@ -77,7 +77,7 @@ int Solver<nlayer>::NewtonIteration()
             return max_NR_iter; // abnormal return
 
         printf("|  |  Iteration-%d: ", ni);
-        //solveLinearSystem(); // solve for the incremental displacement
+        solveLinearSystem(); // solve for the incremental displacement
 
         ass.updateGeometry();
         ass.updateForceState();
@@ -191,7 +191,7 @@ void Solver<nlayer>::LPM_PARDISO()
     iparm[9] = 13; /* Perturb the pivot elements with 1E-13 */
     iparm[10] = 1; /* Use nonsymmetric permutation and scaling MPS */
     // iparm[11] = 0;        /* Not in use */
-    iparm[12] = 0; /* Maximum weighted matching algorithm is switched-off (default for
+    iparm[12] = 1; /* Maximum weighted matching algorithm is switched-off (default for
                           symmetric). Try iparm[12] = 1 in case of inappropriate accuracy */
                    // iparm[13] = 0;        /* Output: Number of perturbed pivots */
     // iparm[14] = 0;        /* Not in use */
@@ -200,7 +200,6 @@ void Solver<nlayer>::LPM_PARDISO()
     // iparm[17] = -1;       /* Output: Number of nonzeros in the factor LU */
     // iparm[18] = -1;       /* Output: Mflops for LU factorization */
     // iparm[19] = 0;        /* Output: Numbers of CG Iterations */
-    iparm[27]=1;
 
     n = problem_size; /* Data number */
     maxfct = 1;       /* Maximum number of numerical factorizations */

@@ -166,15 +166,10 @@ void Particle<nlayer>::resumeParticleState()
     {
         pjj->updateBondsGeometry(); // update all bond information, e.g., dL, dL_total
         pjj->resetParticleStateVariables();
-        for (int i = 0; i < nlayer; ++i)
-        {
-            for (Bond<nlayer> *bd : pjj->bond_layers[i])
-            {
-                bd->bforce = bd->bforce_last;
-                bd->bdamage = bd->bdamage_last;
-            }
-        }
     }
+
+    for (Particle<nlayer> *pjj : conns)
+        pjj->updateBondsForce(); // update all bond forces
 }
 
 template <int nlayer>

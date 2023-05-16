@@ -199,7 +199,7 @@ void Stiffness<nlayer>::calcStiffness3D(std::vector<Particle<nlayer> *> &pt_sys)
 {
     // std::fill(K_global.begin(), K_global.end(), 0.0);
 
-#pragma omp parallel for if (mode == StiffnessMode::Analytical)
+    // #pragma omp parallel for if (mode == StiffnessMode::Analytical)
     for (const auto &pi_iterator : pt_sys | indexed(0))
     {
         Particle<nlayer> *pi = pi_iterator.value();
@@ -293,7 +293,7 @@ void Stiffness<nlayer>::calcStiffness2D(std::vector<Particle<nlayer> *> &pt_sys)
 {
     // std::fill(K_global.begin(), K_global.end(), 0.0);
 
-#pragma omp parallel for if (mode == StiffnessMode::Analytical)
+    // #pragma omp parallel for if (mode == StiffnessMode::Analytical)
     for (const auto &pi_iterator : pt_sys | indexed(0))
     {
         Particle<nlayer> *pi = pi_iterator.value();
@@ -375,7 +375,8 @@ void Stiffness<nlayer>::updateStiffnessDispBC(std::vector<Particle<nlayer> *> &p
     }
 
     /* compute the norm of the diagonal */
-    double norm_diag = cblas_dnrm2(pt_sys[0]->cell.dim * pt_sys.size(), diag, 1); /* Euclidean norm (L2 norm) */
+    double norm_diag = 1e4; // cblas_dnrm2(pt_sys[0]->cell.dim * pt_sys.size(), diag, 1); /* Euclidean norm (L2 norm) */
+    // printf("%.5e\n", norm_diag);
     delete[] diag;
 
     /* update the stiffness matrix */
