@@ -7,7 +7,7 @@ else()
 endif()
 
 set(OBJ lpmcpp)
-set(CMAKE_CXX_COMPILER "g++")
+set(CMAKE_CXX_COMPILER "icpc")
 set(CMAKE_CXX_STANDARD 17)
 
 project(${OBJ} LANGUAGES CXX)
