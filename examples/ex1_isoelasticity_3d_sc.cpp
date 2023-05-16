@@ -76,8 +76,9 @@ void run()
     }
 
     // simulation settings
-    int n_steps = 1;          // number of loading steps
-    double step_size = -1e-3; // step size for force or displacement loading
+    int n_steps = 1; // number of loading steps
+    // double step_size = -1e-3; // step size for displacement loading
+    double step_size = -2000; // step size for force loading
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
@@ -88,7 +89,8 @@ void run()
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'z', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'z', step_size));
+        step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, -step_size, 0.0));
+        // step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'z', step_size));
         load.push_back(step);
     }
 
@@ -98,7 +100,7 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    int max_iter = 30;                                                                                                          /* maximum Newton iteration number */
+    int max_iter = 30;                                                                                                         /* maximum Newton iteration number */
     double tol_iter = 1e-5;                                                                                                    /* newton iteration tolerance */
     SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
 

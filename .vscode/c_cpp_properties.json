@@ -6,7 +6,8 @@
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/examples",
                 "${workspaceFolder}/include",
-                "${workspaceFolder}/geometry"
+                "${workspaceFolder}/geometry",
+                "/opt/intel/oneapi/mkl/latest/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

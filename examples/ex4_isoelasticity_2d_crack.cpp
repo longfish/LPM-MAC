@@ -59,8 +59,9 @@ void run()
     }
 
     // simulation settings
-    int n_steps = 80;         // number of loading steps
-    double step_size = -2e-4; // step size for force or displacement loading
+    int n_steps = 80; // number of loading steps
+    // double step_size = -2e-4; // step size for displacement loading
+    double step_size = -60; // step size for force loading
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
 
@@ -71,14 +72,14 @@ void run()
         // boundary conditions
         step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'y', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', -step_size));
-        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'y', step_size));
-        // step.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, -step_size, 0.0));
-        // step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, step_size, 0.0));
+        // step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', -step_size));
+        // step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'y', step_size));
+        step.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, -step_size, 0.0));
+        step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, step_size, 0.0));
         load.push_back(step);
     }
-    load[0].dispBCs[2].step *= 50; // increase the elastic loading step size
-    load[0].dispBCs[3].step *= 50;
+    // load[0].dispBCs[2].step *= 50; // increase the elastic loading step size
+    // load[0].dispBCs[3].step *= 50;
 
     pt_ass.updateGeometry();
     pt_ass.updateForceState();

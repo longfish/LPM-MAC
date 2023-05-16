@@ -41,8 +41,8 @@ int SolverFatigue<nlayer>::getCycleJumpN()
 template <int nlayer>
 int SolverFatigue<nlayer>::updateFatigueDamage()
 {
-    this->ass.updateStateVar();     // compute the damage rate
-    int dN = getCycleJumpN(); // determine the cycle-jump number
+    this->ass.updateStateVar(); // compute the damage rate
+    int dN = getCycleJumpN();   // determine the cycle-jump number
     std::cout << dN << std::endl;
 
     // set the ncycle_jump of the particle
@@ -53,8 +53,6 @@ int SolverFatigue<nlayer>::updateFatigueDamage()
         pt->ncycle_jump = 0;                // set the ncycle_jump to be zero
     }
 
-    this->ass.updateForceState();
-
     return dN;
 }
 
@@ -62,11 +60,18 @@ template <int nlayer>
 void SolverFatigue<nlayer>::solveProblem(std::vector<std::vector<LoadStep<nlayer>>> &cycle_loads)
 {
     int N{0};
+    int n_jump{1};
     do
     {
         solveProblemOneCycle(cycle_loads[N]);
-        int n_jump = updateFatigueDamage();
+        // n_jump = updateFatigueDamage();
+        // if (n_jump < 1)
+        //     n_jump = 1;
+        // else if (n_jump > 2 * 1e5)
+        //     n_jump = 2 * 1e5;
         N += n_jump;
+
+        this->ass.updateForceState();
     } while (N < cycle_loads.size());
 }
 
