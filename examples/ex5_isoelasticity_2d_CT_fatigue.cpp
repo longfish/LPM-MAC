@@ -44,12 +44,12 @@ void run()
             mid_group.push_back(p1); // mid, to fix
             p1->type = 1;
         }
-        if (p1->id == 8614)
+        if (p1->id == 8613 || p1->id == 8614 || p1->id == 8615)
         {
             top_group.push_back(p1); // top
             p1->type = 2;
         }
-        if (p1->id == 1273)
+        if (p1->id == 1272 || p1->id == 1273 || p1->id == 1274)
         {
             bottom_group.push_back(p1); // bottom
             p1->type = 3;
@@ -61,22 +61,26 @@ void run()
     }
 
     // define one cycle of loading
-    double f_max = 600, R = 0.1, f_min = R * f_max;         // cyclic force loading (N)
+    double f_max = 60, R = 0.1, f_min = R * f_max;         // cyclic force loading (N)
     std::vector<LoadStep<n_layer>> load_cycle;              // load settings
     std::vector<std::vector<LoadStep<n_layer>>> all_cycles; // all loads
 
     // cycle step-1
-    LoadStep<n_layer> step;
-    step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0)); // boundary conditions
-    step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'y', 0.0));
-    step.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, f_min, 0.0));
-    step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, -f_min, 0.0));
-    load_cycle.push_back(step);
+    LoadStep<n_layer> step1;
+    step1.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0)); // boundary conditions
+    step1.dispBCs.push_back(DispBC<n_layer>(mid_group, 'y', 0.0));
+    step1.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, f_min, 0.0));
+    step1.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, -f_min, 0.0));
+    load_cycle.push_back(step1);
 
     // cycle step-2
-    step.forceBCs[0].fy = f_max;
-    step.forceBCs[1].fy = -f_max;
-    load_cycle.push_back(step);
+    LoadStep<n_layer> step2;
+    step2.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0)); // boundary conditions
+    step2.dispBCs.push_back(DispBC<n_layer>(mid_group, 'y', 0.0));
+    step2.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, f_max, 0.0));
+    step2.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, -f_max, 0.0));
+    load_cycle.push_back(step2);
+
 
     // initialize 1000000 cycles
     for (int i = 0; i < 1000000; ++i)

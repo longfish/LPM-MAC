@@ -89,7 +89,7 @@ void run()
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'z', 0.0));
-        step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, -step_size, 0.0));
+        step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, 0.0, -step_size));
         // step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'z', step_size));
         load.push_back(step);
     }

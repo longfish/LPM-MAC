@@ -55,7 +55,7 @@ void SolverStatic<nlayer>::solveProblem(std::vector<LoadStep<nlayer>> &load)
         double t2 = omp_get_wtime();
         printf("Loading step %d has finished, spent %f seconds\n\nData output ...\n\n", i + 1, t2 - t1);
 
-        // ass.writeDump(dumpFile, i);
+        this->ass.writeDump(this->dumpFile, i);
     }
 }
 

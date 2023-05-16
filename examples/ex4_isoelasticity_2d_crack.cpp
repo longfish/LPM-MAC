@@ -59,9 +59,9 @@ void run()
     }
 
     // simulation settings
-    int n_steps = 80; // number of loading steps
-    // double step_size = -2e-4; // step size for displacement loading
-    double step_size = -60; // step size for force loading
+    int n_steps = 1;          // number of loading steps
+    double step_size = -2e-4; // step size for displacement loading
+    // double step_size = -6; // step size for force loading
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
 
@@ -72,10 +72,10 @@ void run()
         // boundary conditions
         step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'y', 0.0));
-        // step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', -step_size));
-        // step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'y', step_size));
-        step.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, -step_size, 0.0));
-        step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, step_size, 0.0));
+        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', -step_size));
+        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'y', step_size));
+        // step.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, -step_size, 0.0));
+        // step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, step_size, 0.0));
         load.push_back(step);
     }
     // load[0].dispBCs[2].step *= 50; // increase the elastic loading step size
@@ -92,6 +92,9 @@ void run()
     double tol_iter = 1e-5;                                                                                                      /* newton iteration tolerance */
     SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "CT_2DHex_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
     solv.solveProblem(load);
+
+    // output top loading point's reaction force
+    std::cout << pt_ass.pt_sys[8614]->Pin[0] << ',' << pt_ass.pt_sys[8614]->Pin[1] << ',' << pt_ass.pt_sys[8614]->Pin[2] << std::endl;
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);

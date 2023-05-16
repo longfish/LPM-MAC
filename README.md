@@ -16,7 +16,8 @@ A multi-threaded implementation of a nonlocal lattice particle method (LPM) usin
 3. install Ninja: `sudo apt-get install ninja-build`
 4. install openmp: `sudo apt-get install libomp-dev`
 5. install boost: `sudo apt install libboost-all-dev`
-6. note: you may need to add the MKL include path into your editor preference (like VS Code)
+6. note-1: please add the MKL include path into your editor preference (like VS Code)
+7. note-2: please choose the oneAPI version that can run icpc, the program doesn't run properly with icpx
 
 ### Compile and run LPM-CPP
 1. `source /opt/intel/oneapi/setvars.sh linux64 `
