@@ -104,7 +104,7 @@ void run()
 
     int max_iter = 30;                                                                                                         /* maximum Newton iteration number */
     double tol_iter = 1e-5;                                                                                                    /* newton iteration tolerance */
-    SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
+    SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::PARDISO, "result_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
     solv.solveProblem(load);
 
     double finish = omp_get_wtime();

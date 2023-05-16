@@ -375,7 +375,7 @@ void Stiffness<nlayer>::updateStiffnessDispBC(std::vector<Particle<nlayer> *> &p
     }
 
     /* compute the norm of the diagonal */
-    double norm_diag = 1e4; // cblas_dnrm2(pt_sys[0]->cell.dim * pt_sys.size(), diag, 1); /* Euclidean norm (L2 norm) */
+    double norm_diag = cblas_dnrm2(pt_sys[0]->cell.dim * pt_sys.size(), diag, 1); /* Euclidean norm (L2 norm) */
     // printf("%.5e\n", norm_diag);
     delete[] diag;
 
