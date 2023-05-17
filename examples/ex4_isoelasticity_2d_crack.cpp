@@ -59,9 +59,9 @@ void run()
     }
 
     // simulation settings
-    int n_steps = 10;          // number of loading steps
-    double step_size = -2e-4; // step size for displacement loading
-    // double step_size = -6; // step size for force loading
+    int n_steps = 1;          // number of loading steps
+    double step_size = -5e-3; // step size for displacement loading
+    // double step_size = -8; // step size for force loading
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
 
@@ -94,7 +94,9 @@ void run()
     solv.solveProblem(load);
 
     // output top loading point's reaction force
-    std::cout << pt_ass.pt_sys[8614]->Pin[0] << ',' << pt_ass.pt_sys[8614]->Pin[1] << ',' << pt_ass.pt_sys[8614]->Pin[2] << std::endl;
+    std::cout << 8613 << ',' << pt_ass.pt_sys[8613]->Pin[0] << ',' << pt_ass.pt_sys[8613]->Pin[1] << ',' << pt_ass.pt_sys[8613]->Pin[2] << std::endl;
+    std::cout << 8614 << ',' << pt_ass.pt_sys[8614]->Pin[0] << ',' << pt_ass.pt_sys[8614]->Pin[1] << ',' << pt_ass.pt_sys[8614]->Pin[2] << std::endl;
+    std::cout << 8615 << ',' << pt_ass.pt_sys[8615]->Pin[0] << ',' << pt_ass.pt_sys[8615]->Pin[1] << ',' << pt_ass.pt_sys[8615]->Pin[2] << std::endl;
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);
