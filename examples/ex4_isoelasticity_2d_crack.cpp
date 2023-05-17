@@ -37,7 +37,7 @@ void run()
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
         // assign boundary and internal particles
-        if (p1->id == 5030 || p1->id == 4972 || p1->id == 4912)
+        if (p1->id == 5030)
         {
             mid_group.push_back(p1); // mid, to fix
             p1->type = 1;
@@ -59,9 +59,9 @@ void run()
     }
 
     // simulation settings
-    int n_steps = 1;          // number of loading steps
-    double step_size = -5e-3; // step size for displacement loading
-    // double step_size = -8; // step size for force loading
+    int n_steps = 80; // number of loading steps
+    double step_size = -2e-4; // step size for displacement loading
+    // double step_size = -600; // step size for force loading
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
 
@@ -74,12 +74,16 @@ void run()
         step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'y', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', -step_size));
         step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'y', step_size));
+
+        // below is used for force control loading
+        // step.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
+        // step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'x', 0.0));
         // step.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, -step_size, 0.0));
         // step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, step_size, 0.0));
         load.push_back(step);
     }
-    // load[0].dispBCs[2].step *= 50; // increase the elastic loading step size
-    // load[0].dispBCs[3].step *= 50;
+    load[0].dispBCs[2].step *= 50; // increase the elastic loading step size
+    load[0].dispBCs[3].step *= 50;
 
     pt_ass.updateGeometry();
     pt_ass.updateForceState();
@@ -94,9 +98,9 @@ void run()
     solv.solveProblem(load);
 
     // output top loading point's reaction force
-    std::cout << 8613 << ',' << pt_ass.pt_sys[8613]->Pin[0] << ',' << pt_ass.pt_sys[8613]->Pin[1] << ',' << pt_ass.pt_sys[8613]->Pin[2] << std::endl;
-    std::cout << 8614 << ',' << pt_ass.pt_sys[8614]->Pin[0] << ',' << pt_ass.pt_sys[8614]->Pin[1] << ',' << pt_ass.pt_sys[8614]->Pin[2] << std::endl;
-    std::cout << 8615 << ',' << pt_ass.pt_sys[8615]->Pin[0] << ',' << pt_ass.pt_sys[8615]->Pin[1] << ',' << pt_ass.pt_sys[8615]->Pin[2] << std::endl;
+    // std::cout << 8613 << ',' << pt_ass.pt_sys[8613]->Pin[0] << ',' << pt_ass.pt_sys[8613]->Pin[1] << ',' << pt_ass.pt_sys[8613]->Pin[2] << std::endl;
+    // std::cout << 8614 << ',' << pt_ass.pt_sys[8614]->Pin[0] << ',' << pt_ass.pt_sys[8614]->Pin[1] << ',' << pt_ass.pt_sys[8614]->Pin[2] << std::endl;
+    // std::cout << 8615 << ',' << pt_ass.pt_sys[8615]->Pin[0] << ',' << pt_ass.pt_sys[8615]->Pin[1] << ',' << pt_ass.pt_sys[8615]->Pin[2] << std::endl;
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);
