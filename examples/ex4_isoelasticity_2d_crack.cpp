@@ -59,7 +59,7 @@ void run()
     }
 
     // simulation settings
-    int n_steps = 1;          // number of loading steps
+    int n_steps = 10;          // number of loading steps
     double step_size = -2e-4; // step size for displacement loading
     // double step_size = -6; // step size for force loading
 

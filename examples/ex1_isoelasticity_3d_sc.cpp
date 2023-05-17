@@ -15,7 +15,7 @@ void writeMatrix(const char *dataName, T *data, int l)
     {
         if constexpr (std::is_integral_v<T>)
         { // constexpr only necessary on first statement
-            fprintf(fpt, " %d\n", data[i]);
+            fprintf(fpt, " %lld\n", data[i]);
         }
         else if (std::is_floating_point_v<T>)
         { // automatically constexpr
