@@ -37,7 +37,7 @@ void run()
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
         // assign boundary and internal particles
-        if (p1->id == 5030)
+        if (p1->id == 5030 || p1->id == 4972 || p1->id == 4912)
         {
             mid_group.push_back(p1); // mid, to fix
             p1->type = 1;
