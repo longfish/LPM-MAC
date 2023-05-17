@@ -25,6 +25,7 @@ A multi-threaded implementation of a nonlocal lattice particle method (LPM) usin
 4. `cd build`
 5. `cmake .. -G "Ninja" -DMKL_INTERFACE=ilp64 -DCMAKE_BUILD_TYPE=Release` # change from *Release* to *Debug* for debugging (e.g., valgrind)
 6. `cmake --build . -j 8`
+7. note: `git pull https://github.com/longfish/LPM-CPP.git` under `LPM-CPP` folder if need an updated version of the code
 
 ### Run the code
 `./lpmcpp`
