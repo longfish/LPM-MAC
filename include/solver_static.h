@@ -22,20 +22,20 @@ public:
         : Solver<nlayer>{p_ass, p_stiff_mode, p_sol_mode, p_dumpFile, p_niter, p_tol} {}
 
     bool solveProblemStep(LoadStep<nlayer> &load, int &dump_step);
-    void solveProblem(std::vector<LoadStep<nlayer>> &load);
+    void solveProblem(std::vector<LoadStep<nlayer>> &load, int &start_index);
 };
 
 template <int nlayer>
-void SolverStatic<nlayer>::solveProblem(std::vector<LoadStep<nlayer>> &load)
+void SolverStatic<nlayer>::solveProblem(std::vector<LoadStep<nlayer>> &load, int &start_index)
 {
     // ass.writeDump(dumpFile, 0);
 
     int n_step = load.size(), dump_step{0};
     bool is_converged{true}; // flag to determine whether need to cut the loading into half
-    for (int i = 0; i < n_step; i++)
+    for (int i = start_index; i < start_index + n_step; i++)
     {
     restart:
-        printf("Loading step-%d, iteration starts:\n", i + 1);
+        printf("Loading step-%d, iteration starts:\n", i);
         double t1 = omp_get_wtime();
 
         is_converged = solveProblemStep(load[i], dump_step);
@@ -45,7 +45,7 @@ void SolverStatic<nlayer>::solveProblem(std::vector<LoadStep<nlayer>> &load)
             load[i].loadCutHalf();
             load.insert(load.begin() + i, load[i]);
             ++n_step;
-            printf("Step-%d not converging\n\n", i + 1);
+            printf("Step-%d not converging\n\n", i);
             goto restart;
         }
 
@@ -53,10 +53,11 @@ void SolverStatic<nlayer>::solveProblem(std::vector<LoadStep<nlayer>> &load)
         this->ass.storeStateVar(); // store converged state variables
 
         double t2 = omp_get_wtime();
-        printf("Loading step %d has finished, spent %f seconds\n\nData output ...\n\n", i + 1, t2 - t1);
+        printf("Loading step %d has finished, spent %f seconds\n\nData output ...\n\n", i, t2 - t1);
 
         this->ass.writeDump(this->dumpFile, i);
     }
+    start_index += n_step;
 }
 
 // couple damage and bond stretch
@@ -116,6 +117,5 @@ bool SolverStatic<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, int &du
     else
         return false; // abnormal return
 }
-
 
 #endif
