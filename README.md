@@ -39,3 +39,7 @@ There are some example codes in the `./examples` folder that contains additional
 1. Meng C, Wei H, Chen H, et al. Modeling plasticity of cubic crystals using a nonlocal lattice particle method[J]. Computer Methods in Applied Mechanics and Engineering, 2021, 385: 114069.
 
 2. Meng C, Liu Y. Damage-augmented nonlocal lattice particle method for fracture simulation of solids[J]. International Journal of Solids and Structures, 2022, 243: 111561.
+
+## Appendix
+
+1. Valgrind command: `valgrind --leak-check=yes --log-file=valgrind.rpt ./lpmcpp`
