@@ -63,6 +63,7 @@ void run()
 
     double f_max = 60, R = 0.1, f_min = R * f_max, f_range = f_max - f_min; // loading force (N) definition
     int max_iter = 30;                                                      // maximum iteration number of Newton-Raphson algorithm                                                                                                 /* maximum Newton iteration number */
+    int start_index = 0;                                                    // start index of solution procedure
     double tol_iter = 1e-5;                                                 // tolerance of the NR iterations
     std::string dumpFile{"CT_2DHex_fatigue.dump"};                          // output file name
 
@@ -87,7 +88,7 @@ void run()
     pt_ass.updateForceState();
 
     SolverStaticNodamage<n_layer> solv_static{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, max_iter, tol_iter}; // stiffness mode and solution mode
-    solv_static.solveProblem(load_static);
+    solv_static.solveProblem(load_static, start_index);
 
     // std::cout << 8613 << ',' << pt_ass.pt_sys[8613]->Pin[0] << ',' << pt_ass.pt_sys[8613]->Pin[1] << ',' << pt_ass.pt_sys[8613]->Pin[2] << std::endl;
 
@@ -116,13 +117,19 @@ void run()
     step2.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, f_range, 0.0)); // increase by f_range
     load_cycle.push_back(step2);
 
-    // initialize 1000000 cycles
-    for (int i = 0; i < 1000000; ++i)
-        all_cycles.push_back(load_cycle);
+    // test the static loading
+    // load_cycle.push_back(step1);
+    // load_cycle.push_back(step2);
+    SolverStaticNodamage<n_layer> solv_fatigue{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, max_iter, tol_iter}; // stiffness mode and solution mode
+    solv_fatigue.solveProblem(load_cycle, start_index);
 
-    // continue from the static loading to do the fatigue cyclic loading
-    SolverFatigue<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, max_iter, tol_iter}; // stiffness mode and solution mode
-    solv.solveProblem(all_cycles);                                                                                // initial loading
+    // // initialize 1000000 cycles
+    // for (int i = 0; i < 1000000; ++i)
+    //     all_cycles.push_back(load_cycle);
+
+    // // continue from the static loading to do the fatigue cyclic loading
+    // SolverFatigue<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, max_iter, tol_iter}; // stiffness mode and solution mode
+    // solv.solveProblem(all_cycles);                                                                                // initial loading
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);
