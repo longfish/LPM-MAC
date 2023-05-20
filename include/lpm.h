@@ -49,6 +49,12 @@ using namespace boost::adaptors;
 #define IFORMAT "%lli"
 #endif
 
+enum class LoadMode : char
+{
+    Relative,
+    Absolute
+};
+
 enum class SolverMode : char
 {
     CG,

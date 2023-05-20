@@ -135,19 +135,28 @@ void Solver<nlayer>::updateDisplacementBC(LoadStep<nlayer> &load_step)
             if (bc.flag == 'x')
             {
                 std::array<double, NDIM> dxyz{bc.step, 0, 0};
-                pt->moveBy(dxyz);
+                if (bc.load_mode == LoadMode::Relative)
+                    pt->moveBy(dxyz);
+                else if (bc.load_mode == LoadMode::Absolute)
+                    pt->moveTo(dxyz);
                 pt->disp_constraint[0] = 1;
             }
             if (bc.flag == 'y')
             {
                 std::array<double, NDIM> dxyz{0, bc.step, 0};
-                pt->moveBy(dxyz);
+                if (bc.load_mode == LoadMode::Relative)
+                    pt->moveBy(dxyz);
+                else if (bc.load_mode == LoadMode::Absolute)
+                    pt->moveTo(dxyz);
                 pt->disp_constraint[1] = 1;
             }
             if (bc.flag == 'z')
             {
                 std::array<double, NDIM> dxyz{0, 0, bc.step};
-                pt->moveBy(dxyz);
+                if (bc.load_mode == LoadMode::Relative)
+                    pt->moveBy(dxyz);
+                else if (bc.load_mode == LoadMode::Absolute)
+                    pt->moveTo(dxyz);
                 pt->disp_constraint[2] = 1;
             }
         }
@@ -162,9 +171,18 @@ void Solver<nlayer>::updateForceBC(LoadStep<nlayer> &load_step)
         int num_forceBC = (int)bc.group.size();
         for (Particle<nlayer> *pt : bc.group)
         {
-            pt->Pex[0] += bc.fx / num_forceBC;
-            pt->Pex[1] += bc.fy / num_forceBC;
-            pt->Pex[2] += bc.fz / num_forceBC;
+            if (bc.load_mode == LoadMode::Relative)
+            {
+                pt->Pex[0] += bc.fx / num_forceBC;
+                pt->Pex[1] += bc.fy / num_forceBC;
+                pt->Pex[2] += bc.fz / num_forceBC;
+            }
+            else if (bc.load_mode == LoadMode::Absolute)
+            {
+                pt->Pex[0] = bc.fx / num_forceBC;
+                pt->Pex[1] = bc.fy / num_forceBC;
+                pt->Pex[2] = bc.fz / num_forceBC;
+            }
         }
     }
 }
