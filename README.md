@@ -42,4 +42,4 @@ There are some example codes in the `./examples` folder that contains additional
 
 ## Appendix
 
-1. Valgrind command: `valgrind --leak-check=yes --log-file=valgrind.rpt ./lpmcpp`
+1. Valgrind command: `valgrind --leak-check=yes --show-leak-kinds=all --log-file=valgrind.rpt ./lpmcpp`
