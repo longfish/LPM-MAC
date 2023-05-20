@@ -5,7 +5,6 @@
 #include "stiffness.h"
 #include "load_step.h"
 #include "solver_fatigue.h"
-#include "solver_static_nodamage.h"
 
 const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
 
@@ -61,6 +60,9 @@ void run()
         ftpt->setParticleProperty(E0, mu0, sigma_TS, f_A, f_b, f_c, f_eta);
     }
 
+    pt_ass.updateGeometry();
+    pt_ass.updateForceState();
+
     double f_max = 60, R = 0.1, f_min = R * f_max, f_range = f_max - f_min; // loading force (N) definition
     int max_iter = 30;                                                      // maximum iteration number of Newton-Raphson algorithm                                                                                                 /* maximum Newton iteration number */
     int start_index = 0;                                                    // start index of solution procedure
@@ -73,24 +75,19 @@ void run()
     /*********************************************************************************************/
     // perform static loading, f_min
     std::vector<LoadStep<n_layer>> load_static; // static load settings
-    LoadStep<n_layer> step0;
 
     // boundary conditions
-    step0.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0));
-    step0.dispBCs.push_back(DispBC<n_layer>(mid_group, 'y', 0.0));
-    step0.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
-    step0.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'x', 0.0));
-    step0.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, f_min, 0.0));
-    step0.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, -f_min, 0.0));
+    LoadStep<n_layer> step0;
+    step0.dispBCs.push_back(DispBC<n_layer>(mid_group, LoadMode::Relative, 'x', 0.0));
+    step0.dispBCs.push_back(DispBC<n_layer>(mid_group, LoadMode::Relative, 'y', 0.0));
+    step0.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'x', 0.0));
+    step0.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'x', 0.0));
+    step0.forceBCs.push_back(ForceBC<n_layer>(top_group, LoadMode::Absolute, 0.0, f_min, 0.0));
+    step0.forceBCs.push_back(ForceBC<n_layer>(bottom_group, LoadMode::Absolute, 0.0, -f_min, 0.0));
     load_static.push_back(step0);
 
-    pt_ass.updateGeometry();
-    pt_ass.updateForceState();
-
-    SolverStaticNodamage<n_layer> solv_static{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, max_iter, tol_iter}; // stiffness mode and solution mode
-    solv_static.solveProblem(load_static, start_index);
-
-    // std::cout << 8613 << ',' << pt_ass.pt_sys[8613]->Pin[0] << ',' << pt_ass.pt_sys[8613]->Pin[1] << ',' << pt_ass.pt_sys[8613]->Pin[2] << std::endl;
+    SolverFatigue<n_layer> solv_static{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, max_iter, tol_iter}; // stiffness mode and solution mode
+    solv_static.solveProblemStatic(load_static, start_index);
 
     /*********************************************************************************************/
     // perform cyclic loading
@@ -99,29 +96,29 @@ void run()
 
     // cycle step-1
     LoadStep<n_layer> step1;
-    step1.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0)); // boundary conditions
-    step1.dispBCs.push_back(DispBC<n_layer>(mid_group, 'y', 0.0));
-    step1.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
-    step1.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'x', 0.0));
-    step1.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, f_range, 0.0));     // increase by f_range
-    step1.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, -f_range, 0.0)); // decrease by f_range
+    step1.dispBCs.push_back(DispBC<n_layer>(mid_group, LoadMode::Relative, 'x', 0.0));
+    step1.dispBCs.push_back(DispBC<n_layer>(mid_group, LoadMode::Relative, 'y', 0.0));
+    step1.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'x', 0.0));
+    step1.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'x', 0.0));
+    step1.forceBCs.push_back(ForceBC<n_layer>(top_group, LoadMode::Absolute, 0.0, f_max, 0.0));
+    step1.forceBCs.push_back(ForceBC<n_layer>(bottom_group, LoadMode::Absolute, 0.0, -f_max, 0.0));
     load_cycle.push_back(step1);
 
     // cycle step-2
     LoadStep<n_layer> step2;
-    step2.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0)); // boundary conditions
-    step2.dispBCs.push_back(DispBC<n_layer>(mid_group, 'y', 0.0));
-    step2.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
-    step2.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'x', 0.0));
-    step2.forceBCs.push_back(ForceBC<n_layer>(top_group, 0.0, -f_range, 0.0));   // decrease by f_range
-    step2.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, f_range, 0.0)); // increase by f_range
+    step2.dispBCs.push_back(DispBC<n_layer>(mid_group, LoadMode::Relative, 'x', 0.0));
+    step2.dispBCs.push_back(DispBC<n_layer>(mid_group, LoadMode::Relative, 'y', 0.0));
+    step2.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'x', 0.0));
+    step2.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'x', 0.0));
+    step2.forceBCs.push_back(ForceBC<n_layer>(top_group, LoadMode::Absolute, 0.0, f_min, 0.0));
+    step2.forceBCs.push_back(ForceBC<n_layer>(bottom_group, LoadMode::Absolute, 0.0, -f_min, 0.0));
     load_cycle.push_back(step2);
 
     // test the static loading
     // load_cycle.push_back(step1);
     // load_cycle.push_back(step2);
-    SolverStaticNodamage<n_layer> solv_fatigue{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, max_iter, tol_iter}; // stiffness mode and solution mode
-    solv_fatigue.solveProblem(load_cycle, start_index);
+    // SolverStaticNodamage<n_layer> solv_fatigue{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, max_iter, tol_iter}; // stiffness mode and solution mode
+    solv_static.solveProblemStatic(load_cycle, start_index);
 
     // // initialize 1000000 cycles
     // for (int i = 0; i < 1000000; ++i)

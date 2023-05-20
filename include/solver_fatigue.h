@@ -23,9 +23,10 @@ public:
 
     int getCycleJumpN();
     int updateFatigueDamage();
-    bool solveProblemStep(LoadStep<nlayer> &load, int time_step);
+    bool solveProblemStep(LoadStep<nlayer> &load);
     void solveProblemOneCycle(std::vector<LoadStep<nlayer>> &load);
-    void solveProblem(std::vector<std::vector<LoadStep<nlayer>>> &cycle_loads);
+    void solveProblemCyclic(std::vector<std::vector<LoadStep<nlayer>>> &cycle_loads);
+    void solveProblemStatic(std::vector<LoadStep<nlayer>> &load, int &start_index);
 };
 
 template <int nlayer>
@@ -57,7 +58,40 @@ int SolverFatigue<nlayer>::updateFatigueDamage()
 }
 
 template <int nlayer>
-void SolverFatigue<nlayer>::solveProblem(std::vector<std::vector<LoadStep<nlayer>>> &cycle_loads)
+void SolverFatigue<nlayer>::solveProblemStatic(std::vector<LoadStep<nlayer>> &load, int &start_index)
+{
+    int n_step = load.size();
+    bool is_converged{true}; // flag to determine whether need to cut the loading into half
+    for (int i = 0; i < n_step; i++)
+    {
+    restart:
+        printf("Loading step-%d, iteration starts:\n", i + start_index);
+        double t1 = omp_get_wtime();
+
+        is_converged = solveProblemStep(load[i]);
+        if (!is_converged)
+        {
+            this->ass.resetStateVar(true); // reset the state_var to last converged ones
+            load[i].loadCutHalf();
+            load.insert(load.begin() + i, load[i]);
+            ++n_step;
+            printf("Step-%d not converging\n\n", i + start_index);
+            goto restart;
+        }
+
+        std::cout << 8613 << ',' << this->ass.pt_sys[8613]->Pin[0] << ',' << this->ass.pt_sys[8613]->Pin[1] << ',' << this->ass.pt_sys[8613]->Pin[2] << std::endl;
+
+        double t2 = omp_get_wtime();
+        printf("Loading step %d has finished, spent %f seconds\n\nData output ...\n\n", i + start_index, t2 - t1);
+
+        this->ass.writeDump(this->dumpFile, i);
+    }
+
+    start_index += n_step;
+}
+
+template <int nlayer>
+void SolverFatigue<nlayer>::solveProblemCyclic(std::vector<std::vector<LoadStep<nlayer>>> &cycle_loads)
 {
     int N{0};
     int n_jump{1};
@@ -72,6 +106,8 @@ void SolverFatigue<nlayer>::solveProblem(std::vector<std::vector<LoadStep<nlayer
         N += n_jump;
 
         this->ass.updateForceState();
+        this->ass.writeDump(this->dumpFile, N);
+
     } while (N < cycle_loads.size());
 }
 
@@ -96,7 +132,7 @@ void SolverFatigue<nlayer>::solveProblemOneCycle(std::vector<LoadStep<nlayer>> &
 }
 
 template <int nlayer>
-bool SolverFatigue<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, int time_step)
+bool SolverFatigue<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step)
 {
     // keep the damage unchanged, update the deformation field
 
@@ -132,10 +168,7 @@ bool SolverFatigue<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, int ti
     } while (new_broken);
 
     if (n_newton < this->max_NR_iter)
-    {
-        this->ass.writeDump(this->dumpFile, time_step);
         return true; // normal return
-    }
     else
         return false; // abnormal return
 }
