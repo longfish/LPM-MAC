@@ -76,18 +76,18 @@ void run()
     std::vector<LoadStep<n_layer>> load;                // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
     {
-        LoadStep<n_layer> step; 
+        LoadStep<n_layer> step;
 
         // boundary conditions
         // left: U_stepx; right: -U_stepx
         // front: U_stepy; back: -U_stepy
         // top: U_stepz; bottom: -U_stepz
-        step.dispBCs.push_back(DispBC<n_layer>(left, 'x', -U_stepx));
-        step.dispBCs.push_back(DispBC<n_layer>(right, 'x', U_stepx));
-        step.dispBCs.push_back(DispBC<n_layer>(front, 'y', -U_stepy));
-        step.dispBCs.push_back(DispBC<n_layer>(back, 'y', U_stepy));
-        step.dispBCs.push_back(DispBC<n_layer>(top, 'z', U_stepz));
-        step.dispBCs.push_back(DispBC<n_layer>(bottom, 'z', -U_stepz));
+        step.dispBCs.push_back(DispBC<n_layer>(left, LoadMode::Relative, 'x', -U_stepx));
+        step.dispBCs.push_back(DispBC<n_layer>(right, LoadMode::Relative, 'x', U_stepx));
+        step.dispBCs.push_back(DispBC<n_layer>(front, LoadMode::Relative, 'y', -U_stepy));
+        step.dispBCs.push_back(DispBC<n_layer>(back, LoadMode::Relative, 'y', U_stepy));
+        step.dispBCs.push_back(DispBC<n_layer>(top, LoadMode::Relative, 'z', U_stepz));
+        step.dispBCs.push_back(DispBC<n_layer>(bottom, LoadMode::Relative, 'z', -U_stepz));
 
         // another boundary condition
         // step.dispBCs.push_back(DispBC<n_layer>(top, 'z', 0));
@@ -105,10 +105,10 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    int max_iter = 30;                                                                                                         /* maximum Newton iteration number */
+    int max_iter = 30, start_index = 0;                                                                                        /* maximum Newton iteration number */
     double tol_iter = 1e-5;                                                                                                    /* newton iteration tolerance */
     SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
-    solv.solveProblem(load);
+    solv.solveProblem(load, start_index);
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);

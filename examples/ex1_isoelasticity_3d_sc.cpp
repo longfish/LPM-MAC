@@ -75,6 +75,9 @@ void run()
         elpt->setParticleProperty(E0, mu0);
     }
 
+    pt_ass.updateGeometry();
+    pt_ass.updateForceState();
+
     // simulation settings
     int n_steps = 1; // number of loading steps
     // double step_size = -1e-3; // step size for displacement loading
@@ -86,16 +89,13 @@ void run()
         LoadStep<n_layer> step;
 
         // boundary conditions
-        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'z', 0.0));
-        step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, 0.0, -step_size));
+        step.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'x', 0.0));
+        step.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'y', 0.0));
+        step.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'z', 0.0));
+        step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, LoadMode::Relative, 0.0, 0.0, -step_size));
         // step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'z', step_size));
         load.push_back(step);
     }
-
-    pt_ass.updateGeometry();
-    pt_ass.updateForceState();
 
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
@@ -105,7 +105,8 @@ void run()
     SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
 
     // write down global matrices
-    solv.solveProblem(load);
+    int start_index{0};
+    solv.solveProblem(load, start_index);
     writeMatrix("matrix_K_global.txt", solv.stiffness.K_global, solv.stiffness.K_pointer[pt_ass.pt_sys.size()]);
     writeMatrix("matrix_K_pointer.txt", solv.stiffness.K_pointer, pt_ass.pt_sys.size() + 1);
     writeMatrix("matrix_IK.txt", solv.stiffness.IK, pt_ass.pt_sys[0]->cell.dim * pt_ass.pt_sys.size() + 1);

@@ -59,7 +59,7 @@ void run()
     }
 
     // simulation settings
-    int n_steps = 80; // number of loading steps
+    int n_steps = 80;         // number of loading steps
     double step_size = -2e-4; // step size for displacement loading
     // double step_size = -600; // step size for force loading
 
@@ -70,10 +70,10 @@ void run()
         LoadStep<n_layer> step;
 
         // boundary conditions
-        step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'x', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(mid_group, 'y', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(top_group, 'y', -step_size));
-        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'y', step_size));
+        step.dispBCs.push_back(DispBC<n_layer>(mid_group, LoadMode::Relative, 'x', 0.0));
+        step.dispBCs.push_back(DispBC<n_layer>(mid_group, LoadMode::Relative, 'y', 0.0));
+        step.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'y', -step_size));
+        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'y', step_size));
 
         // below is used for force control loading
         // step.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));
@@ -92,10 +92,10 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    int max_iter = 30;                                                                                                           /* maximum Newton iteration number */
+    int max_iter = 30, start_index = 0;                                                                                          /* maximum Newton iteration number */
     double tol_iter = 1e-5;                                                                                                      /* newton iteration tolerance */
     SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "CT_2DHex_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
-    solv.solveProblem(load);
+    solv.solveProblem(load, start_index);
 
     // output top loading point's reaction force
     // std::cout << 8613 << ',' << pt_ass.pt_sys[8613]->Pin[0] << ',' << pt_ass.pt_sys[8613]->Pin[1] << ',' << pt_ass.pt_sys[8613]->Pin[2] << std::endl;
