@@ -32,10 +32,10 @@ void SolverStatic<nlayer>::solveProblem(std::vector<LoadStep<nlayer>> &load, int
 
     int n_step = load.size(), dump_step{0};
     bool is_converged{true}; // flag to determine whether need to cut the loading into half
-    for (int i = start_index; i < start_index + n_step; i++)
+    for (int i = 0; i < n_step; i++)
     {
     restart:
-        printf("Loading step-%d, iteration starts:\n", i);
+        printf("Loading step-%d, iteration starts:\n", i + start_index);
         double t1 = omp_get_wtime();
 
         is_converged = solveProblemStep(load[i], dump_step);
@@ -45,7 +45,7 @@ void SolverStatic<nlayer>::solveProblem(std::vector<LoadStep<nlayer>> &load, int
             load[i].loadCutHalf();
             load.insert(load.begin() + i, load[i]);
             ++n_step;
-            printf("Step-%d not converging\n\n", i);
+            printf("Step-%d not converging\n\n", i + start_index);
             goto restart;
         }
 
@@ -53,9 +53,9 @@ void SolverStatic<nlayer>::solveProblem(std::vector<LoadStep<nlayer>> &load, int
         this->ass.storeStateVar(); // store converged state variables
 
         double t2 = omp_get_wtime();
-        printf("Loading step %d has finished, spent %f seconds\n\nData output ...\n\n", i, t2 - t1);
+        printf("Loading step %d has finished, spent %f seconds\n\nData output ...\n\n", i + start_index, t2 - t1);
 
-        this->ass.writeDump(this->dumpFile, i);
+        // this->ass.writeDump(this->dumpFile, i);
     }
     start_index += n_step;
 }
