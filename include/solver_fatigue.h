@@ -34,7 +34,10 @@ int SolverFatigue<nlayer>::getCycleJumpN()
 {
     std::vector<int> vec_njump;
     for (Particle<nlayer> *pt : this->ass.pt_sys)
+    {
+        // std::cout << pt->calcNCycleJump() << std::endl;
         vec_njump.push_back(pt->calcNCycleJump());
+    }
 
     return *std::min_element(vec_njump.begin(), vec_njump.end()); // return minimum cycle jump number
 }
@@ -42,7 +45,7 @@ int SolverFatigue<nlayer>::getCycleJumpN()
 template <int nlayer>
 int SolverFatigue<nlayer>::updateFatigueDamage()
 {
-    this->ass.updateStateVar(); // compute the damage rate
+    this->ass.updateStateVar(); // determine rest state variables
     int dN = getCycleJumpN();   // determine the cycle-jump number
     std::cout << dN << std::endl;
 
@@ -51,7 +54,6 @@ int SolverFatigue<nlayer>::updateFatigueDamage()
     {
         pt->ncycle_jump = dN;               // set the ncycle_jump
         pt->updateParticleStateVariables(); // update the current damage
-        pt->ncycle_jump = 0;                // set the ncycle_jump to be zero
     }
 
     return dN;
@@ -79,7 +81,7 @@ void SolverFatigue<nlayer>::solveProblemStatic(std::vector<LoadStep<nlayer>> &lo
             goto restart;
         }
 
-        std::cout << 8613 << ',' << this->ass.pt_sys[8613]->Pin[0] << ',' << this->ass.pt_sys[8613]->Pin[1] << ',' << this->ass.pt_sys[8613]->Pin[2] << std::endl;
+        // std::cout << 8613 << ',' << this->ass.pt_sys[8613]->Pin[0] << ',' << this->ass.pt_sys[8613]->Pin[1] << ',' << this->ass.pt_sys[8613]->Pin[2] << std::endl;
 
         double t2 = omp_get_wtime();
         printf("Loading step %d has finished, spent %f seconds\n\nData output ...\n\n", i + start_index, t2 - t1);
@@ -97,16 +99,20 @@ void SolverFatigue<nlayer>::solveProblemCyclic(std::vector<std::vector<LoadStep<
     int n_jump{1};
     do
     {
+        printf("Cycle-%d starts:\n\n", N + 1);
         solveProblemOneCycle(cycle_loads[N]);
-        // n_jump = updateFatigueDamage();
-        // if (n_jump < 1)
-        //     n_jump = 1;
-        // else if (n_jump > 2 * 1e5)
-        //     n_jump = 2 * 1e5;
+        std::cout << 5087 << ',' << this->ass.pt_sys[5087]->state_var[0] << ',' << this->ass.pt_sys[5087]->state_var[1] << ',' << this->ass.pt_sys[5087]->state_var[2] << ',' << this->ass.pt_sys[5087]->state_var[3] << std::endl;
+
+        n_jump = updateFatigueDamage();
+        this->ass.writeDump(this->dumpFile, N);
+
+        if (n_jump < 1)
+            n_jump = 1;
+        else if (n_jump > 2e5)
+            n_jump = 2e5;
         N += n_jump;
 
         this->ass.updateForceState();
-        this->ass.writeDump(this->dumpFile, N);
 
     } while (N < cycle_loads.size());
 }
@@ -117,17 +123,19 @@ void SolverFatigue<nlayer>::solveProblemOneCycle(std::vector<LoadStep<nlayer>> &
     int n_step = load.size();
     this->ass.clearStateVar(false); // clear state variables, and keep the particle damage value unchanged
 
-    printf("Cycle starts:\n");
     for (int i = 0; i < n_step; ++i)
     {
-        printf("Substep-%d, iteration starts:\n", i + 1);
+        printf("Substep-%d, iteration starts:\n", i);
         double t1 = omp_get_wtime();
-        bool is_converged = solveProblemStep(load[i], i + 1);
+        bool is_converged = solveProblemStep(load[i]);
 
         this->ass.updateStateVar(); // update the state variables in current cycle
 
+        // std::cout << 5087 << ',' << this->ass.pt_sys[5087]->state_var[0] << ',' << this->ass.pt_sys[5087]->state_var[1] << ',' << this->ass.pt_sys[5087]->state_var[2] << ',' << this->ass.pt_sys[5087]->state_var[3] << std::endl;
+        // std::cout << 5087 << ',' << this->ass.pt_sys[5087]->ncycle_jump << std::endl;
+
         double t2 = omp_get_wtime();
-        printf("Loading step %d has finished, spent %f seconds\n\n", i + 1, t2 - t1);
+        printf("Loading step %d has finished, spent %f seconds\n\n", i, t2 - t1);
     }
 }
 
