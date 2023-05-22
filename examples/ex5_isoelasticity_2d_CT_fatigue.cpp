@@ -32,7 +32,7 @@ void run()
     // material elastic parameters setting, MPa
     double E0 = 205e3, mu0 = 0.29;                           // Young's modulus (MPa) and Poisson's ratio
     double sigma_TS = 420;                                   // tensile strength (MPa)
-    double f_A = 9.4e-4, f_b = 0.45, f_c = 6.5, f_eta = 0.2; // fatigue parameters
+    double f_A = 9.4e-2, f_b = 0.45, f_c = 3, f_eta = 0.2; // fatigue parameters
     double critical_bstrain = 1.0e-3;                        // critical bond strain value at which bond will break
 
     std::vector<Particle<n_layer> *> top_group, bottom_group, mid_group;
@@ -86,8 +86,8 @@ void run()
     step0.forceBCs.push_back(ForceBC<n_layer>(bottom_group, LoadMode::Absolute, 0.0, -f_min, 0.0));
     load_static.push_back(step0);
 
-    SolverFatigue<n_layer> solv_static{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, max_iter, tol_iter}; // stiffness mode and solution mode
-    solv_static.solveProblemStatic(load_static, start_index);
+    SolverFatigue<n_layer> solv_fatigue{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, max_iter, tol_iter}; // stiffness mode and solution mode
+    solv_fatigue.solveProblemStatic(load_static, start_index);
 
     /*********************************************************************************************/
     // perform cyclic loading
@@ -115,18 +115,13 @@ void run()
     load_cycle.push_back(step2);
 
     // test the static loading
-    // load_cycle.push_back(step1);
-    // load_cycle.push_back(step2);
-    // SolverStaticNodamage<n_layer> solv_fatigue{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, max_iter, tol_iter}; // stiffness mode and solution mode
-    solv_static.solveProblemStatic(load_cycle, start_index);
+    // solv_fatigue.solveProblemStatic(load_cycle, start_index);
 
-    // // initialize 1000000 cycles
-    // for (int i = 0; i < 1000000; ++i)
-    //     all_cycles.push_back(load_cycle);
+    // test the fatigue cyclic loading
+    for (int i = 0; i < 1000000; i++)
+        all_cycles.push_back(load_cycle);
 
-    // // continue from the static loading to do the fatigue cyclic loading
-    // SolverFatigue<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, dumpFile, max_iter, tol_iter}; // stiffness mode and solution mode
-    // solv.solveProblem(all_cycles);                                                                                // initial loading
+    solv_fatigue.solveProblemCyclic(all_cycles);
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);
