@@ -30,7 +30,7 @@ void run()
 
     // material elastic parameters setting, MPa
     double E0 = 3.2e3, mu0 = 0.28;                                   // polymer, Young's modulus and Poisson's ratio, MPa
-    double k0 = 0.1936, kc = 2, c_t_ratio = 10, damage_thres = 0.99; // brittle damage parameters
+    double k0 = 0.1936, k1 = 2, c_t_ratio = 10, damage_thres = 0.99; // brittle damage parameters
 
     std::vector<Particle<n_layer> *> top_group, bottom_group, mid_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
@@ -58,7 +58,7 @@ void run()
 
         // assign material properties - need to cast to elastic particle
         ParticleElasticDamage<n_layer> *elpt = dynamic_cast<ParticleElasticDamage<n_layer> *>(p1);
-        elpt->setParticleProperty(E0, mu0, k0, kc, c_t_ratio, damage_thres);
+        elpt->setParticleProperty(E0, mu0, k0, k1, c_t_ratio, damage_thres);
     }
 
     // simulation settings

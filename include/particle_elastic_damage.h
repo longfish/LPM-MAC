@@ -12,44 +12,45 @@
 
 // Elastic plane strain or 3D material
 // Update bdamage and bforce after calculation
-// Three particle-wise state variables: [0]damage, [1] eq_strain, [2]kappa (max eq_strain)
+// Two particle-wise state variables: [0]strain energy, [1]damage_dot
 
 // update bond force
 // 1. update the particle geometry (loop for all particles)
 // 2. update the particle damage (loop for all particles)
-//     i. calculate the eq strain and store it as a state variable - state_var
-//     ii. d_eq = state_var - state_var_last
-//     iii. using explicit Euler, D = D + g*d_eq
+//     i. calculate the strain energy and store it as a state variable - state_var
+//     ii. calculate the damage dot - Ddot
+//     iii. using explicit Euler, D = D + Ddot*delta_energy
 // 3. update bforce (after calculating the bdamage of all bonds)
 
 template <int nlayer>
 class ParticleElasticDamage : public Particle<nlayer>
 {
 public:
-    double kappa0{0}, alpha{0}, beta{0}; // damage parameters
-    double comp_tensile_ratio{1};
-    double damage_threshold{0.35}, critical_bstrain{1.2e-3};
+    double k0{0}, k1{0}; // damage parameters
+    double damage_threshold{0}, comp_tensile_ratio{0};
 
     ParticleElasticDamage(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell) : Particle<nlayer>{p_x, p_y, p_z, p_cell}
     {
-        this->state_var = std::vector<double>(3, 0.);
-        this->state_var_last = std::vector<double>(3, 0.);
+        this->state_var = std::vector<double>(2, 0.);
+        this->state_var_last = std::vector<double>(2, 0.);
     }
 
     ParticleElasticDamage(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type) : Particle<nlayer>{p_x, p_y, p_z, p_cell, p_type}
     {
-        this->state_var = std::vector<double>(3, 0.);
-        this->state_var_last = std::vector<double>(3, 0.);
+        this->state_var = std::vector<double>(2, 0.);
+        this->state_var_last = std::vector<double>(2, 0.);
     }
 
+    double calcStrainEnergyDensity();
     double calcEqStrain();
 
-    bool updateParticleStateVariables();
+    void updateParticleStateVariables();
+    bool updateParticleStaticDamage();
     bool updateParticleBrokenBonds();
 
     void updateBondsForce();
-    void setParticleProperty(double p_E, double p_mu, double p_kappa0, double p_alpha, double p_beta, double p_comp_tensile_ratio);
-    void setParticleProperty(double p_C11, double p_C12, double p_C44, double p_kappa0, double p_alpha, double p_beta, double p_comp_tensile_ratio);
+    void setParticleProperty(double p_E, double p_mu, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres);
+    void setParticleProperty(double p_C11, double p_C12, double p_C44, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres);
 };
 
 template <int nlayer>
@@ -60,7 +61,7 @@ bool ParticleElasticDamage<nlayer>::updateParticleBrokenBonds()
     {
         for (Bond<nlayer> *bd : this->bond_layers[i])
         {
-            if (bd->bstrain >= critical_bstrain && abs(bd->bdamage - 1.0) > EPS)
+            if (abs(bd->bdamage - 1.0) > EPS)
             {
                 any_broken = any_broken || true;
                 bd->bdamage = 1;
@@ -79,27 +80,57 @@ void ParticleElasticDamage<nlayer>::updateBondsForce()
     {
         for (Bond<nlayer> *bd : this->bond_layers[i])
         {
-            bd->bforce = 2. * bd->Kn * bd->dLe + 2. * bd->Tv * this->dLe_total[bd->layer];           // trial elastic bforce
-            bd->bdamage = std::max(bd->bdamage, std::max(this->state_var[0], bd->p2->state_var[0])); // update the bond-wise damage
+            bd->bforce = 2. * bd->Kn * bd->dLe + 2. * bd->Tv * this->dLe_total[bd->layer]; // trial elastic bforce
+            bd->bdamage = std::max(bd->bdamage, std::max(this->damage, bd->p2->damage));   // update the bond-wise damage
             bd->bforce *= (1.0 - bd->bdamage);
         }
     }
+}
+
+template <int nlayer>
+double ParticleElasticDamage<nlayer>::calcStrainEnergyDensity()
+{
+    // compute energy terms
+    double V_m = this->cell.particle_volume * this->nb / this->cell.nneighbors; // modified particle volume
+    double energy_total{0};
+    for (int i = 0; i < nlayer; ++i)
+    {
+        for (Bond<nlayer> *bd : this->bond_layers[i])
+            energy_total += 0.5 * (bd->Kn * bd->dLe * bd->dLe) / V_m; // first add spring energy
+
+        energy_total += 0.5 * this->TdLe_total[i] * this->dLe_total[i] / V_m; // then add volumetric energy
+    }
+
+    return energy_total;
+}
+
+double func_g(const double k1)
+{
+    return 1 / k1;
+}
+
+// double func_g(const double k, const double k0, const double undamaged_pt_type)
+// {
+//     if (k >= undamaged_pt_type)
+//         return 0;
+//     else
+//         return k0 * undamaged_pt_type / (k0 + undamaged_pt_type) * pow(k, -2); // the k here is kappa
+// }
+
+// double func_g(const double k, const double k0, const double a, const double b)
+// {
+//     return k0 / k / k * (1. + a * ((1. + b * k) * std::exp(b * (k0 - k)) - 1.)); // the k here is kappa
+// }
+
+double func_D(const double k, const double k0, const double a, const double b)
+{
+    return 1.0 - k0 / k * (1.0 - a + a * std::exp(-b * (k - k0)));
 }
 
 double func_eq_strain(const double &comp_tensile_ratio, const double &I1, const double &J2)
 {
     double k = comp_tensile_ratio; // the k has different meaning compared with k in func_g
     return (1. - 1. / k) * I1 + 1. / k * std::sqrt((k - 1.) * (k - 1.) * I1 * I1 - k * J2);
-}
-
-double func_g(const double k, const double k0, const double a, const double b)
-{
-    return k0 / k / k * (1. + a * ((1. + b * k) * std::exp(b * (k0 - k)) - 1.)); // the k here is kappa
-}
-
-double func_D(const double k, const double k0, const double a, const double b)
-{
-    return 1.0 - k0 / k * (1.0 - a + a * std::exp(-b * (k - k0)));
 }
 
 template <int nlayer>
@@ -118,30 +149,36 @@ double ParticleElasticDamage<nlayer>::calcEqStrain()
 }
 
 template <int nlayer>
-bool ParticleElasticDamage<nlayer>::updateParticleStateVariables()
+void ParticleElasticDamage<nlayer>::updateParticleStateVariables()
 {
-    this->state_var[1] = calcEqStrain();                                   // local equivalent strain
-    this->state_var[2] = std::max(this->state_var[1], this->state_var[2]); // update kappa
-    double damage_prev = this->state_var[0];                               // previous damage
-
-    if (abs(this->state_var[1] - this->state_var[2]) < EPS)
-        this->state_var[0] = func_D(this->state_var[2], kappa0, alpha, beta);
-
-    if (this->state_var[0] >= damage_threshold)
-        this->state_var[0] = damage_threshold;
-
-    return abs(this->state_var[0] - damage_prev) > 1e-3; // return true if damage is updated noticeably
+    this->state_var[0] = calcStrainEnergyDensity(); // local strain measures
+    // this->state_var[2] = std::max(this->state_var[0], this->state_var[2]); // update kappa
 }
 
 template <int nlayer>
-void ParticleElasticDamage<nlayer>::setParticleProperty(double p_E, double p_mu, double p_kappa0, double p_alpha, double p_beta, double p_comp_tensile_ratio)
+bool ParticleElasticDamage<nlayer>::updateParticleStaticDamage()
 {
-    kappa0 = p_kappa0;
-    alpha = p_alpha;
-    beta = p_beta;
-    comp_tensile_ratio = p_comp_tensile_ratio;
-    this->state_var[2] = kappa0;
-    this->state_var_last[2] = kappa0;
+    double delta = this->state_var[0] - this->state_var_last[0]; // state_var change
+    double f = this->state_var[0] - k1 * this->damage - k0;      // damage surface
+    if (f > 0 && delta > 0)
+        this->state_var[1] = func_g(k1); // update Ddot
+    else
+        this->state_var[1] = 0;
+    this->damage += this->state_var[1] * delta;
+
+    if (this->damage >= damage_threshold)
+        this->damage = 1;
+
+    return abs(this->damage - this->damage_last) > 1e-3; // return true if damage is updated noticeably
+}
+
+template <int nlayer>
+void ParticleElasticDamage<nlayer>::setParticleProperty(double p_E, double p_mu, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres)
+{
+    k0 = p_k0;
+    k1 = p_k1;
+    damage_threshold = p_d_thres;
+    comp_tensile_ratio = p_ct_ratio;
 
     double Ce[NDIM]{p_E * (1.0 - p_mu) / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
                     p_E * p_mu / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
@@ -172,14 +209,12 @@ void ParticleElasticDamage<nlayer>::setParticleProperty(double p_E, double p_mu,
 }
 
 template <int nlayer>
-void ParticleElasticDamage<nlayer>::setParticleProperty(double p_C11, double p_C12, double p_C44, double p_kappa0, double p_alpha, double p_beta, double p_comp_tensile_ratio)
+void ParticleElasticDamage<nlayer>::setParticleProperty(double p_C11, double p_C12, double p_C44, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres)
 {
-    kappa0 = p_kappa0;
-    alpha = p_alpha;
-    beta = p_beta;
-    comp_tensile_ratio = p_comp_tensile_ratio;
-    this->state_var[2] = kappa0;
-    this->state_var_last[2] = kappa0;
+    k0 = p_k0;
+    k1 = p_k1;
+    damage_threshold = p_d_thres;
+    comp_tensile_ratio = p_ct_ratio;
 
     double Ce[NDIM]{p_C11, p_C12, p_C44}; // C11, C12, C44
     double KnTv[NDIM]{0};
