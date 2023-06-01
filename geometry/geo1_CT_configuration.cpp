@@ -112,9 +112,9 @@ std::vector<std::vector<int>> searchNeighbor(std::vector<std::array<double, NDIM
 bool isValid(const std::array<double, NDIM> &pt)
 {
     if (inCircle(pt, {40.0 - 10.5, 9.2, 0.0}, 9.5 / 2.0))
-        return false; // top circle
-    if (inCircle(pt, {40.0 - 10.5, 40.0 - 9.2, 0.0}, 9.5 / 2.0))
         return false; // bottom circle
+    if (inCircle(pt, {40.0 - 10.5, 40.0 - 9.2, 0.0}, 9.5 / 2.0))
+        return false; // top circle
     if (inCircle(pt, {23.0 - 8.3, 20.0 + 8.1, 0.0}, 3.5))
         return false; // random circle (CT-1, refer to Zhang's PD validation paper)
     if (inNotch(pt, {23.0, 20.0, 0.0}, 3.0 / 2.0))
