@@ -17,22 +17,21 @@ protected:
     static int _ID;
 
 public:
-    int id{0};                                                       // identifier of the particle, id starts from 0
-    int type{0};                                                     // particle type which is needed to identify phases
-    int nconn_largeq{0};                                             // matrix pointer, number of conn larger than (or equal to) its own index
-    int nb{0}, nconn{0};                                             // number of bonds and connections
-    int ncycle_jump{0};                                              // cycle jumping numbers for fatigue simulation
-    double damage_visual{0.};                                        // damage value for visualization
-    UnitCell cell;                                                   // unit cell
-    std::vector<double> state_var, state_var_last;                   // vectors that store state variables
-    std::array<int, NDIM> disp_constraint{0};                        // disp BC indicator, 1 means disp BC applied, 0 otherwise
-    std::array<double, nlayer> dLe_total, cs_sumx, cs_sumy, cs_sumz; // volumetric bond measure
-    std::array<double, NDIM> xyz, xyz_initial, xyz_last;             // particle coordinates
-    std::array<double, NDIM> Pin{0}, Pex{0};                         // internal and external particle force
-    std::array<std::vector<Bond<nlayer> *>, nlayer> bond_layers;     // an array that store n layers of bonds
-    std::vector<Particle<nlayer> *> neighbors;                       // vector that stores all particles that form bonds
-    std::vector<Particle<nlayer> *> conns;                           // all connections of the particle (include self)
-    std::vector<double> stress, strain;                              // stress and strain tensor
+    int id{0};                                                                   // identifier of the particle, id starts from 0
+    int type{0};                                                                 // particle type which is needed to identify phases
+    int nconn_largeq{0};                                                         // matrix pointer, number of conn larger than (or equal to) its own index
+    int nb{0}, nconn{0};                                                         // number of bonds and connections
+    double damage{0.}, damage_last{0.}, damage_visual{0.};                       // damage variables
+    UnitCell cell;                                                               // unit cell
+    std::vector<double> state_var, state_var_last;                               // vectors that store state variables
+    std::array<int, NDIM> disp_constraint{0};                                    // disp BC indicator, 1 means disp BC applied, 0 otherwise
+    std::array<double, nlayer> TdLe_total, dLe_total, cs_sumx, cs_sumy, cs_sumz; // volumetric bond measure
+    std::array<double, NDIM> xyz, xyz_initial, xyz_last;                         // particle coordinates
+    std::array<double, NDIM> Pin{0}, Pex{0};                                     // internal and external particle force
+    std::array<std::vector<Bond<nlayer> *>, nlayer> bond_layers;                 // an array that store n layers of bonds
+    std::vector<Particle<nlayer> *> neighbors;                                   // vector that stores all particles that form bonds
+    std::vector<Particle<nlayer> *> conns;                                       // all connections of the particle (include self)
+    std::vector<double> stress, strain;                                          // stress and strain tensor
 
     Particle(const int &p_id) : cell{LatticeType::SimpleCubic3D, 0} { id = p_id; };
     Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type);
@@ -53,18 +52,49 @@ public:
     void updateParticleDamageVisual();
     void storeParticleStateVariables();
     void resetParticleStateVariables();
-    void clearParticleStateVariables();
     void resumeParticleState();
 
     // virtual functions that can be inherited
     virtual void updateBondsForce() {}
-    virtual int calcNCycleJump() { return 0; }
-    virtual bool updateParticleStateVariables() { return false; }
+    virtual void updateParticleStateVariables() {}
+    virtual bool updateParticleStaticDamage() { return false; }
+    virtual bool updateParticleFatigueDamage(double &dt) { return false; }
     virtual bool updateParticleBrokenBonds() { return false; };
 };
 
 template <int nlayer>
 int Particle<nlayer>::_ID = 0;
+
+template <int nlayer>
+Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type)
+    : cell{p_cell}
+{
+    xyz = {p_x, p_y, p_z};
+    xyz_initial = xyz;
+    xyz_last = xyz;
+    type = p_type;
+    id = _ID++;
+}
+
+template <int nlayer>
+Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const LatticeType &p_lattice, const double &p_radius)
+    : cell{p_lattice, p_radius}
+{
+    xyz = {p_x, p_y, p_z};
+    xyz_initial = xyz;
+    xyz_last = xyz;
+    id = _ID++;
+}
+
+template <int nlayer>
+Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell)
+    : cell{p_cell}
+{
+    xyz = {p_x, p_y, p_z};
+    xyz_initial = xyz;
+    xyz_last = xyz;
+    id = _ID++;
+}
 
 template <int nlayer>
 bool Particle<nlayer>::operator==(const Particle<nlayer> &other)
@@ -76,6 +106,7 @@ template <int nlayer>
 void Particle<nlayer>::storeParticleStateVariables()
 {
     // set the last converged state variables to be the current one
+    damage_last = damage;
     for (int i = 0; i < state_var.size(); ++i)
         state_var_last[i] = state_var[i];
 
@@ -92,20 +123,10 @@ void Particle<nlayer>::storeParticleStateVariables()
 }
 
 template <int nlayer>
-void Particle<nlayer>::clearParticleStateVariables()
-{
-    // clear the current particle state variables (useful in fatigue modeling)
-    for (int i = 0; i < state_var.size(); ++i)
-    {
-        state_var_last[i] = 0;
-        state_var[i] = 0;
-    }
-}
-
-template <int nlayer>
 void Particle<nlayer>::resetParticleStateVariables()
 {
     // reset back the current state variables to the last converged one
+    damage = damage_last;
     for (int i = 0; i < state_var.size(); ++i)
         state_var[i] = state_var_last[i];
 
@@ -126,9 +147,6 @@ void Particle<nlayer>::resetParticleStateVariables()
 template <int nlayer>
 void Particle<nlayer>::updateParticleDamageVisual()
 {
-    // if (id == 5145)
-    //     printf("D: %f \n", state_var[0]);
-
     damage_visual = 0;
     for (int i = 0; i < nlayer; ++i)
     {
@@ -145,12 +163,13 @@ void Particle<nlayer>::updateBondsGeometry()
     // update all the neighbors information
     for (int i = 0; i < nlayer; ++i)
     {
-        dLe_total[i] = 0;
+        dLe_total[i] = 0, TdLe_total[i] = 0;
         cs_sumx[i] = 0, cs_sumy[i] = 0, cs_sumz[i] = 0;
         for (Bond<nlayer> *bd : bond_layers[i])
         {
             bd->updatebGeometry();
             dLe_total[i] += bd->dLe;
+            TdLe_total[i] += bd->Tv * bd->dLe;
             cs_sumx[i] += bd->csx;
             cs_sumy[i] += bd->csy;
             cs_sumz[i] += bd->csz;
@@ -231,37 +250,6 @@ bool Particle<nlayer>::hasAFEMneighbor(Particle<nlayer> *pj, int layer)
         }
     }
     return false;
-}
-
-template <int nlayer>
-Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type)
-    : cell{p_cell}
-{
-    xyz = {p_x, p_y, p_z};
-    xyz_initial = xyz;
-    xyz_last = xyz;
-    type = p_type;
-    id = _ID++;
-}
-
-template <int nlayer>
-Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const LatticeType &p_lattice, const double &p_radius)
-    : cell{p_lattice, p_radius}
-{
-    xyz = {p_x, p_y, p_z};
-    xyz_initial = xyz;
-    xyz_last = xyz;
-    id = _ID++;
-}
-
-template <int nlayer>
-Particle<nlayer>::Particle(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell)
-    : cell{p_cell}
-{
-    xyz = {p_x, p_y, p_z};
-    xyz_initial = xyz;
-    xyz_last = xyz;
-    id = _ID++;
 }
 
 template <int nlayer>
