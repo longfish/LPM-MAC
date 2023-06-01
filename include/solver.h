@@ -62,7 +62,7 @@ int Solver<nlayer>::NewtonIteration()
     // compute the Euclidean norm (L2 norm)
     double norm_residual = cblas_dnrm2(problem_size, stiffness.residual, 1);
     double norm_reaction_force = cblas_dnrm2(reaction_force.size(), reaction_force.data(), 1);
-    double tol_multiplier = MAX(norm_residual, norm_reaction_force);
+    double tol_multiplier = std::max(norm_residual, norm_reaction_force);
     char tempChar1[] = "residual", tempChar2[] = "reaction";
     printf("|  Norm of residual is %.5e, norm of reaction is %.5e, tolerance criterion is based on ", norm_residual, norm_reaction_force);
     if (norm_residual > norm_reaction_force)
