@@ -29,9 +29,8 @@ void run()
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
-    double E0 = 205e3, mu0 = 0.29;                  // Steel, Young's modulus and Poisson's ratio, MPa
-    double alpha = 0.96, beta = 100, kappa0 = 6e-3; // brittle damage parameters
-    double comp_tensile_ratio = 0.9;
+    double E0 = 3.2e3, mu0 = 0.28;                                   // polymer, Young's modulus and Poisson's ratio, MPa
+    double k0 = 0.1936, kc = 2, c_t_ratio = 10, damage_thres = 0.99; // brittle damage parameters
 
     std::vector<Particle<n_layer> *> top_group, bottom_group, mid_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
@@ -52,15 +51,19 @@ void run()
             bottom_group.push_back(p1); // bottom
             p1->type = 3;
         }
+        if (p1->xyz[0] >= 29.5 - 9.5 / 2 && p1->xyz[0] <= 29.5 + 9.5 / 2 && p1->xyz[1] >= 40 - 9.2)
+            p1->type = 4;
+        if (p1->xyz[0] >= 29.5 - 9.5 / 2 && p1->xyz[0] <= 29.5 + 9.5 / 2 && p1->xyz[1] <= 9.2)
+            p1->type = 4; // particles that not update damage
 
         // assign material properties - need to cast to elastic particle
         ParticleElasticDamage<n_layer> *elpt = dynamic_cast<ParticleElasticDamage<n_layer> *>(p1);
-        elpt->setParticleProperty(E0, mu0, kappa0, alpha, beta, comp_tensile_ratio);
+        elpt->setParticleProperty(E0, mu0, k0, kc, c_t_ratio, damage_thres);
     }
 
     // simulation settings
     int n_steps = 80;         // number of loading steps
-    double step_size = -2e-4; // step size for displacement loading
+    double step_size = -1e-2; // step size for displacement loading
     // double step_size = -600; // step size for force loading
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
@@ -82,8 +85,8 @@ void run()
         // step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, 0.0, step_size, 0.0));
         load.push_back(step);
     }
-    load[0].dispBCs[2].step *= 50; // increase the elastic loading step size
-    load[0].dispBCs[3].step *= 50;
+    // load[0].dispBCs[2].step *= 20; // increase the elastic loading step size
+    // load[0].dispBCs[3].step *= 20;
 
     pt_ass.updateGeometry();
     pt_ass.updateForceState();
@@ -92,9 +95,10 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    int max_iter = 30, start_index = 0;                                                                                          /* maximum Newton iteration number */
-    double tol_iter = 1e-5;                                                                                                      /* newton iteration tolerance */
-    SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "CT_2DHex_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
+    int undamaged_pt = 4;                                                                                                                      // particles that dont update damage
+    int max_iter = 30, start_index = 0;                                                                                                        /* maximum Newton iteration number */
+    double tol_iter = 1e-5;                                                                                                                    /* newton iteration tolerance */
+    SolverStatic<n_layer> solv{undamaged_pt, pt_ass, StiffnessMode::Analytical, SolverMode::CG, "CT_2DHex_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
     solv.solveProblem(load, start_index);
 
     // output top loading point's reaction force
