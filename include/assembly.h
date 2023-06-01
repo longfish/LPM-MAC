@@ -52,10 +52,9 @@ public:
     void updateGeometry();
     void resetStateVar(bool reset_xyz);
     void storeStateVar();
-    void clearStateVar(bool clear_damage);
     void updateForceState(); // update bond force and particle forces
 
-    bool updateStateVar();
+    void updateStateVar();
     bool updateBrokenBonds();
 
     std::map<int, Particle<nlayer> *> toMap();
@@ -140,25 +139,10 @@ void Assembly<nlayer>::resetStateVar(bool reset_xyz)
 }
 
 template <int nlayer>
-void Assembly<nlayer>::clearStateVar(bool clear_damage)
+void Assembly<nlayer>::updateStateVar()
 {
     for (Particle<nlayer> *pt : pt_sys)
-    {
-        double dam = pt->state_var[0];
-        pt->clearParticleStateVariables();
-        if (!clear_damage)
-            pt->state_var[0] = dam;
-    }
-}
-
-template <int nlayer>
-bool Assembly<nlayer>::updateStateVar()
-{
-    bool any_damaged{false};
-    for (Particle<nlayer> *pt : pt_sys)
-        any_damaged = pt->updateParticleStateVariables() || any_damaged;
-
-    return any_damaged;
+        pt->updateParticleStateVariables();
 }
 
 template <int nlayer>
@@ -314,15 +298,15 @@ void Assembly<nlayer>::writeDump(const std::string &dumpFile, int step)
     fprintf(fpt, "%8.8f %8.8f\n", box[2], box[3]);
     fprintf(fpt, "%8.8f %8.8f\n", box[4], box[5]);
 
-    fprintf(fpt, "ITEM: ATOMS id type x y z dx dy dz s11 s22 s33 s23 s13 s12 damage\n");
+    fprintf(fpt, "ITEM: ATOMS id type x y z dx dy dz s11 s22 s33 s23 s13 s12 damage damage_visual state_var \n");
     for (auto pt : pt_sys)
     {
-        fprintf(fpt, "%d %d %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e\n",
+        fprintf(fpt, "%d %d %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e\n",
                 pt->id, pt->type,
                 pt->xyz[0], pt->xyz[1], pt->xyz[2],
                 pt->xyz[0] - pt->xyz_initial[0], pt->xyz[1] - pt->xyz_initial[1], pt->xyz[2] - pt->xyz_initial[2],
-                pt->stress[0], pt->stress[1], pt->stress[2], pt->stress[3], pt->stress[4], pt->stress[5],
-                pt->damage_visual);
+                pt->stress[0], pt->stress[1], pt->stress[2], pt->stress[3], pt->stress[4], pt->stress[5], pt->damage, pt->damage_visual,
+                pt->state_var[0]);
     }
 
     fclose(fpt);
