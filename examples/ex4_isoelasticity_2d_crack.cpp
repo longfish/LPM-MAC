@@ -95,10 +95,10 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    int undamaged_pt = 4;                                                                                                                      // particles that dont update damage
+    int undamaged_pt_type = 4;                                                                                                                      // particles that dont update damage
     int max_iter = 30, start_index = 0;                                                                                                        /* maximum Newton iteration number */
     double tol_iter = 1e-5;                                                                                                                    /* newton iteration tolerance */
-    SolverStatic<n_layer> solv{undamaged_pt, pt_ass, StiffnessMode::Analytical, SolverMode::CG, "CT_2DHex_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
+    SolverStatic<n_layer> solv{undamaged_pt_type, pt_ass, StiffnessMode::Analytical, SolverMode::CG, "CT_2DHex_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
     solv.solveProblem(load, start_index);
 
     // output top loading point's reaction force
