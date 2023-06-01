@@ -18,12 +18,26 @@ template <int nlayer>
 class SolverStatic : public Solver<nlayer>
 {
 public:
-    SolverStatic(Assembly<nlayer> &p_ass, const StiffnessMode &p_stiff_mode, const SolverMode &p_sol_mode, const std::string &p_dumpFile, const int &p_niter, const double &p_tol)
-        : Solver<nlayer>{p_ass, p_stiff_mode, p_sol_mode, p_dumpFile, p_niter, p_tol} {}
+    int undamaged_pt_type{0};
 
-    bool solveProblemStep(LoadStep<nlayer> &load, int &dump_step);
+    SolverStatic(const int &p_undamaged, Assembly<nlayer> &p_ass, const StiffnessMode &p_stiff_mode, const SolverMode &p_sol_mode, const std::string &p_dumpFile, const int &p_niter, const double &p_tol)
+        : Solver<nlayer>{p_ass, p_stiff_mode, p_sol_mode, p_dumpFile, p_niter, p_tol}, undamaged_pt_type{p_undamaged} {}
+
+    bool updateStaticDamage();
+    bool solveProblemStep(LoadStep<nlayer> &load, double &dt);
     void solveProblem(std::vector<LoadStep<nlayer>> &load, int &start_index);
 };
+
+template <int nlayer>
+bool SolverStatic<nlayer>::updateStaticDamage()
+{
+    bool any_damaged{false};
+    for (Particle<nlayer> *pt : this->ass.pt_sys)
+        if (pt->type != undamaged_pt_type)
+            any_damaged = pt->updateParticleStaticDamage() || any_damaged;
+
+    return any_damaged;
+}
 
 template <int nlayer>
 void SolverStatic<nlayer>::solveProblem(std::vector<LoadStep<nlayer>> &load, int &start_index)
@@ -32,13 +46,14 @@ void SolverStatic<nlayer>::solveProblem(std::vector<LoadStep<nlayer>> &load, int
 
     int n_step = load.size(), dump_step{0};
     bool is_converged{true}; // flag to determine whether need to cut the loading into half
+    double dt = 1;
     for (int i = 0; i < n_step; i++)
     {
     restart:
         printf("Loading step-%d, iteration starts:\n", i + start_index);
         double t1 = omp_get_wtime();
 
-        is_converged = solveProblemStep(load[i], dump_step);
+        is_converged = solveProblemStep(load[i], dt);
         if (!is_converged)
         {
             this->ass.resetStateVar(true); // reset the state_var to last converged ones
@@ -49,30 +64,27 @@ void SolverStatic<nlayer>::solveProblem(std::vector<LoadStep<nlayer>> &load, int
             goto restart;
         }
 
-        // ass.updateStateVar();
-        this->ass.storeStateVar(); // store converged state variables
+        this->ass.writeDump(this->dumpFile, i + start_index);
 
         double t2 = omp_get_wtime();
         printf("Loading step %d has finished, spent %f seconds\n\nData output ...\n\n", i + start_index, t2 - t1);
-
-        // this->ass.writeDump(this->dumpFile, i);
     }
     start_index += n_step;
 }
 
 // couple damage and bond stretch
 template <int nlayer>
-bool SolverStatic<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, int &dump_step)
+bool SolverStatic<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, double &dt)
 {
-    bool new_damaged{false}, new_broken{false};
-    int m{0}, n_newton{0};
-
     this->updateForceBC(load_step);
     this->updateDisplacementBC(load_step);
 
-    while (m == 0 || new_damaged || new_broken)
+    int n_newton{0};
+    bool new_damaged{false};
+
+    do
     {
-        this->ass.writeDump(this->dumpFile, dump_step++);
+        // this->ass.writeDump(this->dumpFile, 0);
 
         // update the stiffness matrix using current state variables (bdamage)
         this->stiffness.reset(this->ass.pt_sys);
@@ -90,27 +102,25 @@ bool SolverStatic<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, int &du
         if (n_newton >= this->max_NR_iter)
             break;
 
-        if (m % 2 == 0)
+        this->ass.updateStateVar();
+        new_damaged = updateStaticDamage();
+        this->ass.storeStateVar(); // store converged state variables
+
+        if (new_damaged)
         {
-            new_damaged = this->ass.updateStateVar();
-            if (new_damaged)
-                printf("Updating damage\n");
+            printf("Updating damage\n");
             this->ass.updateGeometry();
             this->ass.updateForceState();
-            ++m;
-            if (new_damaged)
-                continue;
         }
-        if (m % 2 == 1)
-        {
-            new_broken = this->ass.updateBrokenBonds();
-            if (new_broken)
-                printf("Updating broken bonds\n");
-            this->ass.updateGeometry();
-            this->ass.updateForceState();
-            ++m;
-        }
-    }
+
+    } while (new_damaged);
+
+    std::cout << this->ass.pt_sys[5087]->damage
+              << ',' << this->ass.pt_sys[5087]->state_var[0]
+              << ',' << this->ass.pt_sys[5087]->state_var[1]
+              << ',' << this->ass.pt_sys[5087]->state_var[2] << std::endl;
+    // std::cout << this->ass.pt_sys[8614]->state_var[0] << ',' << this->ass.pt_sys[8614]->state_var[0] << std::endl;
+    // std::cout << m << ',' << this->ass.pt_sys[5030]->damage << ',' << this->ass.pt_sys[5030]->state_var[0] << ',' << this->ass.pt_sys[5030]->state_var[1] << std::endl;
 
     if (n_newton < this->max_NR_iter)
         return true; // normal return
