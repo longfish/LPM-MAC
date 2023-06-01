@@ -10,6 +10,8 @@
 #include <cstdio>
 #include <iomanip>
 #include <iterator>
+#include <queue>
+#include <deque>
 
 #include <stdio.h>
 #include <math.h>
@@ -38,9 +40,6 @@ using namespace boost::adaptors;
 #define PI 3.14159265358979323846
 #define EPS  1e-6
 #define NDIM 3                             /* max number of dimensions, no matter what dimension of the problem */
-#define MAX(x, y) ((x) < (y) ? (y) : (x))  /* Maximum of two variables */
-#define MIN(x, y) ((x) > (y) ? (y) : (x))  /* Minimum of two variables */
-#define SIGN(x) ((x) < (0) ? (-1.0) : (1)) /* Sign of variable, zero is considered as positive */
 
 // Define the format to printf MKL_INT values
 #ifndef MKL_ILP64
@@ -65,6 +64,12 @@ enum class StiffnessMode : char
 {
     Analytical,
     FiniteDifference
+};
+
+enum class TimeMapMode : char
+{
+    Linear,
+    Exponential
 };
 
 enum class ParticleType : char
