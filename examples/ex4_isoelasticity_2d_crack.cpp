@@ -30,7 +30,7 @@ void run()
 
     // material elastic parameters setting, MPa
     double E0 = 3.2e3, mu0 = 0.28;                                   // polymer, Young's modulus and Poisson's ratio, MPa
-    double k0 = 0.1936, k1 = 2, c_t_ratio = 10, damage_thres = 0.99; // brittle damage parameters
+    double k0 = 0.1936, k1 = 1, c_t_ratio = 10, damage_thres = 0.99; // brittle damage parameters
 
     std::vector<Particle<n_layer> *> top_group, bottom_group, mid_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
@@ -63,7 +63,7 @@ void run()
 
     // simulation settings
     int n_steps = 80;         // number of loading steps
-    double step_size = -1e-2; // step size for displacement loading
+    double step_size = -5e-3; // step size for displacement loading
     // double step_size = -600; // step size for force loading
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
@@ -96,8 +96,8 @@ void run()
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
     int undamaged_pt_type = 4;                                                                                                                      // particles that dont update damage
-    int max_iter = 30, start_index = 0;                                                                                                        /* maximum Newton iteration number */
-    double tol_iter = 1e-5;                                                                                                                    /* newton iteration tolerance */
+    int max_iter = 30, start_index = 0;                                                                                                             /* maximum Newton iteration number */
+    double tol_iter = 1e-5;                                                                                                                         /* newton iteration tolerance */
     SolverStatic<n_layer> solv{undamaged_pt_type, pt_ass, StiffnessMode::Analytical, SolverMode::CG, "CT_2DHex_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
     solv.solveProblem(load, start_index);
 
