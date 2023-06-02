@@ -104,13 +104,14 @@ bool SolverStatic<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, double 
 
         this->ass.updateStateVar();
         new_damaged = updateStaticDamage();
-        this->ass.storeStateVar(); // store converged state variables
+        this->ass.storeStateVar(); // store converged state variables, last_var = var
 
         if (new_damaged)
         {
             printf("Updating damage\n");
             this->ass.updateGeometry();
             this->ass.updateForceState();
+            // this->ass.resetStateVar(false); // reset var = last_var
         }
 
     } while (new_damaged);
