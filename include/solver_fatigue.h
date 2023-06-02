@@ -13,50 +13,134 @@
 #include "unit_cell.h"
 #include "assembly.h"
 #include "solver.h"
+#include "load_step_fatigue.h"
 
 template <int nlayer>
 class SolverFatigue : public Solver<nlayer>
 {
 public:
-    SolverFatigue(Assembly<nlayer> &p_ass, const StiffnessMode &p_stiff_mode, const SolverMode &p_sol_mode, const std::string &p_dumpFile, const int &p_niter, const double &p_tol)
-        : Solver<nlayer>{p_ass, p_stiff_mode, p_sol_mode, p_dumpFile, p_niter, p_tol} {}
+    int undamaged_pt_type{0};
+    TimeMapMode t_mode;                // fatigue time mapping mode
+    double tau{0};                     // fatigue time mapping parameter
+    std::vector<double> load_spectrum; // fatigue loading data
 
-    int getCycleJumpN();
-    int updateFatigueDamage();
+    SolverFatigue(const int &p_undamaged, Assembly<nlayer> &p_ass, const StiffnessMode &p_stiff_mode, const SolverMode &p_sol_mode, const TimeMapMode &p_t_mode, const double &p_tau, const std::string &p_dumpFile, const int &p_niter, const double &p_tol)
+        : undamaged_pt_type{p_undamaged}, Solver<nlayer>{p_ass, p_stiff_mode, p_sol_mode, p_dumpFile, p_niter, p_tol}, t_mode(p_t_mode), tau(p_tau) {}
+
+    void readLoad(const std::string &loadFile);
+    bool updateFatigueDamage(double dNdt);
     bool solveProblemStep(LoadStep<nlayer> &load);
-    void solveProblemOneCycle(std::vector<LoadStep<nlayer>> &load);
-    void solveProblemCyclic(std::vector<std::vector<LoadStep<nlayer>>> &cycle_loads);
+    void solveProblemOneCycle(std::vector<LoadStep<nlayer>> &load, double dNdt);
+    void solveProblemCyclic(FatigueLoadType loadType, int n_interval, std::vector<Particle<nlayer> *> group1, std::vector<Particle<nlayer> *> group2);
     void solveProblemStatic(std::vector<LoadStep<nlayer>> &load, int &start_index);
 };
 
 template <int nlayer>
-int SolverFatigue<nlayer>::getCycleJumpN()
+void SolverFatigue<nlayer>::readLoad(const std::string &loadFile)
 {
-    std::vector<int> vec_njump;
-    for (Particle<nlayer> *pt : this->ass.pt_sys)
+    // first line is f_min
+    // cyclic loading starts from the 2nd line -> f_max
+    // pattern is f_min, f_max, f_min, f_max , ..., f_max, f_min
+
+    FILE *fpt;
+    fpt = fopen(loadFile.c_str(), "r+"); /* read-only */
+
+    if (fpt == NULL)
     {
-        // std::cout << pt->calcNCycleJump() << std::endl;
-        vec_njump.push_back(pt->calcNCycleJump());
+        printf("\'%s\' does not exist!\n", loadFile.c_str());
+        exit(1);
     }
 
-    return *std::min_element(vec_njump.begin(), vec_njump.end()); // return minimum cycle jump number
+    double data;
+    while (fscanf(fpt, "%lf", &(data)) > 0)
+    {
+        load_spectrum.push_back(data);
+    }
+
+    fclose(fpt);
+}
+
+int func_dNdt_linear(const double &tau)
+{
+    return (int)(1 / tau);
+}
+
+int func_dNdt_exponental(const double &tau, const double &t)
+{
+    return (int)(1 / tau * exp(t / tau));
 }
 
 template <int nlayer>
-int SolverFatigue<nlayer>::updateFatigueDamage()
+bool SolverFatigue<nlayer>::updateFatigueDamage(double dNdt)
 {
-    this->ass.updateStateVar(); // determine rest state variables
-    int dN = getCycleJumpN();   // determine the cycle-jump number
-    std::cout << dN << std::endl;
-
-    // set the ncycle_jump of the particle
+    bool any_damaged{false};
     for (Particle<nlayer> *pt : this->ass.pt_sys)
     {
-        pt->ncycle_jump = dN;               // set the ncycle_jump
-        pt->updateParticleStateVariables(); // update the current damage
+        if (pt->type != undamaged_pt_type)
+            any_damaged = pt->updateParticleFatigueDamage(dNdt) || any_damaged; // update the fatigue damage
     }
 
-    return dN;
+    return any_damaged;
+}
+
+template <int nlayer>
+void SolverFatigue<nlayer>::solveProblemCyclic(FatigueLoadType loadType, int n_interval, std::vector<Particle<nlayer> *> group1, std::vector<Particle<nlayer> *> group2)
+{
+    // solve fatigue problem by dividing n intervals for a single loading step
+
+    double n_cycles = 0.5 * (load_spectrum.size() - 1);
+    double t{0}, dNdt{1}; // fake simulation time and derivative
+    int N{0};             // real cycle number
+
+    do
+    {
+        printf("Cycle-%d starts:\n\n", N + 1);
+
+        // generate the load step for cycle-N
+        double f_0{load_spectrum[2 * N]}, f_1{load_spectrum[2 * N + 1]}, f_2{load_spectrum[2 * N + 2]};
+        std::vector<LoadStep<nlayer>> load_cycle;
+
+        if (loadType == FatigueLoadType::LoadUniaxialDisp)
+        {
+            // loading part
+            for (int i = 0; i < n_interval; ++i)
+                load_cycle.push_back(LoadUniaxialDisp<nlayer>(0, (f_1 - f_0) / n_interval, 0, group1, group2));
+
+            // unloading part
+            for (int i = 0; i < n_interval; ++i)
+                load_cycle.push_back(LoadUniaxialDisp<nlayer>(0, (f_2 - f_1) / n_interval, 0, group1, group2));
+        }
+
+        dNdt = (t_mode == TimeMapMode::Linear) ? func_dNdt_linear(tau) : func_dNdt_exponental(tau, t++);
+        solveProblemOneCycle(load_cycle, dNdt);
+
+        std::cout << this->ass.pt_sys[19201]->damage << ',' << this->ass.pt_sys[19201]->state_var[3] << std::endl;
+
+        N += (int)dNdt;
+        this->ass.writeDump(this->dumpFile, N);
+    } while (N < n_cycles);
+}
+
+template <int nlayer>
+void SolverFatigue<nlayer>::solveProblemOneCycle(std::vector<LoadStep<nlayer>> &load, double dNdt)
+{
+    bool new_damaged{false};
+
+    int n_step = load.size();
+    for (int i = 0; i < n_step; ++i)
+    {
+        printf("Substep-%d, iteration starts:\n", i);
+        double t1 = omp_get_wtime();
+        bool is_converged = solveProblemStep(load[i]);
+        this->ass.updateStateVar(); // update the state variables in current cycle
+        double t2 = omp_get_wtime();
+        printf("Loading step %d has finished, spent %f seconds\n\n", i, t2 - t1);
+    }
+
+    new_damaged = updateFatigueDamage(dNdt); // delta_t is 1, so dN = dNdt * 1
+    this->ass.storeStateVar();               // store converged state variables
+    this->ass.updateGeometry();
+    this->ass.updateForceState();
 }
 
 template <int nlayer>
@@ -81,7 +165,8 @@ void SolverFatigue<nlayer>::solveProblemStatic(std::vector<LoadStep<nlayer>> &lo
             goto restart;
         }
 
-        // std::cout << 8613 << ',' << this->ass.pt_sys[8613]->Pin[0] << ',' << this->ass.pt_sys[8613]->Pin[1] << ',' << this->ass.pt_sys[8613]->Pin[2] << std::endl;
+        this->ass.updateStateVar();
+        this->ass.storeStateVar(); // store converged state variables
 
         double t2 = omp_get_wtime();
         printf("Loading step %d has finished, spent %f seconds\n\nData output ...\n\n", i + start_index, t2 - t1);
@@ -93,88 +178,25 @@ void SolverFatigue<nlayer>::solveProblemStatic(std::vector<LoadStep<nlayer>> &lo
 }
 
 template <int nlayer>
-void SolverFatigue<nlayer>::solveProblemCyclic(std::vector<std::vector<LoadStep<nlayer>>> &cycle_loads)
-{
-    int N{0};
-    int n_jump{1};
-    do
-    {
-        printf("Cycle-%d starts:\n\n", N + 1);
-        solveProblemOneCycle(cycle_loads[N]);
-        std::cout << 5087 << ',' << this->ass.pt_sys[5087]->state_var[0] << ',' << this->ass.pt_sys[5087]->state_var[1] << ',' << this->ass.pt_sys[5087]->state_var[2] << ',' << this->ass.pt_sys[5087]->state_var[3] << std::endl;
-
-        n_jump = updateFatigueDamage();
-        this->ass.writeDump(this->dumpFile, N);
-
-        if (n_jump < 1)
-            n_jump = 1;
-        else if (n_jump > 2e5)
-            n_jump = 2e5;
-        N += n_jump;
-
-        this->ass.updateForceState();
-
-    } while (N < cycle_loads.size());
-}
-
-template <int nlayer>
-void SolverFatigue<nlayer>::solveProblemOneCycle(std::vector<LoadStep<nlayer>> &load)
-{
-    int n_step = load.size();
-    this->ass.clearStateVar(false); // clear state variables, and keep the particle damage value unchanged
-
-    for (int i = 0; i < n_step; ++i)
-    {
-        printf("Substep-%d, iteration starts:\n", i);
-        double t1 = omp_get_wtime();
-        bool is_converged = solveProblemStep(load[i]);
-
-        this->ass.updateStateVar(); // update the state variables in current cycle
-
-        // std::cout << 5087 << ',' << this->ass.pt_sys[5087]->state_var[0] << ',' << this->ass.pt_sys[5087]->state_var[1] << ',' << this->ass.pt_sys[5087]->state_var[2] << ',' << this->ass.pt_sys[5087]->state_var[3] << std::endl;
-        // std::cout << 5087 << ',' << this->ass.pt_sys[5087]->ncycle_jump << std::endl;
-
-        double t2 = omp_get_wtime();
-        printf("Loading step %d has finished, spent %f seconds\n\n", i, t2 - t1);
-    }
-}
-
-template <int nlayer>
 bool SolverFatigue<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step)
 {
     // keep the damage unchanged, update the deformation field
-
-    bool new_broken{false};
-    int n_newton{0};
-
     this->updateForceBC(load_step);
     this->updateDisplacementBC(load_step);
 
-    do
-    {
-        // update the stiffness matrix using current state variables (bdamage)
-        this->stiffness.reset(this->ass.pt_sys);
-        double t11 = omp_get_wtime();
-        if (this->ass.pt_sys[0]->cell.dim == 2)
-            this->stiffness.calcStiffness2D(this->ass.pt_sys);
-        else
-            this->stiffness.calcStiffness3D(this->ass.pt_sys);
-        this->stiffness.updateStiffnessDispBC(this->ass.pt_sys);
-        double t12 = omp_get_wtime();
-        printf("Stiffness matrix calculation costs %f seconds\n", t12 - t11);
+    // update the stiffness matrix using current state variables (bdamage)
+    this->stiffness.reset(this->ass.pt_sys);
+    double t11 = omp_get_wtime();
+    if (this->ass.pt_sys[0]->cell.dim == 2)
+        this->stiffness.calcStiffness2D(this->ass.pt_sys);
+    else
+        this->stiffness.calcStiffness3D(this->ass.pt_sys);
+    this->stiffness.updateStiffnessDispBC(this->ass.pt_sys);
+    double t12 = omp_get_wtime();
+    printf("Stiffness matrix calculation costs %f seconds\n", t12 - t11);
 
-        // balance the system using current bond configuration and state variables
-        n_newton = this->NewtonIteration();
-        if (n_newton >= this->max_NR_iter)
-            break; // abnormal return
-
-        new_broken = this->ass.updateBrokenBonds();
-        if (new_broken)
-            printf("Updating broken bonds\n");
-        this->ass.updateGeometry();
-        this->ass.updateForceState();
-    } while (new_broken);
-
+    // balance the system using current bond configuration and state variables
+    int n_newton = this->NewtonIteration();
     if (n_newton < this->max_NR_iter)
         return true; // normal return
     else
