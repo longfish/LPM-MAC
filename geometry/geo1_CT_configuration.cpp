@@ -111,13 +111,13 @@ std::vector<std::vector<int>> searchNeighbor(std::vector<std::array<double, NDIM
 /* test if the point is valid or not */
 bool isValid(const std::array<double, NDIM> &pt)
 {
-    if (inCircle(pt, {40.0 - 10.5, 9.2, 0.0}, 9.5 / 2.0))
+    if (inCircle(pt, {40.0, 14, 0.0}, 5))
         return false; // bottom circle
-    if (inCircle(pt, {40.0 - 10.5, 40.0 - 9.2, 0.0}, 9.5 / 2.0))
+    if (inCircle(pt, {40.0, 50.0 - 14, 0.0}, 5))
         return false; // top circle
-    if (inCircle(pt, {23.0 - 8.3, 20.0 + 8.1, 0.0}, 3.5))
-        return false; // random circle (CT-1, refer to Zhang's PD validation paper)
-    if (inNotch(pt, {23.0, 20.0, 0.0}, 3.0 / 2.0))
+    if (inCircle(pt, {18, 35, 0.0}, 4))
+        return false; // random circle
+    if (inNotch(pt, {32.0, 25.245, 0.0}, 2.0 / 2.0))
         return false; // notch
     // if (inNotch(pt, {63.5 - 22.7, 30.5, 0.0}, 1.0))
     //     return false; // notch for no-hole plate
@@ -139,7 +139,7 @@ void run()
     double *R_matrix = createRMatrix(eulerflag, angles);
 
     // std::array<double, 2 * NDIM> box{0.0, 63.5, 0.0, 61.0, 0.0, 8.0}; // thickness is used for force calculation
-    std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0}; // thickness is used for force calculation
+    std::array<double, 2 * NDIM> box{0.0, 50.0, 0.0, 50.0, 0.0, 5.0}; // thickness is used for force calculation
     // std::vector<std::array<double, NDIM>> sq_xyz = createPlateSQ2D(box, cell, R_matrix), sq_CT;
     std::vector<std::array<double, NDIM>> hex_xyz = createPlateHEX2D(box, cell, R_matrix), hex_CT;
 
@@ -148,10 +148,10 @@ void run()
             hex_CT.push_back(pt);
 
     std::cout << "\nTotal particle number is: " << hex_CT.size() << std::endl;
-    writeDump("../geometry/geo1_CT_2DHEX.dump", hex_CT, box);
+    writeDump("../geometry/geo1_CT_2DHEX_Lu.dump", hex_CT, box);
 
     std::vector<std::vector<int>> hex_bonds = searchNeighbor(hex_CT, cell);
-    writeBond("../geometry/geo1_CT_2DHEX.bond", hex_bonds);
+    writeBond("../geometry/geo1_CT_2DHEX_Lu.bond", hex_bonds);
 
     printf("\nDone.\n");
 }
