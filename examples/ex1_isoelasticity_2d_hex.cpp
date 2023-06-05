@@ -34,7 +34,7 @@ void run()
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
     double radius = 0.2;   // particle radius
-    UnitCell cell(LatticeType::SimpleCubic3D, radius);
+    UnitCell cell(LatticeType::Hexagon2D, radius);
 
     // Euler angles setting for system rotation
     // flag is 0 ~ 2 for different conventions, (0: direct rotation; 1: Kocks convention; 2: Bunge convention)
@@ -45,35 +45,35 @@ void run()
 
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
-    std::array<double, 2 * NDIM> box{-0.0, 10.0, -0.4, 10.0, -0.4, 30.0};
+    std::array<double, 2 * NDIM> box{-0.0, 10.0, -0.4, 30.0, -0.4, 10.0};
 
-    std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
-    Assembly<n_layer> pt_ass{sc_xyz, box, cell, ParticleType::Elastic}; // elastic bond
+    std::vector<std::array<double, NDIM>> hex_xyz = createPlateHEX2D(box, cell, R_matrix);
+    Assembly<n_layer> pt_ass{hex_xyz, box, cell, ParticleType::Elastic}; // elastic bond
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
     bool is_plane_stress = false;
-    double E0 = 69e3, mu0 = 0.3; // Young's modulus and Poisson's ratio
+    double E0 = 69e3, mu0 = 0.3;               // Young's modulus and Poisson's ratio
 
     // simulation settings
     int n_steps = 1;                             // number of loading steps
-    double step_size = -2000;                    // step size for force loading
+    double step_size = -2000 / (box[5] - box[4]); // step size for force loading
     double nonlocal_L = 0;                       // nonlocal length scale
     int max_iter = 30, start_index = 0;          // maximum Newton iteration number
     double tol_iter = 1e-5;                      // newton iteration tolerance
     int undamaged_pt_type = -1;                  // undamaged particle type
-    std::string dumpFile{"sc_position_3d.dump"}; // output file name
+    std::string dumpFile{"hex_position.dump"}; // output file name
 
     std::vector<Particle<n_layer> *> top_group, bottom_group, internal_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
         // assign boundary and internal particles
-        if (p1->xyz[2] > box[5] - 2 * radius)
+        if (p1->xyz[1] > box[3] - 2 * radius)
         {
             top_group.push_back(p1); // top
             p1->type = 1;
         }
-        if (p1->xyz[2] < box[4] + 2 * radius)
+        if (p1->xyz[1] < box[2] + 2 * radius)
         {
             bottom_group.push_back(p1); // bottom
             p1->type = 2;
@@ -94,8 +94,7 @@ void run()
         // boundary conditions
         step.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'x', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'y', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'z', 0.0));
-        step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, LoadMode::Relative, 0.0, 0.0, -step_size));
+        step.forceBCs.push_back(ForceBC<n_layer>(bottom_group, LoadMode::Relative, 0.0, -step_size, 0.0));
         // step.dispBCs.push_back(DispBC<n_layer>(bottom_group, 'z', step_size));
         load.push_back(step);
     }
@@ -109,7 +108,6 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    // write down global matrices
     solv.solveProblem(load, start_index);
     writeMatrix("matrix_K_global.txt", solv.stiffness.K_global, solv.stiffness.K_pointer[pt_ass.pt_sys.size()]);
     writeMatrix("matrix_K_pointer.txt", solv.stiffness.K_pointer, pt_ass.pt_sys.size() + 1);

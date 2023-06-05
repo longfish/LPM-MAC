@@ -13,8 +13,8 @@ void run()
     double start = omp_get_wtime(); // record the CPU time, begin
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 0.2;   // particle radius
-    UnitCell cell(LatticeType::SimpleCubic3D, radius);
+    double radius = 0.12;  // particle radius
+    UnitCell cell(LatticeType::Hexagon2D, radius);
 
     // Euler angles setting for system rotation
     // flag is 0 ~ 2 for different conventions, (0: direct rotation; 1: Kocks convention; 2: Bunge convention)
@@ -24,46 +24,54 @@ void run()
     double *R_matrix = createRMatrix(eulerflag, angles);
 
     // import a particle system
-    Assembly<n_layer> pt_ass{"../geometry/geo2_DogBone_3DSC.dump", "../geometry/geo2_DogBone_3DSC.bond", cell, ParticleType::FatigueHCF}; // read coordinate from local files
+    std::array<double, 2 * NDIM> box{0.0, 5.08, 0.0, 12.7 + 2, 0.0, 4.8};
+    std::vector<std::array<double, NDIM>> hex_xyz = createPlateHEX2D(box, cell, R_matrix);
+    Assembly<n_layer> pt_ass{hex_xyz, box, cell, ParticleType::FatigueHCF}; // fatigue bond
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
-    bool is_plane_stress = false;
+    bool is_plane_stress = true;
     double E0 = 71.7e3, mu0 = 0.306;               // Al 7075-T651, Young's modulus (MPa) and Poisson's ratio
     double f_A = 2.003e-5, f_B = 2.833, f_d = 0.5; // fatigue parameters
     double f_damage_threshold = 1, f_fatigue_limit_ratio = 1.108;
+    // f_A = f_A / f_k * (1 - exp(-f_k));
 
     // fatigue loading parameters
-    double d_max = 0.10757,
+    double d_max = 0.043927,
            R = 0.0,
            d_min = R * d_max,
-           d_range = d_max - d_min;                    // loading displacement definition
-    double cutoff_ratio = 1.5;                         // nonlocal cutoff ratio
-    double nonlocal_L = 0.4;                           // nonlocal length scale
-    double tau = 0.0001;                               // fatigue time mapping parameter
-    int max_iter = 30;                                 // maximum iteration number of Newton-Raphson algorithm                                                                                                 /* maximum Newton iteration number */
-    int start_index = 0;                               // start index of solution procedure
-    double tol_iter = 1e-5;                            // tolerance of the NR iterations
-    int undamaged_pt_type = 3;                         // undamaged particle type
-    std::string dumpFile{"DogBone_3DSC_fatigue.dump"}; // output file name
+           d_range = d_max - d_min;                  // loading displacement definition
+    double cutoff_ratio = 1.5;                       // nonlocal cutoff ratio
+    double nonlocal_L = 8;                           // nonlocal length scale
+    double tau = 0.0001;                             // fatigue time mapping parameter
+    int max_iter = 30;                               // maximum iteration number of Newton-Raphson algorithm                                                                                                 /* maximum Newton iteration number */
+    int start_index = 0;                             // start index of solution procedure
+    double tol_iter = 1e-5;                          // tolerance of the NR iterations
+    int undamaged_pt_type = 4;                       // undamaged particle type
+    std::string dumpFile{"DogBone_2d_fatigue.dump"}; // output file name
 
-    std::vector<Particle<n_layer> *> top_group, bottom_group;
+    std::vector<Particle<n_layer> *> top_group, left_group, bottom_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
         // assign boundary and internal particles
-        if (p1->xyz[1] < 19.05 - 1.1 * radius || p1->xyz[1] > 19.05 + 1.1 * radius)
-            p1->type = undamaged_pt_type; // undamaged part
-        if (p1->xyz[1] > 37.1)
+        if (p1->xyz[0] < 0.05)
         {
-            top_group.push_back(p1); // top
+            left_group.push_back(p1); // left
             p1->type = 1;
         }
-        if (p1->xyz[1] < 1)
+        if (p1->xyz[1] > 14.7 / 2 + 12.7 / 2)
         {
-            bottom_group.push_back(p1); // bottom
+            top_group.push_back(p1); // top
             p1->type = 2;
         }
+        if (p1->xyz[1] < 14.7 / 2 - 12.7 / 2)
+        {
+            bottom_group.push_back(p1); // bottom
+            p1->type = 3;
+        }
+        if (p1->type == 2 || p1->type == 3)
+            p1->type = undamaged_pt_type; // undamaged part
 
         // assign material properties, cast to fatigue damage particle type
         ParticleFatigueHCF<n_layer> *ftpt = dynamic_cast<ParticleFatigueHCF<n_layer> *>(p1);
@@ -91,13 +99,10 @@ void run()
     // boundary conditions
     int n_incre_static = 1;
     LoadStep<n_layer> step0;
-    step0.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'x', 0.0));
-    step0.forceBCs.push_back(ForceBC<n_layer>(top_group, LoadMode::Relative, 0.0, d_min / n_incre_static, 0.0));
-    // step0.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'y', d_max / n_incre_static));
-    step0.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'z', 0.0));
-    step0.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'x', 0.0));
+    step0.dispBCs.push_back(DispBC<n_layer>(left_group, LoadMode::Relative, 'x', 0.0));
+    // step0.forceBCs.push_back(ForceBC<n_layer>(top_group, LoadMode::Relative, 0.0, d_max / n_incre_static, 0.0));
+    step0.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'y', d_min / n_incre_static));
     step0.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'y', 0.0));
-    step0.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'z', 0.0));
     for (int i = 0; i < n_incre_static; ++i)
         load_static.push_back(step0);
 
@@ -107,8 +112,8 @@ void run()
     /*********************************************************************************************/
     // perform cyclic loading (incrementally)
     int n_incre_fatigue = 1;
-    solv_fatigue.readLoad("../loading/disp_ca_R0.txt");
-    solv_fatigue.solveProblemCyclic(FatigueLoadType::LoadDogBoneDisp, n_incre_fatigue, {top_group, bottom_group});
+    solv_fatigue.readLoad("../loading/disp_ca_R0_gage.txt");
+    solv_fatigue.solveProblemCyclic(FatigueLoadType::LoadUniaxialDisp, n_incre_fatigue, {left_group, top_group, bottom_group});
 
     double finish = omp_get_wtime();
     printf("Computation time for total steps: %f seconds\n\n", finish - start);

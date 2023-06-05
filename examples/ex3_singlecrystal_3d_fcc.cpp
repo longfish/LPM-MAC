@@ -33,7 +33,16 @@ void run()
 
     // material elastic parameters setting, MPa
     double C11{108e3}, C12{61e3}, C44{29e3}; // Elastic constants
-    // double E0 = 64e3, mu0 = 0.36;      // Young's modulus and Poisson's ratio
+
+    // simulation settings
+    int n_steps = 1;                               // number of loading steps
+    double cutoff_ratio = 1.5;                     // nonlocal cutoff ratio
+    double step_size = -100;                       // step size for force loading
+    double nonlocal_L = 0;                         // nonlocal length scale
+    int undamaged_pt_type = -1;                    // particles that dont update damage
+    int max_iter = 30, start_index = 0;            // maximum Newton iteration number
+    double tol_iter = 1e-5;                        // newton iteration tolerance
+    std::string dumpFile{"Crystal_position.dump"}; // output file name
 
     std::vector<Particle<n_layer> *> top, bottom, left, right, front, back, internal;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
@@ -74,10 +83,6 @@ void run()
         elpt->setParticleProperty(C11, C12, C44);
     }
 
-    // simulation settings
-    int n_steps = 1; // number of loading steps
-    // double U_stepz{-1e-3}; // step size
-    double F_stepz{-100};
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
     {
@@ -92,19 +97,19 @@ void run()
         step.dispBCs.push_back(DispBC<n_layer>(back, LoadMode::Relative, 'y', 0.0));
         step.dispBCs.push_back(DispBC<n_layer>(left, LoadMode::Relative, 'x', 0.0));
         // step.dispBCs.push_back(DispBC<n_layer>(bottom, 'z', U_stepz));
-        step.forceBCs.push_back(ForceBC<n_layer>(bottom, LoadMode::Relative, 0.0, 0.0, F_stepz));
+        step.forceBCs.push_back(ForceBC<n_layer>(bottom, LoadMode::Relative, 0.0, 0.0, step_size));
         load.push_back(step);
     }
 
+    pt_ass.searchNonlocalNeighbors(cutoff_ratio);
     pt_ass.updateGeometry();
     pt_ass.updateForceState();
+
+    SolverStatic<n_layer> solv{undamaged_pt_type, pt_ass, StiffnessMode::Analytical, SolverMode::PARDISO, dumpFile, max_iter, tol_iter}; // stiffness mode and solution mode
 
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    int max_iter = 30, start_index = 0;                                                                                             /* maximum Newton iteration number */
-    double tol_iter = 1e-5;                                                                                                         /* newton iteration tolerance */
-    SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::PARDISO, "result_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
     solv.solveProblem(load, start_index);
 
     double finish = omp_get_wtime();

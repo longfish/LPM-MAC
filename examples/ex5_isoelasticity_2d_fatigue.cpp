@@ -13,8 +13,8 @@ void run()
     double start = omp_get_wtime(); // record the CPU time, begin
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 0.2;   // particle radius
-    UnitCell cell(LatticeType::SimpleCubic3D, radius);
+    double radius = 0.16;  // particle radius
+    UnitCell cell(LatticeType::Hexagon2D, radius);
 
     // Euler angles setting for system rotation
     // flag is 0 ~ 2 for different conventions, (0: direct rotation; 1: Kocks convention; 2: Bunge convention)
@@ -24,35 +24,36 @@ void run()
     double *R_matrix = createRMatrix(eulerflag, angles);
 
     // import a particle system
-    Assembly<n_layer> pt_ass{"../geometry/geo2_DogBone_3DSC.dump", "../geometry/geo2_DogBone_3DSC.bond", cell, ParticleType::FatigueHCF}; // read coordinate from local files
+    Assembly<n_layer> pt_ass{"../geometry/geo2_DogBone_2dhex.dump", "../geometry/geo2_DogBone_2dhex.bond", cell, ParticleType::FatigueHCF}; // read coordinate from local files
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
-    bool is_plane_stress = false;
+    bool is_plane_stress = true;
     double E0 = 71.7e3, mu0 = 0.306;               // Al 7075-T651, Young's modulus (MPa) and Poisson's ratio
     double f_A = 2.003e-5, f_B = 2.833, f_d = 0.5; // fatigue parameters
     double f_damage_threshold = 1, f_fatigue_limit_ratio = 1.108;
+    // f_A = f_A / f_k * (1 - exp(-f_k));
 
     // fatigue loading parameters
     double d_max = 0.10757,
            R = 0.0,
            d_min = R * d_max,
-           d_range = d_max - d_min;                    // loading displacement definition
-    double cutoff_ratio = 1.5;                         // nonlocal cutoff ratio
-    double nonlocal_L = 0.4;                           // nonlocal length scale
-    double tau = 0.0001;                               // fatigue time mapping parameter
-    int max_iter = 30;                                 // maximum iteration number of Newton-Raphson algorithm                                                                                                 /* maximum Newton iteration number */
-    int start_index = 0;                               // start index of solution procedure
-    double tol_iter = 1e-5;                            // tolerance of the NR iterations
-    int undamaged_pt_type = 3;                         // undamaged particle type
-    std::string dumpFile{"DogBone_3DSC_fatigue.dump"}; // output file name
+           d_range = d_max - d_min;                  // loading displacement definition
+    double cutoff_ratio = 1.5;                       // nonlocal cutoff ratio
+    double nonlocal_L = 6;                           // nonlocal length scale
+    double tau = 0.0001;                             // fatigue time mapping parameter
+    int max_iter = 30;                               // maximum iteration number of Newton-Raphson algorithm                                                                                                 /* maximum Newton iteration number */
+    int start_index = 0;                             // start index of solution procedure
+    double tol_iter = 1e-5;                          // tolerance of the NR iterations
+    int undamaged_pt_type = 3;                       // undamaged particle type
+    std::string dumpFile{"DogBone_2d_fatigue.dump"}; // output file name
 
     std::vector<Particle<n_layer> *> top_group, bottom_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
         // assign boundary and internal particles
-        if (p1->xyz[1] < 19.05 - 1.1 * radius || p1->xyz[1] > 19.05 + 1.1 * radius)
+        if (p1->xyz[1] < 19.05 - 30 * radius || p1->xyz[1] > 19.05 + 30 * radius)
             p1->type = undamaged_pt_type; // undamaged part
         if (p1->xyz[1] > 37.1)
         {
@@ -94,10 +95,8 @@ void run()
     step0.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'x', 0.0));
     step0.forceBCs.push_back(ForceBC<n_layer>(top_group, LoadMode::Relative, 0.0, d_min / n_incre_static, 0.0));
     // step0.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'y', d_max / n_incre_static));
-    step0.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'z', 0.0));
     step0.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'x', 0.0));
     step0.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'y', 0.0));
-    step0.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'z', 0.0));
     for (int i = 0; i < n_incre_static; ++i)
         load_static.push_back(step0);
 

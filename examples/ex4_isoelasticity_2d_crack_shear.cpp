@@ -11,7 +11,7 @@ void run()
     double start = omp_get_wtime(); // record the CPU time, begin
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 0.2;   // particle radius
+    double radius = 5e-3;  // particle radius
     UnitCell cell(LatticeType::Hexagon2D, radius);
 
     // Euler angles setting for system rotation
@@ -23,49 +23,44 @@ void run()
 
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
-    std::array<double, 2 * NDIM> box{0.0, 40.0, 0.0, 40.0, 0.0, 8.0};                                                                // thickness is used for force calculation
-    Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DHEX.dump", "../geometry/geo1_CT_2DHEX.bond", cell, ParticleType::ElasticDamage}; // read coordinate from local files
+    std::array<double, 2 * NDIM> box{0.0, 1.0, 0.0, 1.0, 0.0, 8.0};                                                                        // thickness is used for force calculation
+    Assembly<n_layer> pt_ass{"../geometry/geo1_2DHEX_Shear.dump", "../geometry/geo1_2DHEX_Shear.bond", cell, ParticleType::ElasticDamage}; // read coordinate from local files
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
-    bool is_plane_stress = true;
-    double E0 = 3.2e3, mu0 = 0.28;                                   // polymer, Young's modulus and Poisson's ratio, MPa
-    double k0 = 0.1936, k1 = 1, c_t_ratio = 10, damage_thres = 0.99; // brittle damage parameters
+    bool is_plane_stress = false;
+    double E0 = 210e3, mu0 = 0.3;                                // polymer, Young's modulus and Poisson's ratio, MPa
+    double k0 = 50, k1 = 5, c_t_ratio = 10, damage_thres = 0.99; // brittle damage parameters
 
     // simulation settings
-    int n_steps = 100;                        // number of loading steps
-    double step_size = -8e-3;                 // step size for displacement loading
-    double nonlocal_L = 0.3;                  // nonlocal length scale
-    double cutoff_ratio = 1.5;                // nonlocal cutoff ratio
-    int undamaged_pt_type = 4;                // particles that dont update damage
-    int max_iter = 30, start_index = 0;       // maximum Newton iteration number
-    double tol_iter = 1e-5;                   // newton iteration tolerance
-    std::string dumpFile{"CT_2d_crack.dump"}; // output file name
+    int n_steps = 100;                           // number of loading steps
+    double cutoff_ratio = 1.5;                   // nonlocal cutoff ratio
+    double step_size = 1.5e-4;                   // step size for displacement loading
+    double nonlocal_L = 2e-2;                    // nonlocal length scale
+    int undamaged_pt_type = 4;                   // particles that dont update damage
+    int max_iter = 30, start_index = 0;          // maximum Newton iteration number
+    double tol_iter = 1e-5;                      // newton iteration tolerance
+    std::string dumpFile{"Shear_2d_crack.dump"}; // output file name
 
-    std::vector<Particle<n_layer> *> top_group, bottom_group, mid_group;
+    std::vector<Particle<n_layer> *> top_group, bottom_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
         // assign boundary and internal particles
-        if (p1->id == 5030)
-        {
-            mid_group.push_back(p1); // mid, to fix
-            p1->type = 1;
-        }
-        if (p1->id == 8614)
+        if (p1->xyz[1] > 0.99)
         {
             top_group.push_back(p1); // top
-            p1->type = 2;
+            p1->type = 1;
         }
-        if (p1->id == 1273)
+        if (p1->xyz[1] < 0.01)
         {
             bottom_group.push_back(p1); // bottom
-            p1->type = 3;
+            p1->type = 2;
         }
-        if (p1->xyz[0] >= 29.5 - 9.5 / 2 && p1->xyz[0] <= 29.5 + 9.5 / 2 && p1->xyz[1] >= 40 - 9.2)
-            p1->type = 4;
-        if (p1->xyz[0] >= 29.5 - 9.5 / 2 && p1->xyz[0] <= 29.5 + 9.5 / 2 && p1->xyz[1] <= 9.2)
-            p1->type = 4; // particles that not update damage
+        // if (p1->xyz[0] >= 29.5 - 9.5 / 2 && p1->xyz[0] <= 29.5 + 9.5 / 2 && p1->xyz[1] >= 40 - 9.2)
+        //     p1->type = 4;
+        // if (p1->xyz[0] >= 29.5 - 9.5 / 2 && p1->xyz[0] <= 29.5 + 9.5 / 2 && p1->xyz[1] <= 9.2)
+        //     p1->type = 4; // particles that not update damage
 
         // assign material properties - need to cast to elastic particle
         ParticleElasticDamage<n_layer> *elpt = dynamic_cast<ParticleElasticDamage<n_layer> *>(p1);
@@ -78,10 +73,10 @@ void run()
         LoadStep<n_layer> step;
 
         // boundary conditions
-        step.dispBCs.push_back(DispBC<n_layer>(mid_group, LoadMode::Relative, 'x', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(mid_group, LoadMode::Relative, 'y', 0.0));
-        step.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'y', -step_size));
-        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'y', step_size));
+        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'x', 0.0));
+        step.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'y', 0.0));
+        step.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'x', step_size));
+        step.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'y', 0));
 
         // below is used for force control loading
         // step.dispBCs.push_back(DispBC<n_layer>(top_group, 'x', 0.0));

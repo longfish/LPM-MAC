@@ -26,6 +26,17 @@ void run()
 
     // material elastic parameters setting, MPa
     double C11{230e3}, C12{135e3}, C44{117e3}; // Elastic constants
+
+    // simulation settings
+    int n_steps = 1;                                    // number of loading steps
+    double U_stepx{1e-2}, U_stepy{1e-2}, U_stepz{1e-2}; // step size
+    double cutoff_ratio = 1.5;                          // nonlocal cutoff ratio
+    double nonlocal_L = 0;                              // nonlocal length scale
+    int undamaged_pt_type = -1;                         // particles that dont update damage
+    int max_iter = 30, start_index = 0;                 // maximum Newton iteration number
+    double tol_iter = 1e-5;                             // newton iteration tolerance
+    std::string dumpFile{"Crystal_position_BCC.dump"};  // output file name
+
     std::vector<Particle<n_layer> *> top, bottom, left, right, front, back, internal;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
@@ -70,10 +81,7 @@ void run()
         elpt->setParticleProperty(C11, C12, C44);
     }
 
-    // simulation settings
-    int n_steps = 1;                                    // number of loading steps
-    double U_stepx{1e-2}, U_stepy{1e-2}, U_stepz{1e-2}; // step size
-    std::vector<LoadStep<n_layer>> load;                // load settings for multiple steps
+    std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
     for (int i = 0; i < n_steps; i++)
     {
         LoadStep<n_layer> step;
@@ -99,15 +107,15 @@ void run()
         load.push_back(step);
     }
 
+    // pt_ass.searchNonlocalNeighbors(cutoff_ratio);
     pt_ass.updateGeometry();
     pt_ass.updateForceState();
+
+    SolverStatic<n_layer> solv{undamaged_pt_type, pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
 
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
-    int max_iter = 30, start_index = 0;                                                                                        /* maximum Newton iteration number */
-    double tol_iter = 1e-5;                                                                                                    /* newton iteration tolerance */
-    SolverStatic<n_layer> solv{pt_ass, StiffnessMode::Analytical, SolverMode::CG, "result_position.dump", max_iter, tol_iter}; // stiffness mode and solution mode
     solv.solveProblem(load, start_index);
 
     double finish = omp_get_wtime();
