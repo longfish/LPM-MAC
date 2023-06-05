@@ -2,3 +2,5 @@ build/
 .vscode/
 **/*.dump
 **/*.bond
+loading/*.txt
+benchmark/**/*.png
