@@ -38,8 +38,19 @@ using namespace boost::adaptors;
 
 /* macros */
 #define PI 3.14159265358979323846
-#define EPS  1e-6
-#define NDIM 3                             /* max number of dimensions, no matter what dimension of the problem */
+#define EPS 1e-6
+#define NDIM 3 /* max number of dimensions, no matter what dimension of the problem */
+
+/* use for nonlocal damage modeling */
+// double func_phi(const double x, const double L)
+// {
+//     return 1.0 / L / sqrt(2 * PI) * exp(-0.5 * x * x / L / L);
+// }
+double func_phi(const double x, const double L)
+{
+    double p = 8, q = 2; // nonlocal constants
+    return pow(1 / (1 + pow(x / L, p)), q);
+}
 
 // Define the format to printf MKL_INT values
 #ifndef MKL_ILP64
