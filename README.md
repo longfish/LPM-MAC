@@ -31,17 +31,21 @@ A multi-threaded implementation of a nonlocal lattice particle method (LPM) usin
 5. `cmake .. -G "Ninja" -DMKL_INTERFACE=ilp64 -DCMAKE_BUILD_TYPE=Release` # change from *Release* to *Debug* for debugging (e.g., valgrind)
 6. `cmake --build . -j 8`
 
-### Run the code
+## Run the code
 
 `./lpmcpp`
 
 The results will be in the build folder.
 
-### Examples
+## Examples
 
-There are some example codes in the `./examples` folder that contains additional numerical cases in [1, 2]. They define the `run()` functions of the project. Please change/add the example file and `src/lmpcpp.cpp` to run the code. In case if a new bond type is needed, one needs to add it to `assembly.h` as well.
+There are some example files in the `./examples` folder that contains additional numerical cases such as those in [1, 2]. They define the `run()` functions of the project. Please change/add the example file and also include them into `src/lmpcpp.cpp` to run the code. Please note that other code pieces, such as `assembly.h`, `lpm.h`, etc. may also need to be changed.
 
-### References
+## Loading/Geometry
+
+To ease some common geometries that often see in numerical simulations, customized loading and geometry codes are provided. The `loading` folder contains Jupyter code, while `geometry` folder contains cpp code.    
+
+## References
 
 1. Meng C, Wei H, Chen H, et al. Modeling plasticity of cubic crystals using a nonlocal lattice particle method[J]. Computer Methods in Applied Mechanics and Engineering, 2021, 385: 114069.
 2. Meng C, Liu Y. Damage-augmented nonlocal lattice particle method for fracture simulation of solids[J]. International Journal of Solids and Structures, 2022, 243: 111561.
