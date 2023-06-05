@@ -84,11 +84,24 @@ std::vector<std::vector<int>> searchNeighbor(std::vector<std::array<double, NDIM
         {
             double dis = sqrt(pow((xyz[j][0] - xyz[i][0]), 2) + pow((xyz[j][1] - xyz[i][1]), 2) + pow((xyz[j][2] - xyz[i][2]), 2));
 
-            if ((dis < 1.01 * cell.neighbor_cutoff[1]) && (j != i)) /* The first nearest neighbors */
+            if ((dis < 1.01 * cell.neighbor_cutoff[1]) && (j != i)) /* The second nearest neighbors */
             {
                 // test if the bond is valid
-                std::array<double, NDIM> mid{(xyz[j][0] - xyz[i][0]) / 2.0, (xyz[j][1] - xyz[i][1]) / 2.0, 0.0};
-                if (isValid(mid))
+                // divide the bond into 10 pieces, if any pieces are inside the invalid region, then no bond
+                bool valid = true;
+                int n_interval = 10;
+                double dx = (xyz[j][0] - xyz[i][0]) / n_interval;
+                double dy = (xyz[j][1] - xyz[i][1]) / n_interval;
+                double dz = (xyz[j][2] - xyz[i][2]) / n_interval;
+                for (int k = 0; k < n_interval; ++k)
+                {
+                    std::array<double, NDIM> pt1{xyz[i][0] + k * dx, xyz[i][1] + k * dy, xyz[i][2] + k * dz};
+                    std::array<double, NDIM> pt2{xyz[i][0] + (k + 1) * dx, xyz[i][1] + (k + 1) * dy, xyz[i][2] + (k + 1) * dz};
+                    std::array<double, NDIM> mid{(pt1[0] + pt2[0]) / 2.0, (pt1[1] + pt2[1]) / 2.0, (pt1[2] + pt2[2]) / 2.0};
+                    valid = isValid(mid) && valid;
+                }
+
+                if (valid)
                 {
                     int layer = 1;
                     if (dis < 1.01 * cell.neighbor_cutoff[0])
@@ -137,11 +150,11 @@ bool isValid(const std::array<double, NDIM> &pt)
 
 void run()
 {
-    printf("\nCreating a 3D dog bone model ...\n");
+    printf("\nCreating a 2D dog bone model ...\n");
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
     double radius = 0.16;  // particle radius
-    UnitCell cell(LatticeType::SimpleCubic3D, radius);
+    UnitCell cell(LatticeType::Hexagon2D, radius);
 
     // Euler angles setting for system rotation
     int eulerflag = 0; // direct rotation
@@ -149,17 +162,17 @@ void run()
     double *R_matrix = createRMatrix(eulerflag, angles);
 
     std::array<double, 2 * NDIM> box{0.0, 5.08 * 3, 0.0, 17.78 + 4 * 5.08, 0.0, 4.8};
-    std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix), sc_DogBone;
+    std::vector<std::array<double, NDIM>> sq_xyz = createPlateHEX2D(box, cell, R_matrix), sq_DogBone;
 
-    for (std::array<double, NDIM> &pt : sc_xyz)
+    for (std::array<double, NDIM> &pt : sq_xyz)
         if (isValid(pt))
-            sc_DogBone.push_back(pt);
+            sq_DogBone.push_back(pt);
 
-    std::cout << "\nTotal particle number is: " << sc_DogBone.size() << std::endl;
-    writeDump("../geometry/geo2_DogBone_3DSC_fine.dump", sc_DogBone, box);
+    std::cout << "\nTotal particle number is: " << sq_DogBone.size() << std::endl;
+    writeDump("../geometry/geo2_DogBone_2dhex.dump", sq_DogBone, box);
 
-    std::vector<std::vector<int>> sc_bonds = searchNeighbor(sc_DogBone, cell);
-    writeBond("../geometry/geo2_DogBone_3DSC_fine.bond", sc_bonds);
+    std::vector<std::vector<int>> sq_bonds = searchNeighbor(sq_DogBone, cell);
+    writeBond("../geometry/geo2_DogBone_2dhex.bond", sq_bonds);
 
     printf("\nDone.\n");
 }

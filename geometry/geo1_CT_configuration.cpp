@@ -54,8 +54,20 @@ bool inNotch(const std::array<double, NDIM> &pt, const std::array<double, NDIM> 
     // first ensure the point is inside the vertical range
     if (abs(pt[1] - tip[1]) <= hf_width)
     {
-        // then the slope should be between [-1,1]
-        if ((pt[1] - tip[1]) >= (tip[0] - pt[0]) && (pt[1] - tip[1]) <= (-tip[0] + pt[0]))
+        // then the slope should be between [-1/sqrt(3), 1/sqrt(3)]
+        if ((pt[1] - tip[1]) >= 1. / sqrt(3.) * (tip[0] - pt[0]) && (pt[1] - tip[1]) <= 1. / sqrt(3.) * (-tip[0] + pt[0]))
+            return true;
+    }
+    return false;
+}
+
+bool inReverseNotch(const std::array<double, NDIM> &pt, const std::array<double, NDIM> &tip, const double hf_width)
+{
+    // first ensure the point is inside the vertical range
+    if (abs(pt[1] - tip[1]) <= hf_width)
+    {
+        // then the slope should be between [-1/sqrt(3), 1/sqrt(3)]
+        if ((pt[1] - tip[1]) <= 1. / sqrt(3.) * (tip[0] - pt[0]) && (pt[1] - tip[1]) >= 1. / sqrt(3.) * (-tip[0] + pt[0]))
             return true;
     }
     return false;
@@ -78,11 +90,24 @@ std::vector<std::vector<int>> searchNeighbor(std::vector<std::array<double, NDIM
         {
             double dis = sqrt(pow((xyz[j][0] - xyz[i][0]), 2) + pow((xyz[j][1] - xyz[i][1]), 2) + pow((xyz[j][2] - xyz[i][2]), 2));
 
-            if ((dis < 1.01 * cell.neighbor_cutoff[1]) && (j != i)) /* The first nearest neighbors */
+            if ((dis < 1.01 * cell.neighbor_cutoff[1]) && (j != i)) /* The second nearest neighbors */
             {
                 // test if the bond is valid
-                std::array<double, NDIM> mid{(xyz[j][0] - xyz[i][0]) / 2.0, (xyz[j][1] - xyz[i][1]) / 2.0, 0.0};
-                if (isValid(mid))
+                // divide the bond into 10 pieces, if any pieces are inside the invalid region, then the bond itself is invalid
+                bool valid = true;
+                int n_interval = 10;
+                double dx = (xyz[j][0] - xyz[i][0]) / n_interval;
+                double dy = (xyz[j][1] - xyz[i][1]) / n_interval;
+                double dz = (xyz[j][2] - xyz[i][2]) / n_interval;
+                for (int k = 0; k < n_interval; ++k)
+                {
+                    std::array<double, NDIM> pt1{xyz[i][0] + k * dx, xyz[i][1] + k * dy, xyz[i][2] + k * dz};
+                    std::array<double, NDIM> pt2{xyz[i][0] + (k + 1) * dx, xyz[i][1] + (k + 1) * dy, xyz[i][2] + (k + 1) * dz};
+                    std::array<double, NDIM> mid{(pt1[0] + pt2[0]) / 2.0, (pt1[1] + pt2[1]) / 2.0, (pt1[2] + pt2[2]) / 2.0};
+                    valid = isValid(mid) && valid;
+                }
+
+                if (valid)
                 {
                     int layer = 1;
                     if (dis < 1.01 * cell.neighbor_cutoff[0])
@@ -111,13 +136,25 @@ std::vector<std::vector<int>> searchNeighbor(std::vector<std::array<double, NDIM
 /* test if the point is valid or not */
 bool isValid(const std::array<double, NDIM> &pt)
 {
-    if (inCircle(pt, {40.0, 14, 0.0}, 5))
+    // if (inReverseNotch(pt, {0.5, 0.504, 0.0}, 8e-3 / 2.0))
+    //     return false; // notch used for shear loading
+
+    // if (inCircle(pt, {50.8, 16.46, 0.0}, 12.7 / 2))
+    //     return false; // bottom circle
+    // if (inCircle(pt, {50.8, 60.96 - 16.46, 0.0}, 12.7 / 2))
+    //     return false; // top circle
+    // // if (inCircle(pt, {18, 35., 0.0}, 4))
+    // //     return false; // random circle
+    // if (inNotch(pt, {50.8 - 6, 60.96 / 2, 0.0}, 2 / 2.0))
+    //     return false; // notch used for calibration
+
+    if (inCircle(pt, {40.0, 14., 0.0}, 5))
         return false; // bottom circle
-    if (inCircle(pt, {40.0, 50.0 - 14, 0.0}, 5))
+    if (inCircle(pt, {40.0, 50. - 14, 0.0}, 5))
         return false; // top circle
-    if (inCircle(pt, {18, 35, 0.0}, 4))
+    if (inCircle(pt, {18, 35., 0.0}, 4))
         return false; // random circle
-    if (inNotch(pt, {32.0, 25.245, 0.0}, 2.0 / 2.0))
+    if (inNotch(pt, {32.0, 25., 0.0}, 2.08 / 2.0))
         return false; // notch
     // if (inNotch(pt, {63.5 - 22.7, 30.5, 0.0}, 1.0))
     //     return false; // notch for no-hole plate
@@ -130,7 +167,7 @@ void run()
     printf("\nCreating a CT model ...\n");
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 0.2;   // particle radius
+    double radius = 0.16;  // particle radius
     UnitCell cell(LatticeType::Hexagon2D, radius);
 
     // Euler angles setting for system rotation
@@ -138,10 +175,12 @@ void run()
     double angles[] = {PI / 180.0 * 0.0, PI / 180.0 * 0.0, PI / 180.0 * 0.0};
     double *R_matrix = createRMatrix(eulerflag, angles);
 
-    // std::array<double, 2 * NDIM> box{0.0, 63.5, 0.0, 61.0, 0.0, 8.0}; // thickness is used for force calculation
-    std::array<double, 2 * NDIM> box{0.0, 50.0, 0.0, 50.0, 0.0, 5.0}; // thickness is used for force calculation
-    // std::vector<std::array<double, NDIM>> sq_xyz = createPlateSQ2D(box, cell, R_matrix), sq_CT;
+    // std::array<double, 2 * NDIM> box{0.0, 1, 0.0, 1, 0.0, 8.0}; // thickness is used for force calculation
+    // std::array<double, 2 * NDIM> box{0.0, 63.5, 0.0, 60.96, 0.0, 5.0}; // thickness is used for force calculation
+    // std::array<double, 2 * NDIM> box{0.0, 50.08, 0.0, 50.8, 0.0, 5.04}; // thickness is used for force calculation
+    std::array<double, 2 * NDIM> box{0.0, 50, 0.0, 50, 0.0, 5.0}; // Lu CT specimen
     std::vector<std::array<double, NDIM>> hex_xyz = createPlateHEX2D(box, cell, R_matrix), hex_CT;
+    // std::vector<std::array<double, NDIM>> sq_xyz = createPlateSQ2D(box, cell, R_matrix), sq_CT;
 
     for (std::array<double, NDIM> &pt : hex_xyz)
         if (isValid(pt))
