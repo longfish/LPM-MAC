@@ -12,7 +12,7 @@
 
 // Elastic plane strain or 3D material
 // Update bdamage and bforce after calculation
-// Two particle-wise state variables: [0]strain energy, [1]damage_dot
+// Two particle-wise state variables: [0]strain energy
 
 // update bond force
 // 1. update the particle geometry (loop for all particles)
@@ -31,14 +31,14 @@ public:
 
     ParticleElasticDamage(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell) : Particle<nlayer>{p_x, p_y, p_z, p_cell}
     {
-        this->state_var = std::vector<double>(2, 0.);
-        this->state_var_last = std::vector<double>(2, 0.);
+        this->state_var = std::vector<double>(1, 0.);
+        this->state_var_last = std::vector<double>(1, 0.);
     }
 
     ParticleElasticDamage(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type) : Particle<nlayer>{p_x, p_y, p_z, p_cell, p_type}
     {
-        this->state_var = std::vector<double>(2, 0.);
-        this->state_var_last = std::vector<double>(2, 0.);
+        this->state_var = std::vector<double>(1, 0.);
+        this->state_var_last = std::vector<double>(1, 0.);
     }
 
     double calcStrainEnergyDensity();
@@ -49,8 +49,8 @@ public:
     bool updateParticleBrokenBonds();
 
     void updateBondsForce();
-    void setParticleProperty(double p_E, double p_mu, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres);
-    void setParticleProperty(double p_C11, double p_C12, double p_C44, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres);
+    void setParticleProperty(double p_nonlocalL, bool is_plane_stress, double p_E, double p_mu, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres);
+    void setParticleProperty(double p_nonlocalL, double p_C11, double p_C12, double p_C44, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres);
 };
 
 template <int nlayer>
@@ -122,10 +122,10 @@ double func_g(const double k1)
 //     return k0 / k / k * (1. + a * ((1. + b * k) * std::exp(b * (k0 - k)) - 1.)); // the k here is kappa
 // }
 
-double func_D(const double k, const double k0, const double a, const double b)
-{
-    return 1.0 - k0 / k * (1.0 - a + a * std::exp(-b * (k - k0)));
-}
+// double func_D(const double k, const double k0, const double a, const double b)
+// {
+//     return 1.0 - k0 / k * (1.0 - a + a * std::exp(-b * (k - k0)));
+// }
 
 double func_eq_strain(const double &comp_tensile_ratio, const double &I1, const double &J2)
 {
@@ -151,20 +151,21 @@ double ParticleElasticDamage<nlayer>::calcEqStrain()
 template <int nlayer>
 void ParticleElasticDamage<nlayer>::updateParticleStateVariables()
 {
-    this->state_var[0] = calcStrainEnergyDensity(); // local strain measures
-    // this->state_var[2] = std::max(this->state_var[0], this->state_var[2]); // update kappa
+    // update local state variables
+    this->state_var[0] = calcStrainEnergyDensity();              // local strain measures
+    double delta = this->state_var[0] - this->state_var_last[0]; // state_var change
+    double f = this->state_var[0] - k1 * this->damage - k0;      // damage surface
+    if (f > 0 && delta > 0)
+        this->Ddot_local = func_g(k1) * delta; // local Ddot
+    else
+        this->Ddot_local = 0;
 }
 
 template <int nlayer>
 bool ParticleElasticDamage<nlayer>::updateParticleStaticDamage()
 {
-    double delta = this->state_var[0] - this->state_var_last[0]; // state_var change
-    double f = this->state_var[0] - k1 * this->damage - k0;      // damage surface
-    if (f > 0 && delta > 0)
-        this->state_var[1] = func_g(k1); // update Ddot
-    else
-        this->state_var[1] = 0;
-    this->damage += this->state_var[1] * delta;
+    // update nonlocal damage
+    this->damage += this->Ddot_nonlocal;
 
     if (this->damage >= damage_threshold)
         this->damage = 1;
@@ -173,22 +174,29 @@ bool ParticleElasticDamage<nlayer>::updateParticleStaticDamage()
 }
 
 template <int nlayer>
-void ParticleElasticDamage<nlayer>::setParticleProperty(double p_E, double p_mu, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres)
+void ParticleElasticDamage<nlayer>::setParticleProperty(double p_nonlocalL, bool is_plane_stress, double p_E, double p_mu, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres)
 {
     k0 = p_k0;
     k1 = p_k1;
     damage_threshold = p_d_thres;
     comp_tensile_ratio = p_ct_ratio;
+    this->nonlocal_L = p_nonlocalL;
 
-    double Ce[NDIM]{p_E * (1.0 - p_mu) / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
-                    p_E * p_mu / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
-                    p_E / 2.0 / (1.0 + p_mu)}; // C11, C12, C44
     double KnTv[NDIM]{0};
+    std::vector<double> Ce(NDIM);
+    if (!is_plane_stress)
+        Ce = {p_E * (1.0 - p_mu) / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
+              p_E * p_mu / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
+              p_E / 2.0 / (1.0 + p_mu)}; // C11, C12, C44
+    else
+        Ce = {p_E / (1.0 - p_mu) / (1.0 + p_mu),
+              p_E * p_mu / (1.0 + p_mu) / (1.0 - p_mu),
+              p_E / 2.0 / (1.0 + p_mu)}; // C11, C12, C44
 
     if (this->cell.dim == 2)
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, 1.0, this->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, 1.0, this->cell.el_mapping.data(), 3, Ce.data(), 1, 0.0, KnTv, 1);
     else
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, this->cell.radius, this->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, this->cell.radius, this->cell.el_mapping.data(), 3, Ce.data(), 1, 0.0, KnTv, 1);
 
     for (int i = 0; i < nlayer; ++i)
     {
@@ -209,12 +217,13 @@ void ParticleElasticDamage<nlayer>::setParticleProperty(double p_E, double p_mu,
 }
 
 template <int nlayer>
-void ParticleElasticDamage<nlayer>::setParticleProperty(double p_C11, double p_C12, double p_C44, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres)
+void ParticleElasticDamage<nlayer>::setParticleProperty(double p_nonlocalL, double p_C11, double p_C12, double p_C44, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres)
 {
     k0 = p_k0;
     k1 = p_k1;
     damage_threshold = p_d_thres;
     comp_tensile_ratio = p_ct_ratio;
+    this->nonlocal_L = p_nonlocalL;
 
     double Ce[NDIM]{p_C11, p_C12, p_C44}; // C11, C12, C44
     double KnTv[NDIM]{0};

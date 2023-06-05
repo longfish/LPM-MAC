@@ -12,26 +12,26 @@
 
 // Elastic plane strain or 3D material
 // Update bdamage and bforce after geometry calculation
-// Three particle-wise state variables: [0]dDdN(G), [1]min_energy, [2]max_energy, [3]his_max_energy
+// Three particle-wise state variables: [0]his_max_energy, [1]min_energy, [2]max_energy
 
 template <int nlayer>
 class ParticleFatigueHCF : public Particle<nlayer>
 {
 public:
-    double A{0}, B{0}, k{0};
+    double A{0}, B{0}, d{0};
     double E{0}, mu{0}, fatigue_limit_ratio{1.108};
     double damage_threshold{1};
 
     ParticleFatigueHCF(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell) : Particle<nlayer>{p_x, p_y, p_z, p_cell}
     {
-        this->state_var = {0, INT_MAX, 0, 0};
-        this->state_var_last = {0, INT_MAX, 0, 0};
+        this->state_var = {0, INT_MAX, 0};
+        this->state_var_last = {0, INT_MAX, 0};
     }
 
     ParticleFatigueHCF(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type) : Particle<nlayer>{p_x, p_y, p_z, p_cell, p_type}
     {
-        this->state_var = {0, INT_MAX, 0, 0};
-        this->state_var_last = {0, INT_MAX, 0, 0};
+        this->state_var = {0, INT_MAX, 0};
+        this->state_var_last = {0, INT_MAX, 0};
     }
 
     double calcEqEnergy();
@@ -41,7 +41,7 @@ public:
     bool updateParticleFatigueDamage(double &dt);
 
     void updateBondsForce();
-    void setParticleProperty(double p_E, double p_mu, double p_A, double p_B, double p_k, double p_d_thres, double p_f_lmt_ratio);
+    void setParticleProperty(double p_nonlocalL, bool is_plane_stress, double p_E, double p_mu, double p_A, double p_B, double p_d, double p_d_thres, double p_f_lmt_ratio);
 };
 
 template <int nlayer>
@@ -71,9 +71,9 @@ void ParticleFatigueHCF<nlayer>::updateBondsForce()
         for (Bond<nlayer> *bd : this->bond_layers[i])
         {
             bd->bforce = 2. * bd->Kn * bd->dLe + 2. * bd->Tv * this->dLe_total[bd->layer]; // trial elastic bforce
-            // bd->bdamage = std::max(bd->bdamage, std::max(this->damage, bd->p2->damage));   // update the bond-wise damage
-            if (abs(this->damage - 1.0) < EPS || abs(bd->p2->damage - 1.0) < EPS)
-                bd->bdamage = 1; // update the bond-wise damage
+            bd->bdamage = std::max(bd->bdamage, std::max(this->damage, bd->p2->damage));   // update the bond-wise damage
+            // if (abs(this->damage - 1.0) < EPS || abs(bd->p2->damage - 1.0) < EPS)
+            //     bd->bdamage = 1; // update the bond-wise damage
             bd->bforce *= (1.0 - bd->bdamage);
         }
     }
@@ -120,8 +120,8 @@ double ParticleFatigueHCF<nlayer>::calcEqEnergy()
         energy_dis = 0;
     }
 
-    // return energy_total;
-    return fatigue_limit_ratio * energy_dis + energy_uni + k * energy_dil;
+    return energy_total;
+    // return fatigue_limit_ratio * energy_dis + energy_uni + k * energy_dil;
 }
 
 template <int nlayer>
@@ -132,25 +132,24 @@ void ParticleFatigueHCF<nlayer>::updateParticleStateVariables()
 
     this->state_var[1] = std::min(curr_energy, this->state_var[1]);
     this->state_var[2] = std::max(curr_energy, this->state_var[2]);
-    this->state_var[3] = std::max(this->state_var[2], this->state_var[3]);
+    this->state_var[0] = std::max(this->state_var[2], this->state_var[0]);
+
+    // calculate damage rate
+    if (this->state_var[2] - this->state_var[1] > 0)
+        this->Ddot_local = A * pow(this->state_var[0], B) * pow(this->state_var[2] - this->state_var[1], d);
+    else
+        this->Ddot_local = 0;
 }
 
 template <int nlayer>
 bool ParticleFatigueHCF<nlayer>::updateParticleFatigueDamage(double &dt)
 {
-    // calculate damage rate
-    if (this->state_var[2] - this->state_var[1] > 0)
-        this->state_var[0] = A * this->state_var[3] * exp(k * this->damage) * (this->state_var[2] - this->state_var[1]);
-    else
-        this->state_var[0] = 0;
-
     // update damage value
-    this->damage += this->state_var[0] * dt;
+    this->damage += this->Ddot_nonlocal * dt;
     if (this->damage >= damage_threshold)
         this->damage = 1;
 
     // clear the unnecessary state variables
-    this->state_var[0] = 0;
     this->state_var[1] = INT_MAX;
     this->state_var[2] = 0;
 
@@ -158,25 +157,32 @@ bool ParticleFatigueHCF<nlayer>::updateParticleFatigueDamage(double &dt)
 }
 
 template <int nlayer>
-void ParticleFatigueHCF<nlayer>::setParticleProperty(double p_E, double p_mu, double p_A, double p_B, double p_k, double p_d_thres, double p_f_lmt_ratio)
+void ParticleFatigueHCF<nlayer>::setParticleProperty(double p_nonlocalL, bool is_plane_stress, double p_E, double p_mu, double p_A, double p_B, double p_d, double p_d_thres, double p_f_lmt_ratio)
 {
     E = p_E;
     mu = p_mu;
     A = p_A;
     B = p_B;
-    k = p_k;
+    d = p_d;
     damage_threshold = p_d_thres;
     fatigue_limit_ratio = p_f_lmt_ratio;
+    this->nonlocal_L = p_nonlocalL;
 
-    double Ce[NDIM]{p_E * (1.0 - p_mu) / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
-                    p_E * p_mu / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
-                    p_E / 2.0 / (1.0 + p_mu)}; // C11, C12, C44
     double KnTv[NDIM]{0};
+    std::vector<double> Ce(NDIM);
+    if (!is_plane_stress)
+        Ce = {p_E * (1.0 - p_mu) / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
+              p_E * p_mu / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
+              p_E / 2.0 / (1.0 + p_mu)}; // C11, C12, C44
+    else
+        Ce = {p_E / (1.0 - p_mu) / (1.0 + p_mu),
+              p_E * p_mu / (1.0 + p_mu) / (1.0 - p_mu),
+              p_E / 2.0 / (1.0 + p_mu)}; // C11, C12, C44
 
     if (this->cell.dim == 2)
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, 1.0, this->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, 1.0, this->cell.el_mapping.data(), 3, Ce.data(), 1, 0.0, KnTv, 1);
     else
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, this->cell.radius, this->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, this->cell.radius, this->cell.el_mapping.data(), 3, Ce.data(), 1, 0.0, KnTv, 1);
 
     for (int i = 0; i < nlayer; ++i)
     {

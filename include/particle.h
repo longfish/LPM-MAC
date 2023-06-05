@@ -21,7 +21,9 @@ public:
     int type{0};                                                                 // particle type which is needed to identify phases
     int nconn_largeq{0};                                                         // matrix pointer, number of conn larger than (or equal to) its own index
     int nb{0}, nconn{0};                                                         // number of bonds and connections
-    double damage{0.}, damage_last{0.}, damage_visual{0.};                       // damage variables
+    double nonlocal_L{0.};                                                       // nonlocal length scale
+    double damage_last{0.}, damage{0.}, damage_visual{0.};                       // damage variables
+    double Ddot_local{0}, Ddot_nonlocal{0};                                      // damage rate
     UnitCell cell;                                                               // unit cell
     std::vector<double> state_var, state_var_last;                               // vectors that store state variables
     std::array<int, NDIM> disp_constraint{0};                                    // disp BC indicator, 1 means disp BC applied, 0 otherwise
@@ -31,6 +33,7 @@ public:
     std::array<std::vector<Bond<nlayer> *>, nlayer> bond_layers;                 // an array that store n layers of bonds
     std::vector<Particle<nlayer> *> neighbors;                                   // vector that stores all particles that form bonds
     std::vector<Particle<nlayer> *> conns;                                       // all connections of the particle (include self)
+    std::vector<Particle<nlayer> *> neighbors_nonlocal;                          // nonlocal neighbors
     std::vector<double> stress, strain;                                          // stress and strain tensor
 
     Particle(const int &p_id) : cell{LatticeType::SimpleCubic3D, 0} { id = p_id; };

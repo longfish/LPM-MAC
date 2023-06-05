@@ -16,11 +16,19 @@ template <int nlayer>
 class ParticleElastic : public Particle<nlayer>
 {
 public:
-    ParticleElastic(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell) : Particle<nlayer>{p_x, p_y, p_z, p_cell} {}
-    ParticleElastic(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type) : Particle<nlayer>{p_x, p_y, p_z, p_cell, p_type} {}
+    ParticleElastic(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell) : Particle<nlayer>{p_x, p_y, p_z, p_cell}
+    {
+        this->state_var = {0};
+        this->state_var_last = {0};
+    }
+    ParticleElastic(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type) : Particle<nlayer>{p_x, p_y, p_z, p_cell, p_type}
+    {
+        this->state_var = {0};
+        this->state_var_last = {0};
+    }
 
     void updateBondsForce();
-    void setParticleProperty(double p_E, double p_mu);
+    void setParticleProperty(bool is_plane_stress, double p_E, double p_mu);
     void setParticleProperty(double p_C11, double p_C12, double p_C44);
 };
 
@@ -39,17 +47,23 @@ void ParticleElastic<nlayer>::updateBondsForce()
 }
 
 template <int nlayer>
-void ParticleElastic<nlayer>::setParticleProperty(double p_E, double p_mu)
+void ParticleElastic<nlayer>::setParticleProperty(bool is_plane_stress, double p_E, double p_mu)
 {
-    double Ce[NDIM]{p_E * (1.0 - p_mu) / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
-                    p_E * p_mu / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
-                    p_E / 2.0 / (1.0 + p_mu)}; // C11, C12, C44
     double KnTv[NDIM]{0};
+    std::vector<double> Ce(NDIM);
+    if (!is_plane_stress)
+        Ce = {p_E * (1.0 - p_mu) / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
+              p_E * p_mu / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
+              p_E / 2.0 / (1.0 + p_mu)}; // C11, C12, C44
+    else
+        Ce = {p_E / (1.0 - p_mu) / (1.0 + p_mu),
+              p_E * p_mu / (1.0 + p_mu) / (1.0 - p_mu),
+              p_E / 2.0 / (1.0 + p_mu)}; // C11, C12, C44
 
     if (this->cell.dim == 2)
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, 1.0, this->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, 1.0, this->cell.el_mapping.data(), 3, Ce.data(), 1, 0.0, KnTv, 1);
     else
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, this->cell.radius, this->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, this->cell.radius, this->cell.el_mapping.data(), 3, Ce.data(), 1, 0.0, KnTv, 1);
 
     for (int i = 0; i < nlayer; ++i)
     {
