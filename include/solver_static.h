@@ -31,6 +31,28 @@ public:
 template <int nlayer>
 bool SolverStatic<nlayer>::updateStaticDamage()
 {
+    // update nonlocal damage dot
+    for (Particle<nlayer> *p1 : this->ass.pt_sys)
+    {
+        if (p1->type != undamaged_pt_type)
+        {
+            double A = 0;
+            p1->Ddot_nonlocal = 0; // nonlocal damage dot
+            for (Particle<nlayer> *p2 : p1->neighbors_nonlocal)
+            {
+                if (p2->type != undamaged_pt_type)
+                {
+                    double dis = p1->distanceTo(p2);
+                    double V_m = p2->cell.particle_volume * p2->nb / p2->cell.nneighbors;
+                    p1->Ddot_nonlocal += p2->Ddot_local * func_phi(dis, p1->nonlocal_L) * V_m;
+                    A += func_phi(dis, p1->nonlocal_L) * V_m;
+                }
+            }
+            p1->Ddot_nonlocal /= A;
+        }
+    }
+
+    // update local-wise damage
     bool any_damaged{false};
     for (Particle<nlayer> *pt : this->ass.pt_sys)
         if (pt->type != undamaged_pt_type)
@@ -64,7 +86,7 @@ void SolverStatic<nlayer>::solveProblem(std::vector<LoadStep<nlayer>> &load, int
             goto restart;
         }
 
-        this->ass.writeDump(this->dumpFile, i + start_index);
+        // this->ass.writeDump(this->dumpFile, i + start_index);
 
         double t2 = omp_get_wtime();
         printf("Loading step %d has finished, spent %f seconds\n\nData output ...\n\n", i + start_index, t2 - t1);
@@ -84,8 +106,6 @@ bool SolverStatic<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, double 
 
     do
     {
-        // this->ass.writeDump(this->dumpFile, 0);
-
         // update the stiffness matrix using current state variables (bdamage)
         this->stiffness.reset(this->ass.pt_sys);
         double t11 = omp_get_wtime();
@@ -114,12 +134,14 @@ bool SolverStatic<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, double 
             // this->ass.resetStateVar(false); // reset var = last_var
         }
 
+        this->ass.writeDump(this->dumpFile, 0);
+
     } while (new_damaged);
 
-    std::cout << this->ass.pt_sys[5087]->damage
-              << ',' << this->ass.pt_sys[5087]->state_var[0]
-              << ',' << this->ass.pt_sys[5087]->state_var[1]
-              << ',' << this->ass.pt_sys[5087]->state_var[2] << std::endl;
+    // std::cout << this->ass.pt_sys[5087]->damage
+    //           << ',' << this->ass.pt_sys[5087]->state_var[0]
+    //           << ',' << this->ass.pt_sys[5087]->state_var[1]
+    //           << ',' << this->ass.pt_sys[5087]->state_var[2] << std::endl;
     // std::cout << this->ass.pt_sys[8614]->state_var[0] << ',' << this->ass.pt_sys[8614]->state_var[0] << std::endl;
     // std::cout << m << ',' << this->ass.pt_sys[5030]->damage << ',' << this->ass.pt_sys[5030]->state_var[0] << ',' << this->ass.pt_sys[5030]->state_var[1] << std::endl;
 
