@@ -53,6 +53,7 @@ public:
     void resetStateVar(bool reset_xyz);
     void storeStateVar();
     void updateForceState(); // update bond force and particle forces
+    void searchNonlocalNeighbors(double cutoff_ratio);
 
     void updateStateVar();
     bool updateBrokenBonds();
@@ -107,6 +108,21 @@ std::map<int, Particle<nlayer> *> Assembly<nlayer>::toMap()
     for (Particle<nlayer> *pt : pt_sys)
         map[pt->id] = pt;
     return map;
+}
+
+template <int nlayer>
+void Assembly<nlayer>::searchNonlocalNeighbors(double cutoff_ratio)
+{
+#pragma omp parallel for
+    for (Particle<nlayer> *p1 : pt_sys)
+    {
+        for (Particle<nlayer> *p2 : pt_sys)
+        {
+            if (p1->distanceTo(p2) < cutoff_ratio * (p1->nonlocal_L))
+                p1->neighbors_nonlocal.push_back(p2);
+        }
+        // std::cout<<p1->id<<std::endl;
+    }
 }
 
 template <int nlayer>
@@ -298,7 +314,7 @@ void Assembly<nlayer>::writeDump(const std::string &dumpFile, int step)
     fprintf(fpt, "%8.8f %8.8f\n", box[2], box[3]);
     fprintf(fpt, "%8.8f %8.8f\n", box[4], box[5]);
 
-    fprintf(fpt, "ITEM: ATOMS id type x y z dx dy dz s11 s22 s33 s23 s13 s12 damage damage_visual state_var \n");
+    fprintf(fpt, "ITEM: ATOMS id type x y z dx dy dz s11 s22 s33 s23 s13 s12 damage damage_visual state_var[0] \n");
     for (auto pt : pt_sys)
     {
         fprintf(fpt, "%d %d %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e %.4e\n",
