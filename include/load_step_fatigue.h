@@ -13,19 +13,35 @@
 enum class FatigueLoadType : char
 {
     LoadUniaxialDisp,
+    LoadUniaxialForce,
     LoadDogBoneDisp,
     LoadCTForce
 };
 
 // create the template for fatigue loading
 template <int nlayer>
+class LoadUniaxialForce : public LoadStep<nlayer>
+{
+public:
+    LoadUniaxialForce(double fy,
+                      std::vector<Particle<nlayer> *> &left_group,
+                      std::vector<Particle<nlayer> *> &top_group,
+                      std::vector<Particle<nlayer> *> &bottom_group)
+    {
+        this->dispBCs.push_back(DispBC<nlayer>(left_group, LoadMode::Relative, 'x', 0.0));
+        this->forceBCs.push_back(ForceBC<nlayer>(top_group, LoadMode::Relative, 0.0, fy, 0.0));
+        this->dispBCs.push_back(DispBC<nlayer>(bottom_group, LoadMode::Relative, 'y', 0.0));
+    }
+};
+
+template <int nlayer>
 class LoadUniaxialDisp : public LoadStep<nlayer>
 {
 public:
     LoadUniaxialDisp(double dy,
-                    std::vector<Particle<nlayer> *> &left_group,
-                    std::vector<Particle<nlayer> *> &top_group,
-                    std::vector<Particle<nlayer> *> &bottom_group)
+                     std::vector<Particle<nlayer> *> &left_group,
+                     std::vector<Particle<nlayer> *> &top_group,
+                     std::vector<Particle<nlayer> *> &bottom_group)
     {
         this->dispBCs.push_back(DispBC<nlayer>(left_group, LoadMode::Relative, 'x', 0.0));
         this->dispBCs.push_back(DispBC<nlayer>(top_group, LoadMode::Relative, 'y', dy));
@@ -62,6 +78,7 @@ public:
         this->dispBCs.push_back(DispBC<nlayer>(mid_group, LoadMode::Relative, 'y', 0));
         this->dispBCs.push_back(DispBC<nlayer>(top_group, LoadMode::Relative, 'x', 0.0));
         this->dispBCs.push_back(DispBC<nlayer>(bottom_group, LoadMode::Relative, 'x', 0.0));
+        // this->dispBCs.push_back(DispBC<nlayer>(bottom_group, LoadMode::Relative, 'y', 0.0));
         this->forceBCs.push_back(ForceBC<nlayer>(top_group, LoadMode::Relative, 0.0, fy, 0.0));
         this->forceBCs.push_back(ForceBC<nlayer>(bottom_group, LoadMode::Relative, 0.0, -fy, 0.0));
     }

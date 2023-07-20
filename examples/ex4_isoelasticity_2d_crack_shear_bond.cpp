@@ -23,25 +23,25 @@ void run()
 
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
-    std::array<double, 2 * NDIM> box{0.0, 1.0, 0.0, 1.0, 0.0, 8.0};                                                                        // thickness is used for force calculation
-    Assembly<n_layer> pt_ass{"../geometry/geo1_2DHEX_Shear.dump", "../geometry/geo1_2DHEX_Shear.bond", cell, ParticleType::ElasticDamage}; // read coordinate from local files
+    std::array<double, 2 * NDIM> box{0.0, 1.0, 0.0, 1.0, 0.0, 8.0};                                                                  // thickness is used for force calculation
+    Assembly<n_layer> pt_ass{"../geometry/geo1_2DHEX_Shear.dump", "../geometry/geo1_2DHEX_Shear.bond", cell, ParticleType::Elastic}; // read coordinate from local files
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
     bool is_plane_stress = true;
-    double E0 = 210e3, mu0 = 0.3;                                // polymer, Young's modulus and Poisson's ratio, MPa
-    double k0 = 50, k1 = 5, c_t_ratio = 10, damage_thres = 0.99; // brittle damage parameters
+    double E0 = 210e3, mu0 = 0.3;   // Young's modulus and Poisson's ratio, MPa
+    double critical_bstrain = 2e-2; // critical bond strain
 
     // simulation settings
-    int n_steps = 100;                           // number of loading steps
-    double cutoff_ratio = 1.5;                   // nonlocal cutoff ratio
-    double step_size = 1.5e-4;                   // step size for displacement loading
-    double nonlocal_L = 1e-2;                    // nonlocal length scale
-    int undamaged_pt_type = 4;                   // particles that dont update damage
-    int max_iter = 30, start_index = 0;          // maximum Newton iteration number
-    double tol_iter = 1e-5;                      // newton iteration tolerance
-    std::string dumpFile{"Shear_2d_crack.dump"}; // output file name
+    int n_steps = 100;                                // number of loading steps
+    double cutoff_ratio = 1.5;                        // nonlocal cutoff ratio
+    double step_size = 1.5e-4;                        // step size for displacement loading
+    double nonlocal_L = EPS;                          // nonlocal length scale
+    int undamaged_pt_type = 4;                        // particles that dont update damage
+    int max_iter = 30, start_index = 0;               // maximum Newton iteration number
+    double tol_iter = 1e-5;                           // newton iteration tolerance
+    std::string dumpFile{"Shear_2d_crack_bond.dump"}; // output file name
 
     std::vector<Particle<n_layer> *> top_group, bottom_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
@@ -63,8 +63,8 @@ void run()
         //     p1->type = 4; // particles that not update damage
 
         // assign material properties - need to cast to elastic particle
-        ParticleElasticDamage<n_layer> *elpt = dynamic_cast<ParticleElasticDamage<n_layer> *>(p1);
-        elpt->setParticleProperty(nonlocal_L, is_plane_stress, E0, mu0, k0, k1, c_t_ratio, damage_thres);
+        ParticleElastic<n_layer> *elpt = dynamic_cast<ParticleElastic<n_layer> *>(p1);
+        elpt->setParticleProperty(nonlocal_L, is_plane_stress, E0, mu0, critical_bstrain);
     }
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps

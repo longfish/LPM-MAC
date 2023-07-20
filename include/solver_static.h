@@ -86,7 +86,7 @@ void SolverStatic<nlayer>::solveProblem(std::vector<LoadStep<nlayer>> &load, int
             goto restart;
         }
 
-        // this->ass.writeDump(this->dumpFile, i + start_index);
+        this->ass.writeDump(this->dumpFile, i + start_index);
 
         double t2 = omp_get_wtime();
         printf("Loading step %d has finished, spent %f seconds\n\nData output ...\n\n", i + start_index, t2 - t1);
@@ -134,7 +134,7 @@ bool SolverStatic<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, double 
             // this->ass.resetStateVar(false); // reset var = last_var
         }
 
-        this->ass.writeDump(this->dumpFile, 0);
+        // this->ass.writeDump(this->dumpFile, 0);
 
     } while (new_damaged);
 

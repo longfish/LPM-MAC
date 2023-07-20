@@ -139,6 +139,9 @@ void ParticleFatigueHCF<nlayer>::updateParticleStateVariables()
         this->Ddot_local = A * pow(this->state_var[0], B) * pow(this->state_var[2] - this->state_var[1], d);
     else
         this->Ddot_local = 0;
+
+    // this->state_var[0] = std::max(this->state_var[2], this->state_var[0]);
+
 }
 
 template <int nlayer>

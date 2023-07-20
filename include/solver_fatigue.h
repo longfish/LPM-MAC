@@ -143,6 +143,17 @@ std::vector<LoadStep<nlayer>> SolverFatigue<nlayer>::generateLoadCycle(FatigueLo
             load_cycle.push_back(LoadUniaxialDisp<nlayer>((f_2 - f_1) / n_interval, pt_groups[0], pt_groups[1], pt_groups[2]));
     }
 
+    if (ltype == FatigueLoadType::LoadUniaxialForce)
+    {
+        // loading part
+        for (int i = 0; i < n_interval; ++i)
+            load_cycle.push_back(LoadUniaxialForce<nlayer>((f_1 - f_0) / n_interval, pt_groups[0], pt_groups[1], pt_groups[2]));
+
+        // unloading part
+        for (int i = 0; i < n_interval; ++i)
+            load_cycle.push_back(LoadUniaxialForce<nlayer>((f_2 - f_1) / n_interval, pt_groups[0], pt_groups[1], pt_groups[2]));
+    }
+
     if (ltype == FatigueLoadType::LoadDogBoneDisp)
     {
         // loading part
@@ -187,6 +198,18 @@ void SolverFatigue<nlayer>::solveProblemCyclic(FatigueLoadType loadType, int n_i
         dNdt = (t_mode == TimeMapMode::Linear) ? func_dNdt_linear(tau) : func_dNdt_exponental(tau, t++);
         solveProblemOneCycle(load_cycle, dNdt);
 
+        // compute average strain energy
+        double ave_u{0};
+        int n_pt = 0;
+        for (Particle<nlayer> *pt : this->ass.pt_sys)
+        {
+            if (pt->type != undamaged_pt_type)
+            {
+                n_pt++;
+                ave_u += pt->state_var[0];
+            }
+        }
+        std::cout << "Average strain energy is: " << ave_u / n_pt << std::endl;
         // std::cout << this->ass.pt_sys[685]->damage << ',' << this->ass.pt_sys[685]->state_var[0] << std::endl;
 
         N += (int)dNdt;

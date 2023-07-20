@@ -137,7 +137,16 @@ std::vector<std::vector<int>> searchNeighbor(std::vector<std::array<double, NDIM
 bool isValid(const std::array<double, NDIM> &pt)
 {
     // if (inReverseNotch(pt, {0.5, 0.504, 0.0}, 8e-3 / 2.0))
-    //     return false; // notch used for shear loading
+    //     return false; // notch used for shear loading (hex)
+    // if (inReverseNotch(pt, {0.5, 0.505, 0.0}, 5e-3 / 2.0))
+    //     return false; // notch used for shear loading (sq)
+
+    if (inCircle(pt, {0.8, 0.251, 0.0}, 0.2 / 2))
+        return false; // bottom circle
+    if (inCircle(pt, {0.8, 1 - 0.25 + 0.001, 0.0}, 0.2 / 2))
+        return false; // top circle
+    if (inNotch(pt, {0.64, 0.501, 0.0}, 0.01 / 2.0))
+        return false; // notch used for calibration of Ti64 specimen
 
     // if (inCircle(pt, {50.8, 16.46, 0.0}, 12.7 / 2))
     //     return false; // bottom circle
@@ -148,16 +157,15 @@ bool isValid(const std::array<double, NDIM> &pt)
     // if (inNotch(pt, {50.8 - 6, 60.96 / 2, 0.0}, 2 / 2.0))
     //     return false; // notch used for calibration
 
-    if (inCircle(pt, {40.0, 14., 0.0}, 5))
-        return false; // bottom circle
-    if (inCircle(pt, {40.0, 50. - 14, 0.0}, 5))
-        return false; // top circle
-    if (inCircle(pt, {18, 35., 0.0}, 4))
-        return false; // random circle
-    if (inNotch(pt, {32.0, 25., 0.0}, 2.08 / 2.0))
-        return false; // notch
-    // if (inNotch(pt, {63.5 - 22.7, 30.5, 0.0}, 1.0))
-    //     return false; // notch for no-hole plate
+    // specimen setting used for curvilinear crack prediction
+    // if (inCircle(pt, {40.0, 14., 0.0}, 5))
+    //     return false; // bottom circle
+    // if (inCircle(pt, {40.0, 50. - 14, 0.0}, 5))
+    //     return false; // top circle
+    // if (inCircle(pt, {18, 34., 0.0}, 4))
+    //     return false; // random circle
+    // if (inNotch(pt, {32.0, 25., 0.0}, 2.08 / 2.0))
+    //     return false; // notch
 
     return true;
 }
@@ -167,30 +175,32 @@ void run()
     printf("\nCreating a CT model ...\n");
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 0.16;  // particle radius
-    UnitCell cell(LatticeType::Hexagon2D, radius);
+    // double radius = 0.16;  // particle radius
+    // UnitCell cell(LatticeType::Hexagon2D, radius);
+    double radius = 0.00305; // particle radius
+    UnitCell cell(LatticeType::Square2D, radius);
 
     // Euler angles setting for system rotation
     int eulerflag = 0; // direct rotation
     double angles[] = {PI / 180.0 * 0.0, PI / 180.0 * 0.0, PI / 180.0 * 0.0};
     double *R_matrix = createRMatrix(eulerflag, angles);
 
-    // std::array<double, 2 * NDIM> box{0.0, 1, 0.0, 1, 0.0, 8.0}; // thickness is used for force calculation
+    std::array<double, 2 * NDIM> box{0.0, 1, 0.0, 1, 0.0, 8.0}; // shear specimen
     // std::array<double, 2 * NDIM> box{0.0, 63.5, 0.0, 60.96, 0.0, 5.0}; // thickness is used for force calculation
     // std::array<double, 2 * NDIM> box{0.0, 50.08, 0.0, 50.8, 0.0, 5.04}; // thickness is used for force calculation
-    std::array<double, 2 * NDIM> box{0.0, 50, 0.0, 50, 0.0, 5.0}; // Lu CT specimen
-    std::vector<std::array<double, NDIM>> hex_xyz = createPlateHEX2D(box, cell, R_matrix), hex_CT;
-    // std::vector<std::array<double, NDIM>> sq_xyz = createPlateSQ2D(box, cell, R_matrix), sq_CT;
+    // std::array<double, 2 * NDIM> box{0.0, 50, 0.0, 50, 0.0, 5.0}; // Lu CT specimen
+    // std::vector<std::array<double, NDIM>> xyz = createPlateHEX2D(box, cell, R_matrix), CT;
+    std::vector<std::array<double, NDIM>> xyz = createPlateSQ2D(box, cell, R_matrix), CT;
 
-    for (std::array<double, NDIM> &pt : hex_xyz)
+    for (std::array<double, NDIM> &pt : xyz)
         if (isValid(pt))
-            hex_CT.push_back(pt);
+            CT.push_back(pt);
 
-    std::cout << "\nTotal particle number is: " << hex_CT.size() << std::endl;
-    writeDump("../geometry/geo1_CT_2DHEX_Lu.dump", hex_CT, box);
+    std::cout << "\nTotal particle number is: " << CT.size() << std::endl;
+    writeDump("../geometry/geo1_2DSQ_Ti64CT.dump", CT, box);
 
-    std::vector<std::vector<int>> hex_bonds = searchNeighbor(hex_CT, cell);
-    writeBond("../geometry/geo1_CT_2DHEX_Lu.bond", hex_bonds);
+    std::vector<std::vector<int>> hex_bonds = searchNeighbor(CT, cell);
+    writeBond("../geometry/geo1_2DSQ_Ti64CT.bond", hex_bonds);
 
     printf("\nDone.\n");
 }

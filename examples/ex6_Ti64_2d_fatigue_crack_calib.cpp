@@ -10,9 +10,9 @@ void run()
 {
     double start = omp_get_wtime(); // record the CPU time, begin
 
-    const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
-    double radius = 0.16;  // particle radius
-    UnitCell cell(LatticeType::Hexagon2D, radius);
+    const int n_layer = 2;   // number of neighbor layers (currently only support 2 layers of neighbors)
+    double radius = 0.00305; // particle radius
+    UnitCell cell(LatticeType::Square2D, radius);
 
     // Euler angles setting for system rotation
     // flag is 0 ~ 2 for different conventions, (0: direct rotation; 1: Kocks convention; 2: Bunge convention)
@@ -23,53 +23,56 @@ void run()
 
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
-    std::array<double, 2 * NDIM> box{0.0, 50.0, 0.0, 50.0, 0.0, 5.0};                                                                   // thickness is used for force calculation
-    Assembly<n_layer> pt_ass{"../geometry/geo1_CT_2DHEX_Lu.dump", "../geometry/geo1_CT_2DHEX_Lu.bond", cell, ParticleType::FatigueHCF}; // read coordinate from local files
+    std::array<double, 2 * NDIM> box{0.0, 1, 0.0, 1, 0.0, 1.0};                                                                         // thickness is used for force calculation
+    Assembly<n_layer> pt_ass{"../geometry/geo1_2DSQ_Ti64CT.dump", "../geometry/geo1_2DSQ_Ti64CT.bond", cell, ParticleType::FatigueHCF}; // read coordinate from local files
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
     bool is_plane_stress = true;
-    double E0 = 71.7e3, mu0 = 0.306;                // Al 7075T6, Young's modulus (MPa) and Poisson's ratio
-    double f_A = 1.94e-4, f_B = 0.581, f_d = 1.079; // fatigue parameters
+    double load_size = 1;                             // length of loading particles along x direction
+    double E0 = 110e3, mu0 = 0.34;                    // Young's modulus (MPa) and Poisson's ratio
+    double f_A = 3.75e-5, f_B = 0.6091, f_d = 1.1312; // fatigue parameters
+    // double f_A = 2.003e-4, f_B = 0.581, f_d = 1.079; // fatigue parameters
     double f_damage_threshold = 1, f_fatigue_limit_ratio = 1.108;
 
     // fatigue loading parameters
-    double force_max = 2000 / (box[5] - box[4]),
+    double force_max = 20 * load_size,
            R = 0.1,
            force_min = R * force_max,
-           force_range = force_max - force_min;      // loading force definition
-    double cutoff_ratio = 1.5;                       // nonlocal cutoff ratio
-    double nonlocal_L = 0.64;                        // nonlocal length scale
-    double tau = 0.001;                              // fatigue time mapping parameter
-    int max_iter = 30;                               // maximum iteration number of Newton-Raphson algorithm                                                                                                 /* maximum Newton iteration number */
-    int start_index = 0;                             // start index of solution procedure
-    double tol_iter = 1e-5;                          // tolerance of the NR iterations
-    int undamaged_pt_type = 4;                       // undamaged particle type
-    std::string dumpFile{"CTLu_fatigue_crack.dump"}; // output file name
+           force_range = force_max - force_min;                      // loading force definition
+    double cutoff_ratio = 1.5;                                       // nonlocal cutoff ratio
+    double tau = 0.001;                                              // fatigue time mapping parameter
+    int max_iter = 30;                                               // maximum iteration number of Newton-Raphson algorithm                                                                                                 /* maximum Newton iteration number */
+    int start_index = 0;                                             // start index of solution procedure
+    double tol_iter = 1e-5;                                          // tolerance of the NR iterations
+    double nonlocal_L = 0.02;                                        // nonlocal length scale
+    int undamaged_pt_type = 4;                                       // undamaged particle type
+    std::string dumpFile{"Ti64_CT_crack.dump"};                      // output file name
+    std::string loadFile{"../loading/force_ca_R0.1_Ti64_calib.txt"}; // loading file name
 
     std::vector<Particle<n_layer> *> top_group, bottom_group, mid_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
     {
-        if (p1->id == 12988 || p1->id == 12887 || p1->id == 12989)
+        if (p1->id == 12550 || p1->id == 12444)
         {
             mid_group.push_back(p1); // mid, to fix in y direction
             p1->type = 1;
         }
-        if (p1->id >= 20521 && p1->id <= 20523)
+        if (p1->id >= 21130 && p1->id <= 21131)
         {
             top_group.push_back(p1); // top
             p1->type = 2;
         }
-        if (p1->id >= 4975 && p1->id <= 4978)
+        if (p1->id >= 4066 && p1->id <= 4067)
         {
             bottom_group.push_back(p1); // bottom
             p1->type = 3;
         }
         // assign boundary and internal particles
-        if (p1->xyz[0] >= 40 - 5 && p1->xyz[0] <= 40 + 5 && p1->xyz[1] >= 22 + 14)
+        if (p1->xyz[1] >= 0.75)
             p1->type = undamaged_pt_type;
-        if (p1->xyz[0] >= 40 - 5 && p1->xyz[0] <= 40 + 5 && p1->xyz[1] <= 14)
+        if (p1->xyz[1] <= 0.25)
             p1->type = undamaged_pt_type; // particles that not update damage
 
         // assign material properties, cast to fatigue damage particle type
@@ -80,7 +83,6 @@ void run()
     pt_ass.searchNonlocalNeighbors(cutoff_ratio);
     pt_ass.updateGeometry();
     pt_ass.updateForceState();
-    // pt_ass.writeDump(dumpFile, 0);
 
     SolverFatigue<n_layer> solv_fatigue{undamaged_pt_type,
                                         pt_ass,
@@ -92,6 +94,8 @@ void run()
     double initrun = omp_get_wtime();
     printf("Initialization finished in %f seconds\n\n", initrun - start);
 
+    // pt_ass.writeDump(dumpFile, 0);
+
     /*********************************************************************************************/
     // perform static loading, f_min
     std::vector<LoadStep<n_layer>> load_static; // static load settings
@@ -101,7 +105,6 @@ void run()
     step0.dispBCs.push_back(DispBC<n_layer>(mid_group, LoadMode::Relative, 'y', 0));
     step0.dispBCs.push_back(DispBC<n_layer>(top_group, LoadMode::Relative, 'x', 0.0));
     step0.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'x', 0.0));
-    // step0.dispBCs.push_back(DispBC<n_layer>(bottom_group, LoadMode::Relative, 'y', 0.0));
     step0.forceBCs.push_back(ForceBC<n_layer>(top_group, LoadMode::Relative, 0.0, force_min, 0.0));
     step0.forceBCs.push_back(ForceBC<n_layer>(bottom_group, LoadMode::Relative, 0.0, -force_min, 0.0));
     for (int i = 0; i < n_incre_static; ++i)
@@ -112,7 +115,7 @@ void run()
     /*********************************************************************************************/
     // perform cyclic loading
     int n_incre_fatigue = 1;
-    solv_fatigue.readLoad("../loading/force_ca_Al7075R0.1.txt");
+    solv_fatigue.readLoad(loadFile);
     solv_fatigue.solveProblemCyclic(FatigueLoadType::LoadCTForce, n_incre_fatigue, {mid_group, top_group, bottom_group});
 
     double finish = omp_get_wtime();

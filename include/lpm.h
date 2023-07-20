@@ -59,6 +59,11 @@ double func_phi(const double x, const double L)
 #define IFORMAT "%lli"
 #endif
 
+enum class ExactSolution : char
+{
+    Beam001
+};
+
 enum class LoadMode : char
 {
     Relative,

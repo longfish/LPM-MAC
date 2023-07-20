@@ -10,11 +10,13 @@
 #include "particle.h"
 #include "bond.h"
 
-// elastic plane strain or 3D material (no damage or plasticity)
+// implement bond-based damage model
 
 template <int nlayer>
 class ParticleElastic : public Particle<nlayer>
 {
+    double critical_bstrain{0};
+
 public:
     ParticleElastic(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell) : Particle<nlayer>{p_x, p_y, p_z, p_cell}
     {
@@ -28,8 +30,9 @@ public:
     }
 
     void updateBondsForce();
-    void setParticleProperty(bool is_plane_stress, double p_E, double p_mu);
-    void setParticleProperty(double p_C11, double p_C12, double p_C44);
+    bool updateParticleStaticDamage();
+    void setParticleProperty(double p_nonlocalL, bool is_plane_stress, double p_E, double p_mu, double p_critical_bstrain);
+    void setParticleProperty(double p_nonlocalL, double p_C11, double p_C12, double p_C44, double p_critical_bstrain);
 };
 
 template <int nlayer>
@@ -47,8 +50,29 @@ void ParticleElastic<nlayer>::updateBondsForce()
 }
 
 template <int nlayer>
-void ParticleElastic<nlayer>::setParticleProperty(bool is_plane_stress, double p_E, double p_mu)
+bool ParticleElastic<nlayer>::updateParticleStaticDamage()
 {
+    bool any_broken{false};
+    for (int i = 0; i < nlayer; ++i)
+    {
+        for (Bond<nlayer> *bd : this->bond_layers[i])
+        {
+            if (bd->bstrain >= critical_bstrain && abs(bd->bdamage - 1.0) > EPS)
+            {
+                any_broken = any_broken || true;
+                bd->bdamage = 1;
+            }
+        }
+    }
+    return any_broken;
+}
+
+template <int nlayer>
+void ParticleElastic<nlayer>::setParticleProperty(double p_nonlocalL, bool is_plane_stress, double p_E, double p_mu, double p_critical_bstrain)
+{
+    critical_bstrain = p_critical_bstrain;
+    this->nonlocal_L = p_nonlocalL;
+
     double KnTv[NDIM]{0};
     std::vector<double> Ce(NDIM);
     if (!is_plane_stress)
@@ -84,8 +108,11 @@ void ParticleElastic<nlayer>::setParticleProperty(bool is_plane_stress, double p
 }
 
 template <int nlayer>
-void ParticleElastic<nlayer>::setParticleProperty(double p_C11, double p_C12, double p_C44)
+void ParticleElastic<nlayer>::setParticleProperty(double p_nonlocalL, double p_C11, double p_C12, double p_C44, double p_critical_bstrain)
 {
+    critical_bstrain = p_critical_bstrain;
+    this->nonlocal_L = p_nonlocalL;
+
     double Ce[NDIM]{p_C11, p_C12, p_C44}; // C11, C12, C44
     double KnTv[NDIM]{0};
 

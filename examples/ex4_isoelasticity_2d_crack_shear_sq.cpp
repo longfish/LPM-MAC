@@ -12,7 +12,7 @@ void run()
 
     const int n_layer = 2; // number of neighbor layers (currently only support 2 layers of neighbors)
     double radius = 5e-3;  // particle radius
-    UnitCell cell(LatticeType::Hexagon2D, radius);
+    UnitCell cell(LatticeType::Square2D, radius);
 
     // Euler angles setting for system rotation
     // flag is 0 ~ 2 for different conventions, (0: direct rotation; 1: Kocks convention; 2: Bunge convention)
@@ -23,8 +23,8 @@ void run()
 
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
-    std::array<double, 2 * NDIM> box{0.0, 1.0, 0.0, 1.0, 0.0, 8.0};                                                                        // thickness is used for force calculation
-    Assembly<n_layer> pt_ass{"../geometry/geo1_2DHEX_Shear.dump", "../geometry/geo1_2DHEX_Shear.bond", cell, ParticleType::ElasticDamage}; // read coordinate from local files
+    std::array<double, 2 * NDIM> box{0.0, 1.0, 0.0, 1.0, 0.0, 8.0};                                                                      // thickness is used for force calculation
+    Assembly<n_layer> pt_ass{"../geometry/geo1_2DSQ_Shear.dump", "../geometry/geo1_2DSQ_Shear.bond", cell, ParticleType::ElasticDamage}; // read coordinate from local files
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
@@ -37,11 +37,11 @@ void run()
     int n_steps = 100;                           // number of loading steps
     double cutoff_ratio = 1.5;                   // nonlocal cutoff ratio
     double step_size = 1.5e-4;                   // step size for displacement loading
-    double nonlocal_L = 1e-2;                    // nonlocal length scale
+    double nonlocal_L = 2e-2;                    // nonlocal length scale
     int undamaged_pt_type = 4;                   // particles that dont update damage
     int max_iter = 30, start_index = 0;          // maximum Newton iteration number
     double tol_iter = 1e-5;                      // newton iteration tolerance
-    std::string dumpFile{"Shear_2d_crack.dump"}; // output file name
+    std::string dumpFile{"Shear_2d_crack_sq.dump"}; // output file name
 
     std::vector<Particle<n_layer> *> top_group, bottom_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)

@@ -16,17 +16,24 @@
 // #include "geo2_dogbone_configuration.cpp"
 // #include "geo2_dogbone_config2d.cpp"
 
-#include "ex1_isoelasticity_2d_hex.cpp"
+// #include "ex1_isoelasticity_2d_hex.cpp"
 // #include "ex1_isoelasticity_3d_sc.cpp"
 // #include "ex2_polycrystal_3d_bcc.cpp"
 // #include "ex3_singlecrystal_3d_fcc.cpp"
 // #include "ex4_isoelasticity_2d_crack.cpp"
 // #include "ex4_isoelasticity_2d_crack_shear.cpp"
+// #include "ex4_isoelasticity_2d_crack_shear_sq.cpp"
+// #include "ex4_isoelasticity_2d_crack_shear_bond.cpp"
+// #include "ex4_isoelasticity_2d_crack_shear_sq_bond.cpp"
 // #include "ex5_isoelasticity_2d_fatigue_gage.cpp"
 // #include "ex5_isoelasticity_2d_fatigue.cpp"
 // #include "ex5_isoelasticity_3d_fatigue.cpp"
+// #include "ex5_Ti64_2d_fatigue_gage.cpp"
 // #include "ex6_isoelasticity_2d_CT_fatigue_calib.cpp"
 // #include "ex6_isoelasticity_2d_CT_fatigue.cpp"
+// #include "ex6_Ti64_2d_fatigue_crack_G6a.cpp"
+// #include "ex6_Ti64_2d_fatigue_crack_calib.cpp"
+#include "ex7_convergence_beam.cpp"
 
 /************************************************************************/
 /****************************** Main procedure **************************/
