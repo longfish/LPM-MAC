@@ -10,7 +10,6 @@
 #include "particle.h"
 #include "bond.h"
 
-// Elastic plane strain or 3D material
 // Update bdamage and bforce after calculation
 // Two particle-wise state variables: [0]strain energy
 
