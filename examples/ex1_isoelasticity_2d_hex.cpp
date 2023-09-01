@@ -53,16 +53,17 @@ void run()
 
     // material elastic parameters setting, MPa
     bool is_plane_stress = false;
-    double E0 = 69e3, mu0 = 0.3;               // Young's modulus and Poisson's ratio
+    double E0 = 69e3, mu0 = 0.3; // Young's modulus and Poisson's ratio
+    double critical_bstrain = 1; // critical bond strain
 
     // simulation settings
-    int n_steps = 1;                             // number of loading steps
+    int n_steps = 1;                              // number of loading steps
     double step_size = -2000 / (box[5] - box[4]); // step size for force loading
-    double nonlocal_L = 0;                       // nonlocal length scale
-    int max_iter = 30, start_index = 0;          // maximum Newton iteration number
-    double tol_iter = 1e-5;                      // newton iteration tolerance
-    int undamaged_pt_type = -1;                  // undamaged particle type
-    std::string dumpFile{"hex_position.dump"}; // output file name
+    double nonlocal_L = 0;                        // nonlocal length scale
+    int max_iter = 30, start_index = 0;           // maximum Newton iteration number
+    double tol_iter = 1e-5;                       // newton iteration tolerance
+    int undamaged_pt_type = -1;                   // undamaged particle type
+    std::string dumpFile{"hex_position.dump"};    // output file name
 
     std::vector<Particle<n_layer> *> top_group, bottom_group, internal_group;
     for (Particle<n_layer> *p1 : pt_ass.pt_sys)
@@ -83,7 +84,7 @@ void run()
 
         // assign material properties - need to cast to elastic particle
         ParticleElastic<n_layer> *elpt = dynamic_cast<ParticleElastic<n_layer> *>(p1);
-        elpt->setParticleProperty(is_plane_stress, E0, mu0);
+        elpt->setParticleProperty(nonlocal_L, is_plane_stress, E0, mu0, critical_bstrain);
     }
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps

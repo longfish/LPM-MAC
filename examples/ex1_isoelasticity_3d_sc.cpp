@@ -54,6 +54,7 @@ void run()
     // material elastic parameters setting, MPa
     bool is_plane_stress = false;
     double E0 = 69e3, mu0 = 0.3; // Young's modulus and Poisson's ratio
+    double critical_bstrain = 1; // critical bond strain
 
     // simulation settings
     int n_steps = 1;                             // number of loading steps
@@ -83,7 +84,7 @@ void run()
 
         // assign material properties - need to cast to elastic particle
         ParticleElastic<n_layer> *elpt = dynamic_cast<ParticleElastic<n_layer> *>(p1);
-        elpt->setParticleProperty(is_plane_stress, E0, mu0);
+        elpt->setParticleProperty(nonlocal_L, is_plane_stress, E0, mu0, critical_bstrain);
     }
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps
