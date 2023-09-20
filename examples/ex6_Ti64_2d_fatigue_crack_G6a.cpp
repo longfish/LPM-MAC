@@ -24,10 +24,11 @@ void run()
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax
     std::array<double, 2 * NDIM> box{0.0, 2 * 0.7808, 0.0, 2 * 0.7808, 0.0, 1.0};                            // thickness is used for force calculation
-    // Assembly<n_layer> pt_ass{"../benchmark/AM_Ti64/G6a_critical_site.dump", cell, ParticleType::FatigueHCF}; // read coordinate from local files
+    std::string dumpFile{"G6a_initiation.dump"};                                                             // output file name
+    Assembly<n_layer> pt_ass{"../benchmark/AM_Ti64/G6a_critical_site.dump", cell, ParticleType::FatigueHCF}; // read coordinate from local files
     // Assembly<n_layer> pt_ass{"../benchmark/AM_Ti64/G5v_critical_site.dump", cell, ParticleType::FatigueHCF}; // read coordinate from local files
     // Assembly<n_layer> pt_ass{"../benchmark/AM_Ti64/Y6v_critical_site.dump", cell, ParticleType::FatigueHCF}; // read coordinate from local files
-    Assembly<n_layer> pt_ass{"../benchmark/AM_Ti64/Y6a_critical_site.dump", cell, ParticleType::FatigueHCF}; // read coordinate from local files
+    // Assembly<n_layer> pt_ass{"../benchmark/AM_Ti64/Y6a_critical_site.dump", cell, ParticleType::FatigueHCF}; // read coordinate from local files
 
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
@@ -51,7 +52,6 @@ void run()
     double tol_iter = 1e-5;                                            // tolerance of the NR iterations
     double nonlocal_L = 0.02;                                          // nonlocal length scale
     int undamaged_pt_type = 4;                                         // undamaged particle type
-    std::string dumpFile{"Ti64_G6a_crack.dump"};                       // output file name
     std::string loadFile{"../loading/force_ca_R0.1_Ti64_microCT.txt"}; // loading file name
 
     std::vector<Particle<n_layer> *> top_group, right_group, bottom_group;
