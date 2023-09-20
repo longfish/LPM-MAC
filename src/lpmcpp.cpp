@@ -33,7 +33,8 @@
 // #include "ex6_isoelasticity_2d_CT_fatigue.cpp"
 // #include "ex6_Ti64_2d_fatigue_crack_G6a.cpp"
 // #include "ex6_Ti64_2d_fatigue_crack_calib.cpp"
-#include "ex7_convergence_beam.cpp"
+// #include "ex7_convergence_beam.cpp"
+#include "plasticity/J2_3DSC.cpp"
 
 /************************************************************************/
 /****************************** Main procedure **************************/
