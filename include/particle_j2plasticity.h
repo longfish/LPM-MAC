@@ -10,46 +10,37 @@
 #include "particle.h"
 #include "bond.h"
 
-// Update bdamage and bforce after calculation
-// Two particle-wise state variables: [0]strain energy
-
-// update bond force
-// 1. update the particle geometry (loop for all particles)
-// 2. update the particle damage (loop for all particles)
-//     i. calculate the strain energy and store it as a state variable - state_var
-//     ii. calculate the damage dot - Ddot
-//     iii. using explicit Euler, D = D + Ddot*delta_energy
-// 3. update bforce (after calculating the bdamage of all bonds)
+// Elastoplastic isotropic material with a mixed linear hardening law
+// State variables (7):
+////// alpha, beta[2*NDIM]
 
 template <int nlayer>
 class ParticleJ2Plasticity : public Particle<nlayer>
 {
 public:
-    double k0{0}, k1{0}; // damage parameters
-    double damage_threshold{0}, comp_tensile_ratio{0};
+    double E{0}, mu{0}, sigmay{0}, xi{0}, H{0};
+    double damage_threshold{0}, critical_bstrain{0};
 
-    ParticleJ2Plasticity(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell) : Particle<nlayer>{p_x, p_y, p_z, p_cell}
+    ParticleJ2Plasticity(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell) : Particle<nlayer> { p_x, p_y, p_z, p_cell }
     {
-        this->state_var = std::vector<double>(1, 0.);
-        this->state_var_last = std::vector<double>(1, 0.);
+        this->state_var = std::vector<double>(7, 0.);
+        this->state_var_last = std::vector<double>(7, 0.);
     }
 
-    ParticleJ2Plasticity(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type) : Particle<nlayer>{p_x, p_y, p_z, p_cell, p_type}
+    ParticleJ2Plasticity(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell, const int &p_type) : Particle<nlayer> { p_x, p_y, p_z, p_cell, p_type }
     {
-        this->state_var = std::vector<double>(1, 0.);
-        this->state_var_last = std::vector<double>(1, 0.);
+        this->state_var = std::vector<double>(7, 0.);
+        this->state_var_last = std::vector<double>(7, 0.);
     }
 
-    double calcStrainEnergyDensity();
-    double calcEqStrain();
+    double computeTriaxiality();
 
     void updateParticleStateVariables();
     bool updateParticleStaticDamage();
     bool updateParticleBrokenBonds();
 
     void updateBondsForce();
-    void setParticleProperty(double p_nonlocalL, bool is_plane_stress, double p_E, double p_mu, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres);
-    void setParticleProperty(double p_nonlocalL, double p_C11, double p_C12, double p_C44, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres);
+    void setParticleProperty(double p_nonlocalL, bool is_plane_stress, double p_E, double p_mu, double p_sigmay, double p_xi, double p_H, double p_critical_bstrain);
 };
 
 template <int nlayer>
@@ -87,77 +78,85 @@ void ParticleJ2Plasticity<nlayer>::updateBondsForce()
 }
 
 template <int nlayer>
-double ParticleJ2Plasticity<nlayer>::calcStrainEnergyDensity()
-{
-    // compute energy terms
-    double V_m = this->cell.particle_volume * this->nb / this->cell.nneighbors; // modified particle volume
-    double energy_total{0};
-    for (int i = 0; i < nlayer; ++i)
-    {
-        for (Bond<nlayer> *bd : this->bond_layers[i])
-            energy_total += 0.5 * (bd->Kn * bd->dLe * bd->dLe) / V_m; // first add spring energy
-
-        energy_total += 0.5 * this->TdLe_total[i] * this->dLe_total[i] / V_m; // then add volumetric energy
-    }
-
-    return energy_total;
-}
-
-double func_g(const double k1)
-{
-    return 1 / k1;
-}
-
-// double func_g(const double k, const double k0, const double undamaged_pt_type)
-// {
-//     if (k >= undamaged_pt_type)
-//         return 0;
-//     else
-//         return k0 * undamaged_pt_type / (k0 + undamaged_pt_type) * pow(k, -2); // the k here is kappa
-// }
-
-// double func_g(const double k, const double k0, const double a, const double b)
-// {
-//     return k0 / k / k * (1. + a * ((1. + b * k) * std::exp(b * (k0 - k)) - 1.)); // the k here is kappa
-// }
-
-// double func_D(const double k, const double k0, const double a, const double b)
-// {
-//     return 1.0 - k0 / k * (1.0 - a + a * std::exp(-b * (k - k0)));
-// }
-
-double func_eq_strain(const double &comp_tensile_ratio, const double &I1, const double &J2)
-{
-    double k = comp_tensile_ratio; // the k has different meaning compared with k in func_g
-    return (1. - 1. / k) * I1 + 1. / k * std::sqrt((k - 1.) * (k - 1.) * I1 * I1 - k * J2);
-}
-
-template <int nlayer>
-double ParticleJ2Plasticity<nlayer>::calcEqStrain()
-{
-    double I1{0}, J2{0};
-    for (int i = 0; i < nlayer; ++i)
-    {
-        double bl = this->cell.neighbor_cutoff[i]; // bond length of the current layer
-        I1 += this->dLe_total[i] / bl;
-        for (Bond<nlayer> *bd : this->bond_layers[i])
-            J2 += bd->bstrain * bd->bstrain;
-    }
-    J2 = 0.5 * I1 * I1 / this->nb - 0.5 * J2;
-    return func_eq_strain(comp_tensile_ratio, I1, J2);
-}
-
-template <int nlayer>
 void ParticleJ2Plasticity<nlayer>::updateParticleStateVariables()
 {
-    // update local state variables
-    this->state_var[0] = calcStrainEnergyDensity();              // local strain measures
-    double delta = this->state_var[0] - this->state_var_last[0]; // state_var change
-    double f = this->state_var[0] - k1 * this->damage - k0;      // damage surface
-    if (f > 0 && delta > 0)
-        this->Ddot_local = func_g(k1) * delta; // local Ddot
-    else
-        this->Ddot_local = 0;
+    double dlambda = 0.0;                            // plastic multiplier
+    std::vector<double> stress_trial = this->stress; // trial stress tensor
+    std::vector<double> dplstrain(2 * NDIM, 0.0);    // delta plastic strain
+
+    /* update stress tensor to be trial devitoric stress tensor */
+    double temp = 1.0 / 3.0 * (stress_trial[0] + stress_trial[1] + stress_trial[2]);
+    for (int j = 0; j < NDIM; j++)
+        stress_trial[j] -= temp;
+
+    /* substract trial stress tensor with the back stress tensor */
+    for (int j = 0; j < 2 * NDIM; j++)
+        stress_trial[j] -= this->state_var[j + 1]; // beta
+
+    /* von Mises equivalent stress */
+    double sigma_eq = 0.0;
+    for (int j = 0; j < 2 * NDIM; j++)
+    {
+        if (j < NDIM)
+            sigma_eq += stress_trial[j] * stress_trial[j]; // s11, s22, s33
+        else
+            sigma_eq += 2.0 * stress_trial[j] * stress_trial[j]; // s23, s13, s12
+    }
+    sigma_eq = sqrt(3.0 / 2.0 * sigma_eq);
+
+    /* test the trial yield function */
+    double yield_func = sigma_eq - (sigmay + (1.0 - xi) * H * this->state_var[0]);
+    double G = E / 2 / (1 + mu); // shear modulus
+    if (yield_func > 0.0)
+        dlambda = yield_func / (3 * G + H);
+
+    this->state_var[0] += dlambda;
+
+    /* incremental plastic strain tensor */
+    for (int j = 0; j < 2 * NDIM; j++)
+    {
+        if (fabs(sigma_eq) > EPS)
+        {
+            dplstrain[j] = dlambda * 1.5 * stress_trial[j] / sigma_eq;
+            this->state_var[j + 1] += 2. / 3. * xi * H * dplstrain[j];
+        }
+    }
+
+    /* incremental plastic bond stretch */
+    for (int i = 0; i < nlayer; ++i)
+    {
+        for (Bond<nlayer> *bd : this->bond_layers[i])
+        {
+            double ddLp = bd->dis * (dplstrain[0] * bd->csx * bd->csx +
+                                     dplstrain[1] * bd->csy * bd->csy +
+                                     dplstrain[2] * bd->csz * bd->csz +
+                                     2 * dplstrain[3] * bd->csy * bd->csz +
+                                     2 * dplstrain[4] * bd->csx * bd->csz +
+                                     2 * dplstrain[5] * bd->csx * bd->csy);
+            bd->dLp += ddLp;
+        }
+    }
+
+    this->Ddot_local = 0; // update local damage rate
+}
+
+template <int nlayer>
+double ParticleJ2Plasticity<nlayer>::computeTriaxiality()
+{
+    double stresseq = 0.0, stressm = 0.0, triaxiality = 0.0;
+    for (int j = 0; j < 2 * NDIM; j++)
+    {
+        if (j < NDIM)
+            stresseq += this->stress[j] * this->stress[j]; // s11, s22, s33
+        else
+            stresseq += 2.0 * this->stress[j] * this->stress[j]; // s23, s13, s12
+    }
+    stresseq = sqrt(3.0 / 2.0 * stresseq);
+    stressm = 1.0 / 3.0 * (this->stress[0] + this->stress[1] + this->stress[2]);
+    if (stresseq > EPS)
+        triaxiality = stressm / stresseq;
+        
+    return triaxiality;
 }
 
 template <int nlayer>
@@ -173,63 +172,31 @@ bool ParticleJ2Plasticity<nlayer>::updateParticleStaticDamage()
 }
 
 template <int nlayer>
-void ParticleJ2Plasticity<nlayer>::setParticleProperty(double p_nonlocalL, bool is_plane_stress, double p_E, double p_mu, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres)
+void ParticleJ2Plasticity<nlayer>::setParticleProperty(double p_nonlocalL, bool is_plane_stress, double p_E, double p_mu, double p_sigmay, double p_xi, double p_H, double p_critical_bstrain)
 {
-    k0 = p_k0;
-    k1 = p_k1;
-    damage_threshold = p_d_thres;
-    comp_tensile_ratio = p_ct_ratio;
+    E = p_E;
+    mu = p_mu;
+    sigmay = p_sigmay;
+    xi = p_xi;
+    H = p_H;
+    critical_bstrain = p_critical_bstrain;
     this->nonlocal_L = p_nonlocalL;
 
     double KnTv[NDIM]{0};
     std::vector<double> Ce(NDIM);
     if (!is_plane_stress)
-        Ce = {p_E * (1.0 - p_mu) / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
-              p_E * p_mu / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
-              p_E / 2.0 / (1.0 + p_mu)}; // C11, C12, C44
+        Ce = {E * (1.0 - mu) / (1.0 + mu) / (1.0 - 2.0 * mu),
+              E * mu / (1.0 + mu) / (1.0 - 2.0 * mu),
+              E / 2.0 / (1.0 + mu)}; // C11, C12, C44
     else
-        Ce = {p_E / (1.0 - p_mu) / (1.0 + p_mu),
-              p_E * p_mu / (1.0 + p_mu) / (1.0 - p_mu),
-              p_E / 2.0 / (1.0 + p_mu)}; // C11, C12, C44
+        Ce = {E / (1.0 - mu) / (1.0 + mu),
+              E * mu / (1.0 + mu) / (1.0 - mu),
+              E / 2.0 / (1.0 + mu)}; // C11, C12, C44
 
     if (this->cell.dim == 2)
         cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, 1.0, this->cell.el_mapping.data(), 3, Ce.data(), 1, 0.0, KnTv, 1);
     else
         cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, this->cell.radius, this->cell.el_mapping.data(), 3, Ce.data(), 1, 0.0, KnTv, 1);
-
-    for (int i = 0; i < nlayer; ++i)
-    {
-        for (Bond<nlayer> *bd : this->bond_layers[i])
-        {
-            if (this->cell.lattice == LatticeType::Hexagon2D)
-            {
-                bd->Kn = KnTv[0];
-                bd->Tv = KnTv[1];
-            }
-            else
-            {
-                bd->Kn = KnTv[bd->layer]; // layer is 0 or 1
-                bd->Tv = KnTv[2];
-            }
-        }
-    }
-}
-
-template <int nlayer>
-void ParticleJ2Plasticity<nlayer>::setParticleProperty(double p_nonlocalL, double p_C11, double p_C12, double p_C44, double p_k0, double p_k1, double p_ct_ratio, double p_d_thres)
-{
-    k0 = p_k0;
-    k1 = p_k1;
-    damage_threshold = p_d_thres;
-    comp_tensile_ratio = p_ct_ratio;
-    this->nonlocal_L = p_nonlocalL;
-
-    double Ce[NDIM]{p_C11, p_C12, p_C44}; // C11, C12, C44
-    double KnTv[NDIM]{0};
-    if (this->cell.dim == 2)
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, 1.0, this->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
-    else
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, this->cell.radius, this->cell.el_mapping.data(), 3, Ce, 1, 0.0, KnTv, 1);
 
     for (int i = 0; i < nlayer; ++i)
     {
