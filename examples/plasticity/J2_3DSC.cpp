@@ -26,13 +26,14 @@ void run()
     std::array<double, 2 * NDIM> box{-0.0, 10.0, -0.0, 10.0, -0.0, 10.0};
 
     std::vector<std::array<double, NDIM>> sc_xyz = createCuboidSC3D(box, cell, R_matrix);
-    Assembly<n_layer> pt_ass{sc_xyz, box, cell, ParticleType::Elastic}; // elastic bond
+    Assembly<n_layer> pt_ass{sc_xyz, box, cell, ParticleType::J2Plasticity}; // J2 plasticity particle
     printf("\nParticle number is %d\n", pt_ass.nparticle);
 
     // material elastic parameters setting, MPa
     bool is_plane_stress = false;
     double E0 = 146e3, mu0 = 0.3;                      // Young's modulus and Poisson's ratio
     double sigmay = 200, J2_xi = 0.0, J2_H = 38.714e3; // initial yield stress, isotropic hardening, hardening modulus
+    double A = 10;                                     // plasticity damage parameter
     double critical_bstrain = 1;                       // critical bond strain
 
     // simulation settings
@@ -72,8 +73,8 @@ void run()
             internal_group.push_back(p1); // particles with full neighbor list
 
         // assign material properties - need to cast to elastic particle
-        ParticleElastic<n_layer> *elpt = dynamic_cast<ParticleElastic<n_layer> *>(p1);
-        elpt->setParticleProperty(nonlocal_L, is_plane_stress, E0, mu0, critical_bstrain);
+        ParticleJ2Plasticity<n_layer> *elpt = dynamic_cast<ParticleJ2Plasticity<n_layer> *>(p1);
+        elpt->setParticleProperty(nonlocal_L, is_plane_stress, E0, mu0, sigmay, J2_xi, J2_H, A, critical_bstrain);
     }
 
     std::vector<LoadStep<n_layer>> load; // load settings for multiple steps

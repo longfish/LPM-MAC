@@ -92,6 +92,7 @@ enum class ParticleType : char
 {
     Elastic,
     ElasticDamage,
+    J2Plasticity,
     FatigueHCF
 };
 

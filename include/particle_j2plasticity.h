@@ -18,7 +18,7 @@ template <int nlayer>
 class ParticleJ2Plasticity : public Particle<nlayer>
 {
 public:
-    double E{0}, mu{0}, sigmay{0}, xi{0}, H{0};
+    double E{0}, mu{0}, sigmay{0}, xi{0}, H{0}, A{0};
     double damage_threshold{0}, critical_bstrain{0};
 
     ParticleJ2Plasticity(const double &p_x, const double &p_y, const double &p_z, const UnitCell &p_cell) : Particle<nlayer> { p_x, p_y, p_z, p_cell }
@@ -33,14 +33,12 @@ public:
         this->state_var_last = std::vector<double>(7, 0.);
     }
 
-    double computeTriaxiality();
-
     void updateParticleStateVariables();
     bool updateParticleStaticDamage();
     bool updateParticleBrokenBonds();
 
     void updateBondsForce();
-    void setParticleProperty(double p_nonlocalL, bool is_plane_stress, double p_E, double p_mu, double p_sigmay, double p_xi, double p_H, double p_critical_bstrain);
+    void setParticleProperty(double p_nonlocalL, bool is_plane_stress, double p_E, double p_mu, double p_sigmay, double p_xi, double p_H, double p_A, double p_critical_bstrain);
 };
 
 template <int nlayer>
@@ -80,21 +78,20 @@ void ParticleJ2Plasticity<nlayer>::updateBondsForce()
 template <int nlayer>
 void ParticleJ2Plasticity<nlayer>::updateParticleStateVariables()
 {
-    double dlambda = 0.0;                            // plastic multiplier
-    std::vector<double> stress_trial = this->stress; // trial stress tensor
-    std::vector<double> dplstrain(2 * NDIM, 0.0);    // delta plastic strain
+    double sigma_m = 0.0, sigma_eq = 0.0, triaxiality = 0.0, dlambda = 0.0; // plastic multiplier
+    std::vector<double> stress_trial = this->stress;                        // trial stress tensor
+    std::vector<double> dplstrain(2 * NDIM, 0.0);                           // delta plastic strain
 
     /* update stress tensor to be trial devitoric stress tensor */
-    double temp = 1.0 / 3.0 * (stress_trial[0] + stress_trial[1] + stress_trial[2]);
+    sigma_m = 1.0 / 3.0 * (stress_trial[0] + stress_trial[1] + stress_trial[2]);
     for (int j = 0; j < NDIM; j++)
-        stress_trial[j] -= temp;
+        stress_trial[j] -= sigma_m;
 
-    /* substract trial stress tensor with the back stress tensor */
+    /* substract trial stress tensor with the back stress tensor, beta */
     for (int j = 0; j < 2 * NDIM; j++)
-        stress_trial[j] -= this->state_var[j + 1]; // beta
+        stress_trial[j] -= this->state_var[j + 1];
 
     /* von Mises equivalent stress */
-    double sigma_eq = 0.0;
     for (int j = 0; j < 2 * NDIM; j++)
     {
         if (j < NDIM)
@@ -137,26 +134,9 @@ void ParticleJ2Plasticity<nlayer>::updateParticleStateVariables()
         }
     }
 
-    this->Ddot_local = 0; // update local damage rate
-}
-
-template <int nlayer>
-double ParticleJ2Plasticity<nlayer>::computeTriaxiality()
-{
-    double stresseq = 0.0, stressm = 0.0, triaxiality = 0.0;
-    for (int j = 0; j < 2 * NDIM; j++)
-    {
-        if (j < NDIM)
-            stresseq += this->stress[j] * this->stress[j]; // s11, s22, s33
-        else
-            stresseq += 2.0 * this->stress[j] * this->stress[j]; // s23, s13, s12
-    }
-    stresseq = sqrt(3.0 / 2.0 * stresseq);
-    stressm = 1.0 / 3.0 * (this->stress[0] + this->stress[1] + this->stress[2]);
-    if (stresseq > EPS)
-        triaxiality = stressm / stresseq;
-        
-    return triaxiality;
+    if (sigma_eq > EPS)
+        triaxiality = sigma_m / sigma_eq;
+    this->Ddot_local = dlambda * (1.0 + A * triaxiality); // update local damage rate
 }
 
 template <int nlayer>
@@ -172,13 +152,14 @@ bool ParticleJ2Plasticity<nlayer>::updateParticleStaticDamage()
 }
 
 template <int nlayer>
-void ParticleJ2Plasticity<nlayer>::setParticleProperty(double p_nonlocalL, bool is_plane_stress, double p_E, double p_mu, double p_sigmay, double p_xi, double p_H, double p_critical_bstrain)
+void ParticleJ2Plasticity<nlayer>::setParticleProperty(double p_nonlocalL, bool is_plane_stress, double p_E, double p_mu, double p_sigmay, double p_xi, double p_H, double p_A, double p_critical_bstrain)
 {
     E = p_E;
     mu = p_mu;
     sigmay = p_sigmay;
     xi = p_xi;
     H = p_H;
+    A = p_A;
     critical_bstrain = p_critical_bstrain;
     this->nonlocal_L = p_nonlocalL;
 
