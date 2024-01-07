@@ -1,27 +1,23 @@
-# LPM-CPP
+# LPM-MAC
 
 A multi-threaded implementation of a nonlocal lattice particle method (LPM) using an iterative solution procedure. The default force unit is N, displacement unit is mm, pressure unit is MPa. Below shows the image of slip system activation in a SENT sample [1].
 
 ![Slip](slip_system.png)
 
-## Prerequisites
-
-- Linux operating system (also work in Windows or other systems, but require other Integrated Development Environment like [Visual Studio](https://visualstudio.microsoft.com/))
-- Editor (such as VS Code)
-- CMake version 3.25+
-
 ## Building instructions
 
-### Intel MKL environment
+### Eigen + OpenBLAS
 
-1. go to the Intel oneAPI website (https://www.intel.com/content/www/us/en/developer/tools/oneapi/overview.html) download and install the base and hpc toolkits (install 2021.4+ version of oneAPI to have a proper support for CMake)
-2. `source /opt/intel/oneapi/setvars.sh linux64 --force` (directory may change if customize the oneAPI installation)
-3. install Ninja: `sudo apt-get install ninja-build`
-4. install openmp: `sudo apt-get install libomp-dev`
-5. install boost: `sudo apt install libboost-all-dev`
-6. note: please add the MKL include path into your editor preference (like VS Code)
+#### For macOS
 
-### Compile and run LPM-CPP
+1. Install Homebrew from `https://brew.sh/` 
+2. Install LLVM and openmp: `brew install llvm` and `brew install libomp`, add into environment variables
+4. Install OpenBLAS: `brew install openblas`, export `LIBRARY_PATH` and `CPLUS_INCLUDE_PATH` environment variables for OpenBLAS
+4. Download eigen from `https://eigen.tuxfamily.org/`
+5. Download boost from `https://www.boost.org/`
+6. Export both eigen and boost root folder into `CPLUS_INCLUDE_PATH` environment variable
+
+### Compile and run LPM
 
 0. `git pull https://github.com/longfish/LPM-CPP.git` under `LPM-CPP` folder if need an updated version of the code
 1. `source /opt/intel/oneapi/setvars.sh linux64 `

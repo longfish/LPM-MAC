@@ -7,7 +7,10 @@
                 "${workspaceFolder}/examples",
                 "${workspaceFolder}/include",
                 "${workspaceFolder}/geometry",
-                "/opt/intel/oneapi/mkl/latest/include"
+                "/Users/changyu/Applications/eigen-3.4.0",
+                "/Users/changyu/Applications/eigen-3.4.0/Eigen",
+                "/Users/changyu/Applications/boost_1_84_0",
+                "/opt/homebrew/Cellar/llvm/17.0.6/lib/clang/17/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

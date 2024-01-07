@@ -5,14 +5,7 @@
 #include "unit_cell.h"
 #include "lpm.h"
 
-/* Global variables: settings for matrix-vector product, BLAS */
-CBLAS_LAYOUT layout = CblasRowMajor;
-CBLAS_TRANSPOSE trans = CblasNoTrans;
-
-int lda = 3, incx = 1, incy = 1;
-double blasAlpha = 1.0, blasBeta = 0.0;
-
-double *createRMatrix(int eulerflag, double angles[])
+MatrixXd createRMatrix(int eulerflag, double angles[])
 {
     /* Below notations are referred to wiki: https://en.wikipedia.org/wiki/Euler_angles */
     /* 1, 2, 3 represent the rotation angles angle1, angle2, gamma */
@@ -31,7 +24,7 @@ double *createRMatrix(int eulerflag, double angles[])
     //     [0     0   1]
 
     double angle1 = angles[0], angle2 = angles[1], angle3 = angles[2];
-    static double R_matrix[NDIM * NDIM];
+    MatrixXd R_matrix(NDIM, NDIM);
 
     if (eulerflag == 0)
     {
@@ -40,15 +33,15 @@ double *createRMatrix(int eulerflag, double angles[])
         //            [s1s2c3+c1s3   -s1s2s3+c1c3  -s1c2]
         //            [-c1s2c3+s1s3   c1s2s3+s1c3   c1c2]
 
-        R_matrix[0] = cos(angle2) * cos(angle3);
-        R_matrix[1] = -cos(angle2) * sin(angle3);
-        R_matrix[2] = sin(angle2);
-        R_matrix[3] = cos(angle1) * sin(angle3) + sin(angle1) * sin(angle2) * cos(angle3);
-        R_matrix[4] = cos(angle1) * cos(angle3) - sin(angle1) * sin(angle2) * sin(angle3);
-        R_matrix[5] = -sin(angle1) * cos(angle2);
-        R_matrix[6] = sin(angle1) * sin(angle3) - cos(angle1) * sin(angle2) * cos(angle3);
-        R_matrix[7] = sin(angle1) * cos(angle3) + cos(angle1) * sin(angle2) * sin(angle3);
-        R_matrix[8] = cos(angle1) * cos(angle2);
+        R_matrix(0, 0) = cos(angle2) * cos(angle3);
+        R_matrix(0, 1) = -cos(angle2) * sin(angle3);
+        R_matrix(0, 2) = sin(angle2);
+        R_matrix(1, 0) = cos(angle1) * sin(angle3) + sin(angle1) * sin(angle2) * cos(angle3);
+        R_matrix(1, 1) = cos(angle1) * cos(angle3) - sin(angle1) * sin(angle2) * sin(angle3);
+        R_matrix(1, 2) = -sin(angle1) * cos(angle2);
+        R_matrix(2, 0) = sin(angle1) * sin(angle3) - cos(angle1) * sin(angle2) * cos(angle3);
+        R_matrix(2, 1) = sin(angle1) * cos(angle3) + cos(angle1) * sin(angle2) * sin(angle3);
+        R_matrix(2, 2) = cos(angle1) * cos(angle2);
     }
     else if (eulerflag == 1)
     {
@@ -57,15 +50,15 @@ double *createRMatrix(int eulerflag, double angles[])
         //            [s1c2c3+c1s3  -s1c2s3+c1c3  s2s1]
         //            [-s2c3         s2s3         c2  ]
 
-        R_matrix[0] = -cos(angle1) * cos(angle2) * cos(angle3) - sin(angle1) * sin(angle3);
-        R_matrix[1] = cos(angle3) * sin(angle1) - sin(angle3) * cos(angle2) * cos(angle1);
-        R_matrix[2] = sin(angle2) * cos(angle1);
-        R_matrix[3] = sin(angle3) * cos(angle1) - cos(angle3) * cos(angle2) * sin(angle1);
-        R_matrix[4] = -cos(angle1) * cos(angle3) - sin(angle1) * cos(angle2) * sin(angle3);
-        R_matrix[5] = sin(angle2) * sin(angle1);
-        R_matrix[6] = cos(angle3) * sin(angle2);
-        R_matrix[7] = sin(angle3) * sin(angle2);
-        R_matrix[8] = cos(angle2);
+        R_matrix(0, 0) = -cos(angle1) * cos(angle2) * cos(angle3) - sin(angle1) * sin(angle3);
+        R_matrix(0, 1) = cos(angle3) * sin(angle1) - sin(angle3) * cos(angle2) * cos(angle1);
+        R_matrix(0, 2) = sin(angle2) * cos(angle1);
+        R_matrix(1, 0) = sin(angle3) * cos(angle1) - cos(angle3) * cos(angle2) * sin(angle1);
+        R_matrix(1, 1) = -cos(angle1) * cos(angle3) - sin(angle1) * cos(angle2) * sin(angle3);
+        R_matrix(1, 2) = sin(angle2) * sin(angle1);
+        R_matrix(2, 0) = cos(angle3) * sin(angle2);
+        R_matrix(2, 1) = sin(angle3) * sin(angle2);
+        R_matrix(2, 2) = cos(angle2);
     }
     else if (eulerflag == 2)
     {
@@ -74,23 +67,21 @@ double *createRMatrix(int eulerflag, double angles[])
         //            [c1c2s3+c3s1  c1c2c3-s1s3  -c1s2]
         //            [s2s3          s2c3         c2  ]
 
-        R_matrix[0] = -sin(angle1) * cos(angle2) * sin(angle3) + cos(angle1) * cos(angle3);
-        R_matrix[1] = -sin(angle3) * cos(angle1) - cos(angle3) * cos(angle2) * sin(angle1);
-        R_matrix[2] = sin(angle1) * sin(angle2);
-
-        R_matrix[3] = cos(angle3) * sin(angle1) + sin(angle3) * cos(angle2) * cos(angle1);
-        R_matrix[4] = -sin(angle1) * sin(angle3) + cos(angle1) * cos(angle2) * cos(angle3);
-        R_matrix[5] = -cos(angle1) * sin(angle2);
-
-        R_matrix[6] = sin(angle2) * sin(angle3);
-        R_matrix[7] = sin(angle2) * cos(angle3);
-        R_matrix[8] = cos(angle2);
+        R_matrix(0, 0) = -sin(angle1) * cos(angle2) * sin(angle3) + cos(angle1) * cos(angle3);
+        R_matrix(0, 1) = -sin(angle3) * cos(angle1) - cos(angle3) * cos(angle2) * sin(angle1);
+        R_matrix(0, 2) = sin(angle1) * sin(angle2);
+        R_matrix(1, 0) = cos(angle3) * sin(angle1) + sin(angle3) * cos(angle2) * cos(angle1);
+        R_matrix(1, 1) = -sin(angle1) * sin(angle3) + cos(angle1) * cos(angle2) * cos(angle3);
+        R_matrix(1, 2) = -cos(angle1) * sin(angle2);
+        R_matrix(2, 0) = sin(angle2) * sin(angle3);
+        R_matrix(2, 1) = sin(angle2) * cos(angle3);
+        R_matrix(2, 2) = cos(angle2);
     }
 
     return R_matrix;
 }
 
-std::vector<std::array<double, NDIM>> createPlateSQ2D(std::array<double, 2 * NDIM> box, UnitCell cell, double R_matrix[])
+std::vector<std::array<double, NDIM>> createPlateSQ2D(std::array<double, 2 * NDIM> box, UnitCell cell, MatrixXd R_matrix)
 {
     /* 2D square lattice (double layer neighbor) */
     double a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2));
@@ -103,19 +94,19 @@ std::vector<std::array<double, NDIM>> createPlateSQ2D(std::array<double, 2 * NDI
     int rows = floor((box_t[3] - box_t[2]) / hy);
 
     std::vector<std::array<double, NDIM>> xyz_t; /* Coordinate vector */
-    double p[NDIM] = {0}, p_new[NDIM] = {0};
+    VectorXd p(NDIM), p_new(NDIM);
     for (int j = 1; j <= rows; j++)
     {
-        p[1] = box_t[2] + hy * (j - 1) + cell.radius;
+        p(1) = box_t[2] + hy * (j - 1) + cell.radius;
         for (int i = 1; i <= particles_first_row; i++)
         {
-            p[0] = box_t[0] + hx * (i - 1) + cell.radius;
-            cblas_dgemv(layout, trans, NDIM, NDIM, blasAlpha, R_matrix, lda, p, incx, blasBeta, p_new, incy);
+            p(0) = box_t[0] + hx * (i - 1) + cell.radius;
+            p_new = R_matrix * p;
 
-            if (p_new[0] >= box[0] && p_new[0] <= box[1] &&
-                p_new[1] >= box[2] && p_new[1] <= box[3])
+            if (p_new(0) >= box[0] && p_new(0) <= box[1] &&
+                p_new(1) >= box[2] && p_new(1) <= box[3])
             {
-                std::array<double, NDIM> p_arr{p_new[0], p_new[1], 0};
+                std::array<double, NDIM> p_arr{p_new(0), p_new(1), 0};
                 xyz_t.push_back(p_arr);
             }
         }
@@ -124,7 +115,7 @@ std::vector<std::array<double, NDIM>> createPlateSQ2D(std::array<double, 2 * NDI
     return xyz_t;
 }
 
-std::vector<std::array<double, NDIM>> createPlateHEX2D(std::array<double, 2 * NDIM> box, UnitCell cell, double R_matrix[])
+std::vector<std::array<double, NDIM>> createPlateHEX2D(std::array<double, 2 * NDIM> box, UnitCell cell, MatrixXd R_matrix)
 {
     /* 2D hexagon lattice (double layer neighbor) */
     double a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2));
@@ -136,39 +127,39 @@ std::vector<std::array<double, NDIM>> createPlateHEX2D(std::array<double, 2 * ND
     int rows = 1 + floor((box_t[3] - box_t[2]) / hy);
 
     std::vector<std::array<double, NDIM>> xyz_t; /* Coordinate vector */
-    double p[NDIM] = {0}, p_new[NDIM] = {0};
+    VectorXd p(NDIM), p_new(NDIM);
     std::vector<std::array<double, NDIM>> xyz;
     for (int j = 1; j <= rows; j++)
     {
-        p[1] = box_t[2] + hy * (j - 1);
+        p(1) = box_t[2] + hy * (j - 1);
         if (j % 2 == 1)
             for (int i = 1; i <= particles_first_row; i++)
             {
-                p[0] = box_t[0] + hx * (i - 1);
-                xyz.push_back(std::array<double, NDIM>{p[0], p[1], 0});
+                p(0) = box_t[0] + hx * (i - 1);
+                xyz.push_back(std::array<double, NDIM>{p(0), p(1), 0});
             }
         else
             for (int i = 1; i <= particles_first_row - 1; i++)
             {
-                p[0] = box_t[0] + hx * (2 * i - 1) / 2.0;
-                xyz.push_back(std::array<double, NDIM>{p[0], p[1], 0});
+                p(0) = box_t[0] + hx * (2 * i - 1) / 2.0;
+                xyz.push_back(std::array<double, NDIM>{p(0), p(1), 0});
             }
     }
 
     /* rotate the system */
     for (std::array<double, NDIM> pt : xyz)
     {
-        p[0] = pt[0];
-        p[1] = pt[1];
-        p[2] = pt[2];
+        p(0) = pt[0];
+        p(1) = pt[1];
+        p(2) = pt[2];
 
-        cblas_dgemv(layout, trans, NDIM, NDIM, blasAlpha, R_matrix, lda, p, incx, blasBeta, p_new, incy);
+        p_new = R_matrix * p;
 
         /* test if the rotated system is within the specified domain */
-        if (p_new[0] >= box[0] && p_new[0] <= box[1] &&
-            p_new[1] >= box[2] && p_new[1] <= box[3])
+        if (p_new(0) >= box[0] && p_new(0) <= box[1] &&
+            p_new(1) >= box[2] && p_new(1) <= box[3])
         {
-            std::array<double, NDIM> p_arr{p_new[0], p_new[1], p_new[2]};
+            std::array<double, NDIM> p_arr{p_new(0), p_new(1), p_new(2)};
             xyz_t.push_back(p_arr);
         }
     }
@@ -176,7 +167,7 @@ std::vector<std::array<double, NDIM>> createPlateHEX2D(std::array<double, 2 * ND
     return xyz_t;
 }
 
-std::vector<std::array<double, NDIM>> createCuboidSC3D(std::array<double, 2 * NDIM> box, UnitCell cell, double R_matrix[])
+std::vector<std::array<double, NDIM>> createCuboidSC3D(std::array<double, 2 * NDIM> box, UnitCell cell, MatrixXd R_matrix)
 {
 
     /* initialize the particle xyz_t (a larger system) */
@@ -192,24 +183,24 @@ std::vector<std::array<double, NDIM>> createCuboidSC3D(std::array<double, 2 * ND
     int layers = 1 + (int)floor((box_t[5] - box_t[4]) / hz);
 
     std::vector<std::array<double, NDIM>> xyz_t;
-    double p[NDIM] = {0}, p_new[NDIM] = {0};
+    VectorXd p(NDIM), p_new(NDIM);
     for (int k = 1; k <= layers; k++)
     {
-        p[2] = box_t[4] + hz * (k - 1); // z
+        p(2) = box_t[4] + hz * (k - 1); // z
         for (int j = 1; j <= rows; j++)
         {
-            p[1] = box_t[2] + hy * (j - 1); // y
+            p(1) = box_t[2] + hy * (j - 1); // y
             for (int i = 1; i <= particles_first_row; i++)
             {
-                p[0] = box[0] + hx * (i - 1); // x
-                cblas_dgemv(layout, trans, NDIM, NDIM, blasAlpha, R_matrix, lda, p, incx, blasBeta, p_new, incy);
+                p(0) = box[0] + hx * (i - 1); // x
+                p_new = R_matrix * p;
 
                 /* test if the rotated system is within the specified domain */
-                if (p_new[0] >= box[0] && p_new[0] <= box[1] &&
-                    p_new[1] >= box[2] && p_new[1] <= box[3] &&
-                    p_new[2] >= box[4] && p_new[2] <= box[5])
+                if (p_new(0) >= box[0] && p_new(0) <= box[1] &&
+                    p_new(1) >= box[2] && p_new(1) <= box[3] &&
+                    p_new(2) >= box[4] && p_new(2) <= box[5])
                 {
-                    std::array<double, NDIM> p_arr{p_new[0], p_new[1], p_new[2]};
+                    std::array<double, NDIM> p_arr{p_new(0), p_new(1), p_new(2)};
                     xyz_t.push_back(p_arr);
                 }
             }
@@ -219,7 +210,7 @@ std::vector<std::array<double, NDIM>> createCuboidSC3D(std::array<double, 2 * ND
     return xyz_t;
 }
 
-std::vector<std::array<double, NDIM>> createCuboidFCC3D(std::array<double, 2 * NDIM> box, UnitCell cell, double R_matrix[])
+std::vector<std::array<double, NDIM>> createCuboidFCC3D(std::array<double, 2 * NDIM> box, UnitCell cell, MatrixXd R_matrix)
 {
     /* initialize the particle xyz_t (a larger system) */
     double a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2) + pow(box[5] - box[4], 2));
@@ -234,30 +225,30 @@ std::vector<std::array<double, NDIM>> createCuboidFCC3D(std::array<double, 2 * N
     int layers = 1 + (int)floor((box_t[5] - box_t[4]) / (hz / 2.0));
 
     std::vector<std::array<double, NDIM>> xyz;
-    double p[NDIM] = {0}, p_new[NDIM] = {0};
+    VectorXd p(NDIM), p_new(NDIM);
 
     for (int k = 1; k <= layers; k++)
     {
-        p[2] = box_t[4] + hz / 2.0 * (k - 1);
+        p(2) = box_t[4] + hz / 2.0 * (k - 1);
         if (k % 2 == 1)
         {
             for (int j = 1; j <= rows; j++)
             {
-                p[1] = box_t[2] + hy / 2.0 * (j - 1);
+                p(1) = box_t[2] + hy / 2.0 * (j - 1);
                 if (j % 2 == 1)
                 {
                     for (int i = 1; i <= particles_first_row; i++)
                     {
-                        p[0] = box_t[0] + hx * (i - 1);
-                        xyz.push_back(std::array<double, NDIM>{p[0], p[1], p[2]});
+                        p(0) = box_t[0] + hx * (i - 1);
+                        xyz.push_back(std::array<double, NDIM>{p(0), p(1), p(2)});
                     }
                 }
                 else
                 {
                     for (int i = 1; i <= particles_first_row - 1; i++)
                     {
-                        p[0] = box_t[0] + hx * (i - 1) + hx / 2.0;
-                        xyz.push_back(std::array<double, NDIM>{p[0], p[1], p[2]});
+                        p(0) = box_t[0] + hx * (i - 1) + hx / 2.0;
+                        xyz.push_back(std::array<double, NDIM>{p(0), p(1), p(2)});
                     }
                 }
             }
@@ -266,21 +257,21 @@ std::vector<std::array<double, NDIM>> createCuboidFCC3D(std::array<double, 2 * N
         {
             for (int j = 1; j <= rows; j++)
             {
-                p[1] = box_t[2] + hy / 2.0 * (j - 1);
+                p(1) = box_t[2] + hy / 2.0 * (j - 1);
                 if (j % 2 == 1)
                 {
                     for (int i = 1; i <= particles_first_row - 1; i++)
                     {
-                        p[0] = box_t[0] + hx * (i - 1) + hx / 2.0;
-                        xyz.push_back(std::array<double, NDIM>{p[0], p[1], p[2]});
+                        p(0) = box_t[0] + hx * (i - 1) + hx / 2.0;
+                        xyz.push_back(std::array<double, NDIM>{p(0), p(1), p(2)});
                     }
                 }
                 else
                 {
                     for (int i = 1; i <= particles_first_row; i++)
                     {
-                        p[0] = box_t[0] + hx * (i - 1);
-                        xyz.push_back(std::array<double, NDIM>{p[0], p[1], p[2]});
+                        p(0) = box_t[0] + hx * (i - 1);
+                        xyz.push_back(std::array<double, NDIM>{p(0), p(1), p(2)});
                     }
                 }
             }
@@ -290,18 +281,18 @@ std::vector<std::array<double, NDIM>> createCuboidFCC3D(std::array<double, 2 * N
     std::vector<std::array<double, NDIM>> xyz_t;
     for (std::array<double, NDIM> pt : xyz)
     {
-        p[0] = pt[0];
-        p[1] = pt[1];
-        p[2] = pt[2];
+        p(0) = pt[0];
+        p(1) = pt[1];
+        p(2) = pt[2];
 
-        cblas_dgemv(layout, trans, NDIM, NDIM, blasAlpha, R_matrix, lda, p, incx, blasBeta, p_new, incy);
+        p_new = R_matrix * p;
 
         /* test if the rotated system is within the specified domain */
-        if (p_new[0] >= box[0] && p_new[0] <= box[1] &&
-            p_new[1] >= box[2] && p_new[1] <= box[3] &&
-            p_new[2] >= box[4] && p_new[2] <= box[5])
+        if (p_new(0) >= box[0] && p_new(0) <= box[1] &&
+            p_new(1) >= box[2] && p_new(1) <= box[3] &&
+            p_new(2) >= box[4] && p_new(2) <= box[5])
         {
-            std::array<double, NDIM> p_arr{p_new[0], p_new[1], p_new[2]};
+            std::array<double, NDIM> p_arr{p_new(0), p_new(1), p_new(2)};
             xyz_t.push_back(p_arr);
         }
     }

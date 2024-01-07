@@ -24,15 +24,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <boost/range/adaptor/indexed.hpp>
-
 #include <omp.h>
-#include <mkl.h>
-#include <mkl_pardiso.h>
-#include <mkl_types.h>
-#include <mkl_rci.h>
-#include <mkl_blas.h>
-#include <mkl_spblas.h>
-#include <mkl_service.h>
+
+#include <Eigen/Dense>
 
 using namespace boost::adaptors;
 
