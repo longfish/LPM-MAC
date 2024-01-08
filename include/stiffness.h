@@ -21,8 +21,8 @@ class Stiffness
     StiffnessMode mode; // use finite difference or analytical approach to compute local stiffness
 
 public:
-    MKL_INT *IK, *JK;
-    MKL_INT *K_pointer; // start index for each particle in the global stiffness matrix
+    int *IK, *JK;
+    int *K_pointer; // start index for each particle in the global stiffness matrix
     double *residual, *K_global;
 
     void initialize(std::vector<Particle<nlayer> *> &pt_sys);

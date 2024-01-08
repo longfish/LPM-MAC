@@ -16,7 +16,7 @@
 // #include "geo2_dogbone_configuration.cpp"
 // #include "geo2_dogbone_config2d.cpp"
 
-// #include "ex1_isoelasticity_2d_hex.cpp"
+#include "ex1_isoelasticity_2d_hex.cpp"
 // #include "ex1_isoelasticity_3d_sc.cpp"
 // #include "ex2_polycrystal_3d_bcc.cpp"
 // #include "ex3_singlecrystal_3d_fcc.cpp"
@@ -34,7 +34,7 @@
 // #include "ex6_Ti64_2d_fatigue_crack_G6a.cpp"
 // #include "ex6_Ti64_2d_fatigue_crack_calib.cpp"
 // #include "ex7_convergence_beam.cpp"
-#include "plasticity/J2_3DSC.cpp"
+// #include "plasticity/J2_3DSC.cpp"
 
 /************************************************************************/
 /****************************** Main procedure **************************/
@@ -49,8 +49,6 @@ int main(int argc, char *argv[])
     printf("OpenMP with %d threads\n", nt);
 
     run();
-
-    mkl_free_buffers(); // frees unused memory allocated by the Intel MKL Memory Allocator
 
     return 0;
 }

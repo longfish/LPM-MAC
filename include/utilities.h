@@ -5,7 +5,7 @@
 #include "unit_cell.h"
 #include "lpm.h"
 
-MatrixXd createRMatrix(int eulerflag, double angles[])
+Eigen::MatrixXd createRMatrix(int eulerflag, double angles[])
 {
     /* Below notations are referred to wiki: https://en.wikipedia.org/wiki/Euler_angles */
     /* 1, 2, 3 represent the rotation angles angle1, angle2, gamma */
@@ -24,7 +24,7 @@ MatrixXd createRMatrix(int eulerflag, double angles[])
     //     [0     0   1]
 
     double angle1 = angles[0], angle2 = angles[1], angle3 = angles[2];
-    MatrixXd R_matrix(NDIM, NDIM);
+    Eigen::MatrixXd R_matrix(NDIM, NDIM);
 
     if (eulerflag == 0)
     {
@@ -81,7 +81,7 @@ MatrixXd createRMatrix(int eulerflag, double angles[])
     return R_matrix;
 }
 
-std::vector<std::array<double, NDIM>> createPlateSQ2D(std::array<double, 2 * NDIM> box, UnitCell cell, MatrixXd R_matrix)
+std::vector<std::array<double, NDIM>> createPlateSQ2D(std::array<double, 2 * NDIM> box, UnitCell cell, Eigen::MatrixXd R_matrix)
 {
     /* 2D square lattice (double layer neighbor) */
     double a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2));
@@ -94,7 +94,7 @@ std::vector<std::array<double, NDIM>> createPlateSQ2D(std::array<double, 2 * NDI
     int rows = floor((box_t[3] - box_t[2]) / hy);
 
     std::vector<std::array<double, NDIM>> xyz_t; /* Coordinate vector */
-    VectorXd p(NDIM), p_new(NDIM);
+    Eigen::VectorXd p(NDIM), p_new(NDIM);
     for (int j = 1; j <= rows; j++)
     {
         p(1) = box_t[2] + hy * (j - 1) + cell.radius;
@@ -115,7 +115,7 @@ std::vector<std::array<double, NDIM>> createPlateSQ2D(std::array<double, 2 * NDI
     return xyz_t;
 }
 
-std::vector<std::array<double, NDIM>> createPlateHEX2D(std::array<double, 2 * NDIM> box, UnitCell cell, MatrixXd R_matrix)
+std::vector<std::array<double, NDIM>> createPlateHEX2D(std::array<double, 2 * NDIM> box, UnitCell cell, Eigen::MatrixXd R_matrix)
 {
     /* 2D hexagon lattice (double layer neighbor) */
     double a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2));
@@ -127,7 +127,7 @@ std::vector<std::array<double, NDIM>> createPlateHEX2D(std::array<double, 2 * ND
     int rows = 1 + floor((box_t[3] - box_t[2]) / hy);
 
     std::vector<std::array<double, NDIM>> xyz_t; /* Coordinate vector */
-    VectorXd p(NDIM), p_new(NDIM);
+    Eigen::VectorXd p(NDIM), p_new(NDIM);
     std::vector<std::array<double, NDIM>> xyz;
     for (int j = 1; j <= rows; j++)
     {
@@ -167,7 +167,7 @@ std::vector<std::array<double, NDIM>> createPlateHEX2D(std::array<double, 2 * ND
     return xyz_t;
 }
 
-std::vector<std::array<double, NDIM>> createCuboidSC3D(std::array<double, 2 * NDIM> box, UnitCell cell, MatrixXd R_matrix)
+std::vector<std::array<double, NDIM>> createCuboidSC3D(std::array<double, 2 * NDIM> box, UnitCell cell, Eigen::MatrixXd R_matrix)
 {
 
     /* initialize the particle xyz_t (a larger system) */
@@ -183,7 +183,7 @@ std::vector<std::array<double, NDIM>> createCuboidSC3D(std::array<double, 2 * ND
     int layers = 1 + (int)floor((box_t[5] - box_t[4]) / hz);
 
     std::vector<std::array<double, NDIM>> xyz_t;
-    VectorXd p(NDIM), p_new(NDIM);
+    Eigen::VectorXd p(NDIM), p_new(NDIM);
     for (int k = 1; k <= layers; k++)
     {
         p(2) = box_t[4] + hz * (k - 1); // z
@@ -210,7 +210,7 @@ std::vector<std::array<double, NDIM>> createCuboidSC3D(std::array<double, 2 * ND
     return xyz_t;
 }
 
-std::vector<std::array<double, NDIM>> createCuboidFCC3D(std::array<double, 2 * NDIM> box, UnitCell cell, MatrixXd R_matrix)
+std::vector<std::array<double, NDIM>> createCuboidFCC3D(std::array<double, 2 * NDIM> box, UnitCell cell, Eigen::MatrixXd R_matrix)
 {
     /* initialize the particle xyz_t (a larger system) */
     double a = sqrt(pow(box[1] - box[0], 2) + pow(box[3] - box[2], 2) + pow(box[5] - box[4], 2));
@@ -225,7 +225,7 @@ std::vector<std::array<double, NDIM>> createCuboidFCC3D(std::array<double, 2 * N
     int layers = 1 + (int)floor((box_t[5] - box_t[4]) / (hz / 2.0));
 
     std::vector<std::array<double, NDIM>> xyz;
-    VectorXd p(NDIM), p_new(NDIM);
+    Eigen::VectorXd p(NDIM), p_new(NDIM);
 
     for (int k = 1; k <= layers; k++)
     {

@@ -21,7 +21,7 @@ void run()
     // angle1, angle2 and an angle3 are Euler angles in degree, double
     int eulerflag = 0; // direct rotation
     double angles[] = {PI / 180.0 * 0.0, PI / 180.0 * 0.0, PI / 180.0 * 0.0};
-    double *R_matrix = createRMatrix(eulerflag, angles);
+    Eigen::MatrixXd R_matrix = createRMatrix(eulerflag, angles);
 
     // import a particle system
     Assembly<n_layer> pt_ass{"../geometry/geo2_DogBone_3DSC.dump", "../geometry/geo2_DogBone_3DSC.bond", cell, ParticleType::FatigueHCF}; // read coordinate from local files

@@ -12,8 +12,8 @@ public:
     int nneighbors, nneighbors1, nneighbors2;
     int nneighbors_AFEM, nneighbors_AFEM1, nneighbors_AFEM2;
     double radius;
-    double particle_volume;                     /* volume of unit cell */
-    std::array<double, NDIM * NDIM> el_mapping; /* mapping from elasticity to Kn, Tv */
+    double particle_volume;     /* volume of unit cell */
+    Eigen::MatrixXd el_mapping; /* mapping from elasticity to Kn, Tv */
     std::vector<double> neighbor_cutoff;
 
     UnitCell(LatticeType p_lattice, double p_radius);
@@ -43,9 +43,10 @@ UnitCell::UnitCell(LatticeType p_lattice, double p_radius)
 
 void UnitCell::setSquare()
 {
-    el_mapping = {1. / 2., -1. / 2., 0.,
-                  0., 0., 1. / 2.,
-                  0., 1. / 12., -1. / 12.};
+    double data[] = {1. / 2., -1. / 2., 0.,
+                     0., 0., 1. / 2.,
+                     0., 1. / 12., -1. / 12.};
+    el_mapping = Eigen::Map<const Eigen::MatrixXd>(data, NDIM, NDIM);
     dim = 2;
     nneighbors = 8;
     nneighbors1 = 4;
@@ -59,9 +60,10 @@ void UnitCell::setSquare()
 
 void UnitCell::setHexagon()
 {
-    el_mapping = {sqrt(3.0) / 12.0, -sqrt(3.0) / 12.0, 0.,
-                  -sqrt(3.0) / 144.0, sqrt(3.0) / 48.0, 0.0,
-                  0.0, 0.0, 1.0};
+    double data[] = {sqrt(3.0) / 12.0, -sqrt(3.0) / 12.0, 0.,
+                     -sqrt(3.0) / 144.0, sqrt(3.0) / 48.0, 0.0,
+                     0.0, 0.0, 1.0};
+    el_mapping = Eigen::Map<const Eigen::MatrixXd>(data, NDIM, NDIM);
     dim = 2;
     nneighbors = 12;
     nneighbors1 = 6;
@@ -75,9 +77,10 @@ void UnitCell::setHexagon()
 
 void UnitCell::setSimpleCubic()
 {
-    el_mapping = {1, -1, -1.0,
-                  0.0, 0.0, 1.,
-                  0.0, 1 / 18.0, -1 / 18.0};
+    double data[] = {1, -1, -1.0,
+                     0.0, 0.0, 1.,
+                     0.0, 1 / 18.0, -1 / 18.0};
+    el_mapping = Eigen::Map<const Eigen::MatrixXd>(data, NDIM, NDIM);
     dim = 3;
     nneighbors = 18;
     nneighbors1 = 6;
@@ -91,9 +94,10 @@ void UnitCell::setSimpleCubic()
 
 void UnitCell::setFCC()
 {
-    el_mapping = {0.0, 0.0, sqrt(2.0),
-                  sqrt(2.0) / 4, -sqrt(2.0) / 4, -sqrt(2.0) / 4,
-                  0.0, sqrt(2.0) / 24, -sqrt(2.0) / 24};
+    double data[] = {0.0, 0.0, sqrt(2.0),
+                     sqrt(2.0) / 4, -sqrt(2.0) / 4, -sqrt(2.0) / 4,
+                     0.0, sqrt(2.0) / 24, -sqrt(2.0) / 24};
+    el_mapping = Eigen::Map<const Eigen::MatrixXd>(data, NDIM, NDIM);
     dim = 3;
     nneighbors = 18;
     nneighbors1 = 12;
@@ -107,9 +111,10 @@ void UnitCell::setFCC()
 
 void UnitCell::setBCC()
 {
-    el_mapping = {0.0, 0.0, sqrt(3.0),
-                  1 / sqrt(3.0), -1 / sqrt(3.0), 0.,
-                  0.0, sqrt(3.0) / 14, sqrt(3.0) / 14};
+    double data[] = {0.0, 0.0, sqrt(3.0),
+                     1 / sqrt(3.0), -1 / sqrt(3.0), 0.,
+                     0.0, sqrt(3.0) / 14, sqrt(3.0) / 14};
+    el_mapping = Eigen::Map<const Eigen::MatrixXd>(data, NDIM, NDIM);
     dim = 3;
     nneighbors = 14;
     nneighbors1 = 8;

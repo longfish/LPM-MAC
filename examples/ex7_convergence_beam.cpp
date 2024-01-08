@@ -53,7 +53,7 @@ void run()
     // angle1, angle2 and an angle3 are Euler angles in degree, double
     int eulerflag = 0; // direct rotation
     double angles[] = {PI / 180.0 * 0.0, PI / 180.0 * 0.0, PI / 180.0 * 0.0};
-    double *R_matrix = createRMatrix(eulerflag, angles);
+    Eigen::MatrixXd R_matrix = createRMatrix(eulerflag, angles);
 
     // create a simulation box
     // xmin; xmax; ymin; ymax; zmin; zmax

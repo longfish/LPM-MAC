@@ -6,9 +6,7 @@ A multi-threaded implementation of a nonlocal lattice particle method (LPM) usin
 
 ## Building instructions
 
-### Eigen + OpenBLAS
-
-#### For macOS
+### Eigen + OpenBLAS for macOS
 
 1. Install Homebrew from `https://brew.sh/` 
 2. Install LLVM and openmp: `brew install llvm` and `brew install libomp`, add into environment variables
@@ -16,6 +14,7 @@ A multi-threaded implementation of a nonlocal lattice particle method (LPM) usin
 4. Download eigen from `https://eigen.tuxfamily.org/`
 5. Download boost from `https://www.boost.org/`
 6. Export both eigen and boost root folder into `CPLUS_INCLUDE_PATH` environment variable
+7. Properly setup the IDE configuration 
 
 ### Compile and run LPM
 
