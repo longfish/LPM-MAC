@@ -171,21 +171,24 @@ void ParticleFatigueHCF<nlayer>::setParticleProperty(double p_nonlocalL, bool is
     fatigue_limit_ratio = p_f_lmt_ratio;
     this->nonlocal_L = p_nonlocalL;
 
-    double KnTv[NDIM]{0};
-    std::vector<double> Ce(NDIM);
+    Eigen::VectorXd KnTv(NDIM), Ce(NDIM);
     if (!is_plane_stress)
-        Ce = {p_E * (1.0 - p_mu) / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
-              p_E * p_mu / (1.0 + p_mu) / (1.0 - 2.0 * p_mu),
-              p_E / 2.0 / (1.0 + p_mu)}; // C11, C12, C44
+    {
+        Ce(0) = p_E * (1.0 - p_mu) / (1.0 + p_mu) / (1.0 - 2.0 * p_mu);
+        Ce(1) = p_E * p_mu / (1.0 + p_mu) / (1.0 - 2.0 * p_mu);
+        Ce(2) = p_E / 2.0 / (1.0 + p_mu); // C11, C12, C44
+    }
     else
-        Ce = {p_E / (1.0 - p_mu) / (1.0 + p_mu),
-              p_E * p_mu / (1.0 + p_mu) / (1.0 - p_mu),
-              p_E / 2.0 / (1.0 + p_mu)}; // C11, C12, C44
+    {
+        Ce(0) = p_E / (1.0 - p_mu) / (1.0 + p_mu);
+        Ce(1) = p_E * p_mu / (1.0 + p_mu) / (1.0 - p_mu);
+        Ce(2) = p_E / 2.0 / (1.0 + p_mu);
+    }; // C11, C12, C44
 
     if (this->cell.dim == 2)
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, 1.0, this->cell.el_mapping.data(), 3, Ce.data(), 1, 0.0, KnTv, 1);
+        KnTv = this->cell.el_mapping * Ce;
     else
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, NDIM, 1, NDIM, this->cell.radius, this->cell.el_mapping.data(), 3, Ce.data(), 1, 0.0, KnTv, 1);
+        KnTv = this->cell.radius * this->cell.el_mapping * Ce;
 
     for (int i = 0; i < nlayer; ++i)
     {
@@ -193,13 +196,13 @@ void ParticleFatigueHCF<nlayer>::setParticleProperty(double p_nonlocalL, bool is
         {
             if (this->cell.lattice == LatticeType::Hexagon2D)
             {
-                bd->Kn = KnTv[0];
-                bd->Tv = KnTv[1];
+                bd->Kn = KnTv(0);
+                bd->Tv = KnTv(1);
             }
             else
             {
-                bd->Kn = KnTv[bd->layer]; // layer is 0 or 1
-                bd->Tv = KnTv[2];
+                bd->Kn = KnTv(bd->layer); // layer is 0 or 1
+                bd->Tv = KnTv(2);
             }
         }
     }

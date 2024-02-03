@@ -10,21 +10,19 @@ A multi-threaded implementation of a nonlocal lattice particle method (LPM) usin
 
 1. Install Homebrew from `https://brew.sh/` 
 2. Install LLVM and openmp: `brew install llvm` and `brew install libomp`, add into environment variables
-4. Install OpenBLAS: `brew install openblas`, export `LIBRARY_PATH` and `CPLUS_INCLUDE_PATH` environment variables for OpenBLAS
-4. Download eigen from `https://eigen.tuxfamily.org/`
-5. Download boost from `https://www.boost.org/`
-6. Export both eigen and boost root folder into `CPLUS_INCLUDE_PATH` environment variable
-7. Properly setup the IDE configuration 
+3. Install CMake: `brew install cmake`
+4. Install OpenBLAS: `brew install openblas`, export `OpenBLAS_DIR` environment variables for OpenBLAS .cmake files
+5. Install Boost: `brew install boost`, export `OpenBLAS_DIR` environment variables for Boost .cmake files
+6. Download Eigen from `https://eigen.tuxfamily.org/`
+7. Export Eigen root folder into `CPLUS_INCLUDE_PATH` environment variable
+8. Properly setup the IDE configuration 
 
 ### Compile and run LPM
 
 0. `git pull https://github.com/longfish/LPM-CPP.git` under `LPM-CPP` folder if need an updated version of the code
-1. `source /opt/intel/oneapi/setvars.sh linux64 `
-2. `git clone https://github.com/longfish/LPM-CPP.git`  # clone the project source files into your own machine
-3. `mkdir build`
-4. `cd build`
-5. `cmake .. -G "Ninja" -DMKL_INTERFACE=ilp64 -DCMAKE_BUILD_TYPE=Release` # change from *Release* to *Debug* for debugging (e.g., valgrind)
-6. `cmake --build . -j 8`
+1. `mkdir build && cd build`
+2. `cmake .. -DCMAKE_BUILD_TYPE=Release` # change from *Release* to *Debug* for debugging (e.g., valgrind)
+3. `cmake --build . -j 8`
 
 ## Run the code
 

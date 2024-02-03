@@ -27,6 +27,8 @@
 #include <omp.h>
 
 #include <Eigen/Dense>
+#include <Eigen/Sparse>
+#include <Eigen/IterativeLinearSolvers>
 
 using namespace boost::adaptors;
 
@@ -46,13 +48,6 @@ double func_phi(const double x, const double L)
     return pow(1 / (1 + pow(x / L, p)), q);
 }
 
-// Define the format to printf MKL_INT values
-#ifndef MKL_ILP64
-#define IFORMAT "%i"
-#else
-#define IFORMAT "%lli"
-#endif
-
 enum class ExactSolution : char
 {
     Beam001
@@ -66,8 +61,7 @@ enum class LoadMode : char
 
 enum class SolverMode : char
 {
-    CG,
-    PARDISO
+    CG
 };
 
 enum class StiffnessMode : char

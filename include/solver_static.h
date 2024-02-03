@@ -109,11 +109,8 @@ bool SolverStatic<nlayer>::solveProblemStep(LoadStep<nlayer> &load_step, double 
         // update the stiffness matrix using current state variables (bdamage)
         this->stiffness.reset(this->ass.pt_sys);
         double t11 = omp_get_wtime();
-        if (this->ass.pt_sys[0]->cell.dim == 2)
-            this->stiffness.calcStiffness2D(this->ass.pt_sys);
-        else
-            this->stiffness.calcStiffness3D(this->ass.pt_sys);
-        this->stiffness.updateStiffnessDispBC(this->ass.pt_sys);
+        this->stiffness.calcStiffness(this->ass.pt_sys);
+        //this->stiffness.updateStiffnessDispBC(this->ass.pt_sys);
         double t12 = omp_get_wtime();
         printf("Stiffness matrix calculation costs %f seconds\n", t12 - t11);
 
